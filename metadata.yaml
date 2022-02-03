@@ -1,0 +1,20 @@
+# Copyright 2021 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: zookeeper-k8s
+display-name: TODO
+description: |
+  TODO
+
+summary: |
+  TODO:
+
+containers:
+  zookeeper-k8s:
+    resource: zookeeper-k8s-image
+
+resources:
+  zookeeper-k8s-image:
+    type: oci-image
+    description: OCI image for Zookeeper K8s
+    upstream-source: confluentinc/cp-zookeeper:7.0.1
