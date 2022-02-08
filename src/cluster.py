@@ -12,7 +12,7 @@ from typing import Set
 
 from ops.charm import CharmBase, CharmEvents
 from ops.framework import EventBase, EventSource, Object, StoredState
-from ops.model import Relation, ActiveStatus
+from ops.model import Relation
 
 logger = logging.getLogger(__name__)
 
