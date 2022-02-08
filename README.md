@@ -1,4 +1,4 @@
-<!-- Copyright 2021 Canonical Ltd.
+<!-- Copyright 2022 Canonical Ltd.
 See LICENSE file for licensing details. -->
 
 # Zookeeper K8s Operator
@@ -23,9 +23,15 @@ $ juju add-model zookeeper-k8s
 $ juju deploy zookeeper-k8s
 ```
 
+### Scale 
+
+```shell
+$ juju scale-application zookeeper-k8s 3
+```
+
 ## OCI Images
 
-- [zookeeper-k8s](<image_url>)
+- [zookeeper-k8s](https://hub.docker.com/layers/confluentinc/cp-zookeeper/7.0.1/images)
 
 ## Contributing
 

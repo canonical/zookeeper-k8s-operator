@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-# Copyright 2021 Canonical Ltd.
+# Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Zookeeper K8s charm module."""
 
 import logging
+import socket
+from typing import Any, Dict
 
-from ops.charm import CharmBase, ConfigChangedEvent
+import jinja2
+from ops.charm import CharmBase, ConfigChangedEvent, RelationJoinedEvent
 from ops.main import main
 from ops.model import (
     ActiveStatus,
@@ -17,29 +20,96 @@ from ops.model import (
 )
 from ops.pebble import ServiceStatus
 
+from cluster import ZookeeperCluster, ZookeeperClusterEvents
+
 logger = logging.getLogger(__name__)
+
+
+ZOOKEEPER_PROPERTIES_TEMPLATE = "templates/zookeeper.properties.j2"
+
+
+def _convert_key_to_confluent_syntax(key: str) -> str:
+    new_key = key.replace("_", "___").replace("-", "__").replace(".", "_")
+    new_key = "".join([f"_{char}" if char.isupper() else char for char in new_key])
+    return f"ZOOKEEPER_{new_key.upper()}"
 
 
 class ZookeeperK8sCharm(CharmBase):
     """Zookeeper K8s Charm operator."""
 
+    on = ZookeeperClusterEvents()
+
     def __init__(self, *args):
         super().__init__(*args)
 
+        # Peer relation object
+        self.cluster = ZookeeperCluster(self)
+
         # Observe charm events
         event_observe_mapping = {
-            self.on.zookeeper_k8s_pebble_ready: self._on_config_changed,
+            self.on.zookeeper_pebble_ready: self._on_config_changed,
             self.on.config_changed: self._on_config_changed,
+            self.on.servers_changed: self._on_config_changed,
             self.on.update_status: self._on_update_status,
+            self.on.cluster_relation_joined: self._on_cluster_relation_joined,
         }
         for event, observer in event_observe_mapping.items():
             self.framework.observe(event, observer)
 
     # ---------------------------------------------------------------------------
+    #   Properties
+    # ---------------------------------------------------------------------------
+
+    @property
+    def server_id(self) -> str:
+        """Get zookeeper server id.
+
+        The server id must be a string containing a number from 1 to 255.
+        This function uses the charm unit number to generate the server id.
+        Since the unit numbers start with 0, the returned number will be the
+        number of the unit plus 1.
+
+        Returns:
+            A string with the zookeeper server id.
+        """
+        unit_number = int(self.unit.name.split("/")[1])
+        return str(unit_number + 1)
+
+    @property
+    def zookeeper_envs(self) -> Dict[str, Any]:
+        """Get Zookeeper environment variables.
+
+        This function uses the template `templates/zookeeper.properties`,
+        replaces the variables taking into account the charm configuration,
+        and converts it to the expected environment variables in the container.
+
+        Returns:
+            Dictionary with the environment variables needed for Zookeeper container.
+        """
+        envs = {}
+        with open(ZOOKEEPER_PROPERTIES_TEMPLATE, "r") as f:
+            zookeeper_properties_template: jinja2.Template = jinja2.Template(f.read())
+            zookeeper_properties: str = zookeeper_properties_template.render(
+                tick_time=self.config["tick-time"],
+                init_limit=self.config["init-limit"],
+                sync_limit=self.config["sync-limit"],
+                max_client_cnxns=self.config["max-client-cnxns"],
+                min_session_timeout=self.config["min-session-timeout"],
+                max_session_timeout=self.config["max-session-timeout"],
+                autopurge_snap_retain_count=self.config["autopurge-snap-retain-count"],
+                autopurge_purge_interval=self.config["autopurge-purge-interval"],
+            )
+            for zookeeper_property in zookeeper_properties.splitlines():
+                key, value = zookeeper_property.split("=")
+                key = _convert_key_to_confluent_syntax(key)
+                envs[key] = value
+            return envs
+
+    # ---------------------------------------------------------------------------
     #   Handlers for Charm Events
     # ---------------------------------------------------------------------------
 
-    def _on_config_changed(self, event: ConfigChangedEvent):
+    def _on_config_changed(self, event: ConfigChangedEvent) -> None:
         """Handler for the config-changed event."""
         # Validate charm configuration
         try:
@@ -49,30 +119,38 @@ class ZookeeperK8sCharm(CharmBase):
             return
 
         # Check Pebble has started in the container
-        container: Container = self.unit.get_container("zookeeper-k8s")
+        container: Container = self.unit.get_container("zookeeper")
         if not container.can_connect():
             logger.debug("waiting for pebble to start")
             self.unit.status = MaintenanceStatus("waiting for pebble to start")
             return
 
-        # Add Pebble layer with the zookeeper-k8s service
-        container.add_layer(
-            "zookeeper-k8s",
-            {
-                "summary": "zookeeper-k8s layer",
-                "description": "pebble config layer for zookeeper-k8s",
-                "services": {
-                    "zookeeper-k8s": {
-                        "override": "replace",
-                        "summary": "zookeeper-k8s service",
-                        "command": "sleep infinity",
-                        "startup": "enabled",
-                        "environment": {},
-                    }
-                },
+        # Add Pebble layer with the zookeeper service
+        heap_size = self.config["heap-size"]
+        layer = {
+            "summary": "zookeeper layer",
+            "description": "pebble config layer for zookeeper",
+            "services": {
+                "zookeeper": {
+                    "override": "replace",
+                    "summary": "zookeeper service",
+                    "command": "/etc/confluent/docker/run",
+                    "startup": "enabled",
+                    "environment": {
+                        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                        "container": "oci",
+                        "LANG": "C.UTF-8",
+                        "CUB_CLASSPATH": "/usr/share/java/cp-base-new/*",
+                        "COMPONENT": "zookeeper",
+                        "ZOOKEEPER_SERVER_ID": self.server_id,
+                        "ZOOKEEPER_SERVERS": ";".join(self.cluster.servers),
+                        "KAFKA_HEAP_OPTS": f"-Xmx{heap_size} -Xms{heap_size}",
+                        **self.zookeeper_envs,
+                    },
+                }
             },
-            combine=True,
-        )
+        }
+        container.add_layer("zookeeper", layer, combine=True)
         container.replan()
 
         # Update charm status
@@ -80,17 +158,21 @@ class ZookeeperK8sCharm(CharmBase):
 
     def _on_update_status(self, _=None) -> None:
         """Handler for the update-status event."""
-        # Check if the zookeeper-k8s service is configured
-        container: Container = self.unit.get_container("zookeeper-k8s")
-        if not container.can_connect() or "zookeeper-k8s" not in container.get_plan().services:
-            self.unit.status = WaitingStatus("zookeeper-k8s service not configured yet")
+        # Check if the zookeeper service is configured
+        container: Container = self.unit.get_container("zookeeper")
+        if not container.can_connect() or "zookeeper" not in container.get_plan().services:
+            self.unit.status = WaitingStatus("zookeeper service not configured yet")
             return
 
-        # Check if the zookeeper-k8s service is running
-        if container.get_service("zookeeper-k8s").current == ServiceStatus.ACTIVE:
+        # Check if the zookeeper service is running
+        if container.get_service("zookeeper").current == ServiceStatus.ACTIVE:
             self.unit.status = ActiveStatus()
         else:
-            self.unit.status = BlockedStatus("zookeeper-k8s service is not running")
+            self.unit.status = BlockedStatus("zookeeper service is not running")
+
+    def _on_cluster_relation_joined(self, event: RelationJoinedEvent) -> None:
+        """Handler for the cluster relation-joined event."""
+        self.cluster.register_server(host=socket.getfqdn(), server_port=2888, election_port=3888)
 
     # ---------------------------------------------------------------------------
     #   Validation and configuration
