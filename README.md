@@ -4,7 +4,7 @@ See LICENSE file for licensing details. -->
 # Zookeeper K8s Operator
 
 [![code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black/tree/main)
-[![Run-Tests](https://github.com/gh-user/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/gh-user/zookeeper-k8s-operator/actions/workflows/ci.yaml)
+[![Run-Tests](https://github.com/charmed-osm/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/charmed-osm/zookeeper-k8s-operator/actions/workflows/ci.yaml)
 
 
 [![Zookeeper K8s](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper-k8s)
@@ -23,7 +23,7 @@ $ juju add-model zookeeper-k8s
 $ juju deploy zookeeper-k8s
 ```
 
-### Scale 
+### Scale
 
 ```shell
 $ juju scale-application zookeeper-k8s 3
