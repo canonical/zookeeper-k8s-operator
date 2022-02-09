@@ -22,3 +22,8 @@ resources:
 peers:
   cluster:
     interface: cluster
+
+storage:
+  database:
+    type: filesystem
+    location: /var/lib/zookeeper
