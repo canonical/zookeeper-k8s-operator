@@ -8,7 +8,7 @@ __all__ = ["ZookeeperClusterEvents", "ZookeeperCluster"]
 
 import logging
 import re
-from typing import Set
+from typing import List, Set
 
 from ops.charm import CharmBase, CharmEvents
 from ops.framework import EventBase, EventSource, Object, StoredState
@@ -104,22 +104,25 @@ class ZookeeperCluster(Object):
         """
         super().__init__(charm, "cluster")
         self.charm = charm
-        self._relation: Relation = self.framework.model.get_relation("cluster")
+        self.framework.observe(charm.on.leader_elected, self._handle_servers_update)
         self.framework.observe(charm.on.cluster_relation_changed, self._handle_servers_update)
         self.framework.observe(charm.on.cluster_relation_departed, self._handle_servers_update)
-        self._stored.set_default(last_servers=set())
+        self._stored.set_default(last_servers=[])
 
     @property
-    def servers(self) -> Set[str]:
+    def servers(self) -> List[str]:
         """Get the zookeeper servers from the relation.
 
         Returns:
-            Set[str]: set containing the zookeeper servers. The servers are represented
-                      with a string that follows this format:
-                            <host>:<server-port>:<election-port>
+            List[str]: list containing the zookeeper servers. The servers are represented
+                       with a string that follows this format: <host>:<server-port>:<election-port>
         """
         servers = self._get_servers_from_app_relation()
         return _natural_sort_set(servers)
+
+    @property
+    def _relation(self) -> Relation:
+        return self.framework.model.get_relation("cluster")
 
     def register_server(self, host: str, server_port: int, election_port: int) -> None:
         """Register a server as part of the cluster.

@@ -10,7 +10,7 @@ from charm import ZookeeperK8sCharm
 
 
 @pytest.fixture
-def harness(mocker: MockerFixture):
+def harness():
     zookeeper_harness = Harness(ZookeeperK8sCharm)
     zookeeper_harness.begin()
     yield zookeeper_harness
@@ -62,3 +62,21 @@ def test_on_update_status(mocker: MockerFixture, harness: Harness):
     harness.charm.unit.get_container("zookeeper").start("zookeeper")
     harness.charm.on.zookeeper_pebble_ready.emit("zookeeper")
     assert harness.charm.unit.status == ActiveStatus()
+
+
+def test_scaling(mocker: MockerFixture, harness: Harness):
+    # Set current unit the leader
+    harness.set_leader(True)
+    # Add remote unit
+    remote_unit = f"{harness.charm.app.name}/1"
+    relation_id = harness.add_relation("cluster", harness.charm.app.name)
+    harness.add_relation_unit(relation_id, remote_unit)
+    harness.update_relation_data(
+        relation_id,
+        remote_unit,
+        {"host": "zookeeper-1", "server-port": "2888", "election-port": "3888"},
+    )
+    # Register current unit
+    harness.charm.cluster.register_server(host="zookeeper-0", server_port=2888, election_port=3888)
+
+    assert ["zookeeper-0:2888:3888", "zookeeper-1:2888:3888"] == harness.charm.cluster.servers
