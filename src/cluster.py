@@ -5,7 +5,7 @@
 
 __all__ = ["ZookeeperClusterEvents", "ZookeeperCluster"]
 
-
+import ast
 import logging
 import re
 from typing import List, Set
@@ -154,11 +154,12 @@ class ZookeeperCluster(Object):
         #   - The relation object is initialized
         #   - The event was triggered by a change
         #     in the unit data of the remote unit
-        if self.model.unit.is_leader() and self._relation:
-            self._update_servers()
-        if self._stored.last_servers != self.servers:
-            self._stored.last_servers = self.servers
-            self.charm.on.servers_changed.emit()
+        if self._relation:
+            if self.model.unit.is_leader():
+                self._update_servers()
+            if self._stored.last_servers != self.servers:
+                self._stored.last_servers = self.servers
+                self.charm.on.servers_changed.emit()
 
     def _build_server_string(self, host: str, server_port: str, election_port: str) -> str:
         """Build server string.
@@ -198,11 +199,11 @@ class ZookeeperCluster(Object):
             )
             servers.add(server)
 
-        self._relation.data[self.model.app]["servers"] = str(servers)
+        self._relation.data[self.model.app]["servers"] = str(servers) if servers else ""
         logger.debug(f"{self._relation.data}")
 
     def _get_servers_from_app_relation(self) -> Set[str]:
         servers_str = (
             self._relation.data[self.model.app].get("servers") if self._relation else None
         )
-        return eval(servers_str) if servers_str else set()
+        return ast.literal_eval(servers_str) if servers_str else set()
