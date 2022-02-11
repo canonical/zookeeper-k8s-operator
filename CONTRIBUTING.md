@@ -6,7 +6,7 @@ This documents explains the processes and practices recommended for contributing
 the Zookeeper K8s charm.
 
 - Generally, before developing enhancements to this charm, you should consider [opening an issue
-  ](https://github.com/davigar15/zookeeper-k8s-operator/issues) explaining your use case.
+  ](https://github.com/charmed-osm/zookeeper-k8s-operator/issues) explaining your use case.
 - If you would like to chat with us about your use-cases or proposed implementation, you can reach
   us at [Canonical Mattermost public channel](https://chat.charmhub.io/charmhub/channels/charm-dev)
   or [Discourse](https://discourse.charmhub.io/).
@@ -55,7 +55,7 @@ juju add-model test-zookeeper-k8s
 juju model-config logging-config="<root>=INFO;unit=DEBUG"
 # Deploy the charm
 juju deploy ./zookeeper-k8s_ubuntu-20.04-amd64.charm \
-  --resource zookeeper-k8s-image=<image>
+  --resource zookeeper-k8s-image=confluentinc/cp-zookeeper:7.0.1
 ```
 
 ## Canonical Contributor Agreement
