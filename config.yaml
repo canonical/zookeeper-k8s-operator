@@ -2,55 +2,21 @@
 # See LICENSE file for licensing details.
 
 options:
-  tick-time:
-    description: |
-      The length of a single tick, which is the basic time unit used by ZooKeeper,
-      as measured in milliseconds. It is used to regulate heartbeats, and timeouts.
-      For example, the minimum session timeout will be two ticks.
-    type: int
-    default: 2000
-  init-limit:
-    description: |
-      Amount of time, in ticks (see tickTime), to allow followers to connect
-      and sync to a leader. Increased this value as needed, 
-      if the amount of data managed by ZooKeeper is large.
-    type: int
-    default: 5
-  sync-limit:
-    description: |
-      Amount of time, in ticks (see tickTime), to allow followers to sync
-      with ZooKeeper. If followers fall too far behind a leader,they will be dropped.
-    type: int
-    default: 2
-  max-client-cnxns:
-    description: |
-      Limits the number of concurrent connections (at the socket level) 
-      that a single client, identified by IP address, may make to a single member 
-      of the ZooKeeper ensemble.
-    type: int
-    default: 60
-  min-session-timeout:
-    description: Min session timeout
-    type: int
-    default: 4000
-  max-session-timeout:
-    description: Max session timeout
-    type: int
-    default: 40000
-  autopurge-snap-retain-count:
-    description: |
-      When enabled, ZooKeeper auto purge feature retains the
-      autopurge.snapRetainCount most recent snapshots and the corresponding
-      transaction logs in the dataDir and dataLogDir respectively and deletes the rest.
-      Defaults to 3. Minimum value is 3.
-    type: int
-    default: 3
-  autopurge-purge-interval:
-    description: |
-      The time interval in hours for which the purge task has to be triggered.
-      Set to a positive integer (1 and above) to enable the auto purging.
-    type: int
-    default: 0
+  zookeeper-properties:
+    description: zookeeper.properties configuration file.
+    type: string
+    default: |
+      clientPort=2181
+      dataDir=/var/lib/zookeeper/data
+      dataLogDir=/var/lib/zookeeper/log
+      tickTime=2000
+      initLimit=5
+      syncLimit=2
+      maxClientCnxns=60
+      minSessionTimeout=4000
+      maxSessionTimeout=40000
+      autopurge.snapRetainCount=3
+      autopurge.purgeInterval=0
   heap-size:
     description: Heap memory
     type: string

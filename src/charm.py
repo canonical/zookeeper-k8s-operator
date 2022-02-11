@@ -8,7 +8,6 @@ import logging
 import socket
 from typing import Any, Dict
 
-import jinja2
 from ops.charm import (
     CharmBase,
     ConfigChangedEvent,
@@ -29,9 +28,6 @@ from cluster import ZookeeperCluster, ZookeeperClusterEvents
 from zookeeper_provides import ZookeeperProvides
 
 logger = logging.getLogger(__name__)
-
-
-ZOOKEEPER_PROPERTIES_TEMPLATE = "templates/zookeeper.properties.j2"
 
 
 def _convert_key_to_confluent_syntax(key: str) -> str:
@@ -95,23 +91,13 @@ class ZookeeperK8sCharm(CharmBase):
             Dictionary with the environment variables needed for Zookeeper container.
         """
         envs = {}
-        with open(ZOOKEEPER_PROPERTIES_TEMPLATE, "r") as f:
-            zookeeper_properties_template: jinja2.Template = jinja2.Template(f.read())
-            zookeeper_properties: str = zookeeper_properties_template.render(
-                tick_time=self.config["tick-time"],
-                init_limit=self.config["init-limit"],
-                sync_limit=self.config["sync-limit"],
-                max_client_cnxns=self.config["max-client-cnxns"],
-                min_session_timeout=self.config["min-session-timeout"],
-                max_session_timeout=self.config["max-session-timeout"],
-                autopurge_snap_retain_count=self.config["autopurge-snap-retain-count"],
-                autopurge_purge_interval=self.config["autopurge-purge-interval"],
-            )
-            for zookeeper_property in zookeeper_properties.splitlines():
-                key, value = zookeeper_property.split("=")
-                key = _convert_key_to_confluent_syntax(key)
-                envs[key] = value
-            return envs
+        for zookeeper_property in self.config["zookeeper-properties"].splitlines():
+            if "=" not in zookeeper_property:
+                continue
+            key, value = zookeeper_property.split("=")
+            key = _convert_key_to_confluent_syntax(key)
+            envs[key] = value
+        return envs
 
     # ---------------------------------------------------------------------------
     #   Handlers for Charm Events
