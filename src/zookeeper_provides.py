@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 
-"""Zookeeper cluster peer relation module."""
+"""Zookeeper provides relation module."""
 
 __all__ = ["ZookeeperProvides"]
 
