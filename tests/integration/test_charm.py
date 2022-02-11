@@ -86,7 +86,7 @@ async def test_zookeeper_scaling(ops_test: OpsTest, kazoo):
     await ops_test.model.applications["zookeeper-k8s"].scale(3)
     await ops_test.model.wait_for_idle(apps=["zookeeper-k8s"], status="active", timeout=1000)
     # Run zookeeper test
-    test_zookeeper(kazoo)
+    await test_zookeeper(kazoo)
     # Check created node
     for _ in range(100):
         data, stat = kazoo.get("/scaling/test/message")

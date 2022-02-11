@@ -9,7 +9,12 @@ import socket
 from typing import Any, Dict
 
 import jinja2
-from ops.charm import CharmBase, ConfigChangedEvent, RelationJoinedEvent
+from ops.charm import (
+    CharmBase,
+    ConfigChangedEvent,
+    RelationCreatedEvent,
+    RelationJoinedEvent,
+)
 from ops.main import main
 from ops.model import (
     ActiveStatus,
@@ -21,6 +26,7 @@ from ops.model import (
 from ops.pebble import ServiceStatus
 
 from cluster import ZookeeperCluster, ZookeeperClusterEvents
+from zookeeper_provides import ZookeeperProvides
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +48,9 @@ class ZookeeperK8sCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
 
-        # Peer relation object
-        self.cluster = ZookeeperCluster(self)
+        # Relation objects
+        self.cluster = ZookeeperCluster(self)  # Peer relation
+        self.zookeeper = ZookeeperProvides(self)  # Zookeeper relation
 
         # Observe charm events
         event_observe_mapping = {
@@ -51,7 +58,8 @@ class ZookeeperK8sCharm(CharmBase):
             self.on.config_changed: self._on_config_changed,
             self.on.servers_changed: self._on_config_changed,
             self.on.update_status: self._on_update_status,
-            self.on.cluster_relation_joined: self._on_cluster_relation_joined,
+            self.on.cluster_relation_created: self._on_cluster_relation_created,
+            self.on.zookeeper_relation_joined: self._on_zookeeper_relation_joined,
         }
         for event, observer in event_observe_mapping.items():
             self.framework.observe(event, observer)
@@ -76,7 +84,7 @@ class ZookeeperK8sCharm(CharmBase):
         return str(unit_number + 1)
 
     @property
-    def zookeeper_envs(self) -> Dict[str, Any]:
+    def zookeeper_properties(self) -> Dict[str, Any]:
         """Get Zookeeper environment variables.
 
         This function uses the template `templates/zookeeper.properties`,
@@ -143,15 +151,19 @@ class ZookeeperK8sCharm(CharmBase):
                         "CUB_CLASSPATH": "/usr/share/java/cp-base-new/*",
                         "COMPONENT": "zookeeper",
                         "ZOOKEEPER_SERVER_ID": self.server_id,
-                        "ZOOKEEPER_SERVERS": ";".join(self.cluster.servers),
+                        "ZOOKEEPER_SERVERS": ";".join(self.cluster.cluster_addresses),
                         "KAFKA_HEAP_OPTS": f"-Xmx{heap_size} -Xms{heap_size}",
-                        **self.zookeeper_envs,
+                        **self.zookeeper_properties,
                     },
                 }
             },
         }
         container.add_layer("zookeeper", layer, combine=True)
         container.replan()
+
+        # Provide zookeeper client addresses through the relation
+        if self.cluster.client_addresses:
+            self.zookeeper.update_hosts(",".join(self.cluster.client_addresses))
 
         # Update charm status
         self._on_update_status()
@@ -170,9 +182,21 @@ class ZookeeperK8sCharm(CharmBase):
         else:
             self.unit.status = BlockedStatus("zookeeper service is not running")
 
-    def _on_cluster_relation_joined(self, event: RelationJoinedEvent) -> None:
-        """Handler for the cluster relation-joined event."""
-        self.cluster.register_server(host=socket.getfqdn(), server_port=2888, election_port=3888)
+    def _on_cluster_relation_created(self, _: RelationCreatedEvent) -> None:
+        """Handler for the cluster relation-created event."""
+        self.cluster.register_server(
+            host=socket.getfqdn(),
+            client_port=2181,
+            server_port=2888,
+            election_port=3888,
+        )
+
+    def _on_zookeeper_relation_joined(self, event: RelationJoinedEvent) -> None:
+        """Handler for the zookeeper relation-joined event."""
+        if self.unit.is_leader():
+            self.zookeeper.update_hosts(
+                ",".join(self.cluster.client_addresses), relation_id=event.relation.id
+            )
 
     # ---------------------------------------------------------------------------
     #   Validation and configuration
@@ -188,4 +212,4 @@ class ZookeeperK8sCharm(CharmBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main(ZookeeperK8sCharm, use_juju_for_storage=True)
+    main(ZookeeperK8sCharm)

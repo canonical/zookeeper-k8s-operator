@@ -23,6 +23,11 @@ peers:
   cluster:
     interface: cluster
 
+provides:
+  zookeeper:
+    interface: zookeeper
+    limit: 1
+
 storage:
   database:
     type: filesystem

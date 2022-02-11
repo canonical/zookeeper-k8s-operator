@@ -10,9 +10,19 @@ from charm import ZookeeperK8sCharm
 
 
 @pytest.fixture
-def harness():
+def harness(mocker: MockerFixture):
+    mocker.patch("charm.socket.getfqdn", return_value="zookeeper-0")
     zookeeper_harness = Harness(ZookeeperK8sCharm)
     zookeeper_harness.begin()
+    yield zookeeper_harness
+    zookeeper_harness.cleanup()
+
+
+@pytest.fixture
+def harness_startup(mocker: MockerFixture):
+    mocker.patch("charm.socket.getfqdn", return_value="zookeeper-0")
+    zookeeper_harness = Harness(ZookeeperK8sCharm)
+    zookeeper_harness.begin_with_initial_hooks()
     yield zookeeper_harness
     zookeeper_harness.cleanup()
 
@@ -64,7 +74,7 @@ def test_on_update_status(mocker: MockerFixture, harness: Harness):
     assert harness.charm.unit.status == ActiveStatus()
 
 
-def test_scaling(mocker: MockerFixture, harness: Harness):
+def test_scaling(harness: Harness):
     # Set current unit the leader
     harness.set_leader(True)
     # Add remote unit
@@ -74,9 +84,31 @@ def test_scaling(mocker: MockerFixture, harness: Harness):
     harness.update_relation_data(
         relation_id,
         remote_unit,
-        {"host": "zookeeper-1", "server-port": "2888", "election-port": "3888"},
+        {
+            "host": "zookeeper-1",
+            "client-port": "2181",
+            "server-port": "2888",
+            "election-port": "3888",
+        },
     )
-    # Register current unit
-    harness.charm.cluster.register_server(host="zookeeper-0", server_port=2888, election_port=3888)
 
-    assert ["zookeeper-0:2888:3888", "zookeeper-1:2888:3888"] == harness.charm.cluster.servers
+    assert [
+        "zookeeper-0:2888:3888",
+        "zookeeper-1:2888:3888",
+    ] == harness.charm.cluster.cluster_addresses
+
+
+def test_zookeeper_relation(mocker: MockerFixture, harness_startup: Harness):
+    # Set current unit the leader
+    harness_startup.set_leader(True)
+
+    # Add remote unit
+    remote_app = "kafka"
+    relation_id = harness_startup.add_relation("zookeeper", remote_app)
+    harness_startup.add_relation_unit(relation_id, f"{remote_app}/0")
+
+    expected_data = {"hosts": "zookeeper-0:2181"}
+    assert (
+        harness_startup.get_relation_data(relation_id, harness_startup.charm.app.name)
+        == expected_data
+    )
