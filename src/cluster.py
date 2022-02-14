@@ -10,26 +10,20 @@ import re
 from typing import List, Set
 
 from ops.charm import CharmBase, CharmEvents
-from ops.framework import EventBase, EventSource, Object, StoredState
+from ops.framework import EventBase, EventSource, Object
 from ops.model import Relation
 
 logger = logging.getLogger(__name__)
 
 # Relation unit data keys
 HOST_UNIT_KEY = "host"
-CLIENT_PORT_UNIT_KEY = "client-port"
-SERVER_PORT_UNIT_KEY = "server-port"
-ELECTION_PORT_UNIT_KEY = "election-port"
-_REQUIRED_UNIT_KEYS = (
-    HOST_UNIT_KEY,
-    CLIENT_PORT_UNIT_KEY,
-    SERVER_PORT_UNIT_KEY,
-    ELECTION_PORT_UNIT_KEY,
-)
 
 # Relation app data keys
 CLUSTER_ADDRESSES_APP_KEY = "cluster-addresses"
 CLIENT_ADDRESSES_APP_KEY = "client-addresses"
+CLIENT_PORT_APP_KEY = "client-port"
+SERVER_PORT_APP_KEY = "server-port"
+ELECTION_PORT_APP_KEY = "election-port"
 
 
 def _natural_sort_set(_set: Set[str]) -> List[str]:
@@ -108,25 +102,43 @@ class ZookeeperCluster(Object):
 
             def _on_servers_changed(self, event):
                 # Handle the servers changed event.
+                cluster_addresses = self.cluster.cluster_addresses
+                client_addresses = self.cluster.client_addresses
 
             def _on_cluster_relation_created(self, event):
-                self.cluster.register_server(socket.getfqdn(), 2181, 2888, 3888)
+                # Handle the cluster-relation-created event.
+                self.cluster.register_server(socket.getfqdn())
     """
 
-    _stored = StoredState()
-
-    def __init__(self, charm: CharmBase) -> None:
+    def __init__(
+        self,
+        charm: CharmBase,
+        client_port: int = 2181,
+        server_port: int = 2888,
+        election_port: int = 3888,
+    ) -> None:
         """Constructor.
 
         Args:
             charm (CharmBase): The charm that implements the relation.
+            client_port (int, optional): Client port. Defaults to 2181.
+            server_port (int, optional): Server port. Defaults to 2888.
+            election_port (int, optional): Election port. Defaults to 3888.
         """
         super().__init__(charm, "cluster")
         self.charm = charm
-        self.framework.observe(charm.on.leader_elected, self._handle_servers_update)
-        self.framework.observe(charm.on.cluster_relation_changed, self._handle_servers_update)
-        self.framework.observe(charm.on.cluster_relation_departed, self._handle_servers_update)
-        self._stored.set_default(last_cluster_addresses=[], last_client_addresses=[])
+        self.client_port = client_port
+        self.server_port = server_port
+        self.election_port = election_port
+
+        # Observe charm events
+        event_observe_mapping = {
+            charm.on.leader_elected: self._on_leader_elected,
+            charm.on.cluster_relation_changed: self._handle_servers_update,
+            charm.on.cluster_relation_departed: self._handle_servers_update,
+        }
+        for event, observer in event_observe_mapping.items():
+            self.framework.observe(event, observer)
 
     @property
     def cluster_addresses(self) -> List[str]:
@@ -150,35 +162,30 @@ class ZookeeperCluster(Object):
         client_addresses = self._get_client_addresses_from_app_relation()
         return client_addresses.split(",") if client_addresses else []
 
-    def register_server(
-        self, host: str, client_port: int, server_port: int, election_port: int
-    ) -> None:
+    def register_server(self, host: str) -> None:
         """Register a server as part of the cluster.
 
         This method will cause a relation-changed event in the other units,
-        since it sets the keys "host", "server-port", and "election-port" in
-        the unit relation data.
+        since it sets the key "host" in the unit relation data.
 
         Args:
             host (str): IP or hostname of the zookeeper server to be registered.
-            client_port (int): Zookeeper client port.
-            server_port (int): Zookeeper server port.
-            election_port (int): Zookeeper election port.
         """
         relation_data = self._relation.data[self.model.unit]
         relation_data[HOST_UNIT_KEY] = host
-        relation_data[CLIENT_PORT_UNIT_KEY] = str(client_port)
-        relation_data[SERVER_PORT_UNIT_KEY] = str(server_port)
-        relation_data[ELECTION_PORT_UNIT_KEY] = str(election_port)
-        if self.model.unit.is_leader():
-            self._update_servers()
+        self._update_servers()
 
     @property
     def _relation(self) -> Relation:
         return self.framework.model.get_relation("cluster")
 
+    def _on_leader_elected(self, _) -> None:
+        """Handler for the leader-elected event."""
+        if self._relation:
+            self._update_servers()
+
     def _handle_servers_update(self, _):
-        """Handler for the leader-elected, relation-changed, and relation-departed events.
+        """Handler for the relation-changed, and relation-departed events.
 
         If the application data has been updated,
         the ZookeeperClusterEvents.servers_changed event will be triggered.
@@ -186,25 +193,19 @@ class ZookeeperCluster(Object):
         # Only need to continue if:
         #   - The unit is the leader
         #   - The relation object is initialized
-        #   - The event was triggered by a change
-        #     in the unit data of the remote unit
         if self._relation:
-            if self.model.unit.is_leader():
-                self._update_servers()
-            if (
-                self._stored.last_cluster_addresses != self.cluster_addresses
-                or self._stored.last_client_addresses != self.client_addresses
-            ):
-                self._stored.last_cluster_addresses = self.cluster_addresses
-                self._stored.last_client_addresses = self.client_addresses
-                self.charm.on.servers_changed.emit()
+            self._update_servers()
+            self.charm.on.servers_changed.emit()
 
     def _update_servers(self) -> None:
         """Update servers in peer relation.
 
-        This function writes in the application relation data, therefore, only the leader
-        can call it. If a non-leader unit calls this function, an exception will be raised.
+        This function writes in the application relation data, therefore, it checks whether
+        the current unit is the leader or not. If a non-leader unit calls this function,
+        it won't do anything.
         """
+        if not self.model.unit.is_leader():
+            return
         cluster_addresses = set()
         client_addresses = set()
         units = self._relation.units.copy()
@@ -212,17 +213,17 @@ class ZookeeperCluster(Object):
         for unit in units:
             # Check that the required unit data is present in the remote unit
             relation_data = self._relation.data[unit]
-            if not all(data in relation_data for data in _REQUIRED_UNIT_KEYS):
+            if HOST_UNIT_KEY not in relation_data:
                 continue
             # Build client and cluster addresses
             cluster_address = self._build_cluster_address(
                 host=relation_data[HOST_UNIT_KEY],
-                server_port=relation_data[SERVER_PORT_UNIT_KEY],
-                election_port=relation_data[ELECTION_PORT_UNIT_KEY],
+                server_port=self.server_port,
+                election_port=self.election_port,
             )
             client_address = self._build_client_address(
                 host=relation_data[HOST_UNIT_KEY],
-                client_port=relation_data[CLIENT_PORT_UNIT_KEY],
+                client_port=self.client_port,
             )
             # Store addresses
             cluster_addresses.add(cluster_address)
@@ -231,6 +232,9 @@ class ZookeeperCluster(Object):
         app_data = self._relation.data[self.model.app]
         app_data[CLUSTER_ADDRESSES_APP_KEY] = ",".join(_natural_sort_set(cluster_addresses))
         app_data[CLIENT_ADDRESSES_APP_KEY] = ",".join(_natural_sort_set(client_addresses))
+        app_data[CLIENT_PORT_APP_KEY] = str(self.client_port)
+        app_data[SERVER_PORT_APP_KEY] = str(self.server_port)
+        app_data[ELECTION_PORT_APP_KEY] = str(self.election_port)
 
     def _get_cluster_addresses_from_app_relation(self) -> str:
         """Get cluster addresses from the app relation data.
@@ -256,25 +260,25 @@ class ZookeeperCluster(Object):
             else None
         )
 
-    def _build_cluster_address(self, host: str, server_port: str, election_port: str) -> str:
+    def _build_cluster_address(self, host: str, server_port: int, election_port: int) -> str:
         """Build cluster address.
 
         Args:
             host (str): IP or hostname of the zookeeper server to be registered.
-            server_port (str): Zookeeper server port.
-            election_port (str): Zookeeper election port.
+            server_port (int): Zookeeper server port.
+            election_port (int): Zookeeper election port.
 
         Returns:
             str: String with the following format: <host>:<server-port>:<election-port>.
         """
         return f"{host}:{server_port}:{election_port}"
 
-    def _build_client_address(self, host: str, client_port: str) -> str:
+    def _build_client_address(self, host: str, client_port: int) -> str:
         """Build client address.
 
         Args:
             host (str): IP or hostname of the zookeeper server to be registered.
-            client_port (str): Zookeeper client port.
+            client_port (int): Zookeeper client port.
 
         Returns:
             str: String with the following format: <host>:<client-port>.

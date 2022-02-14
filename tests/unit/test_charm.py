@@ -60,20 +60,16 @@ def test_on_config_changed(mocker: MockerFixture, harness: Harness):
 def test_on_update_status(mocker: MockerFixture, harness: Harness):
     # Make sure the service zookeeper is set
     harness.charm.on.zookeeper_pebble_ready.emit("zookeeper")
-    harness.charm.unit.get_container("zookeeper").can_connect = mocker.Mock()
-    harness.charm.unit.get_container("zookeeper").can_connect.side_effect = [
-        False,
-        True,
-        True,
-        True,
-    ]
     # test service not ready
+    harness.charm.unit.get_container("zookeeper").can_connect = mocker.Mock()
+    harness.charm.unit.get_container("zookeeper").can_connect.side_effect = [False]
     original_get_plan = harness.charm.unit.get_container("zookeeper").get_plan
     harness.charm.unit.get_container("zookeeper").get_plan = mocker.Mock()
     harness.charm.unit.get_container("zookeeper").get_plan().services = {}
     harness.charm.on.update_status.emit()
     assert harness.charm.unit.status == WaitingStatus("zookeeper service not configured yet")
     harness.charm.unit.get_container("zookeeper").get_plan = original_get_plan
+    harness.charm.unit.get_container("zookeeper").can_connect.side_effect = None
     # test service not running
     harness.charm.unit.get_container("zookeeper").stop("zookeeper")
     harness.charm.on.update_status.emit()
@@ -96,9 +92,6 @@ def test_scaling(harness: Harness):
         remote_unit,
         {
             "host": "zookeeper-1",
-            "client-port": "2181",
-            "server-port": "2888",
-            "election-port": "3888",
         },
     )
 

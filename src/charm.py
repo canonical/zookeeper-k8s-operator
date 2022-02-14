@@ -8,12 +8,7 @@ import logging
 import socket
 from typing import Any, Dict
 
-from ops.charm import (
-    CharmBase,
-    ConfigChangedEvent,
-    RelationCreatedEvent,
-    RelationJoinedEvent,
-)
+from ops.charm import CharmBase, RelationJoinedEvent
 from ops.main import main
 from ops.model import (
     ActiveStatus,
@@ -45,7 +40,7 @@ class ZookeeperK8sCharm(CharmBase):
         super().__init__(*args)
 
         # Relation objects
-        self.cluster = ZookeeperCluster(self)  # Peer relation
+        self.cluster = ZookeeperCluster(self, self.client_port)  # Peer relation
         self.zookeeper = ZookeeperProvides(self)  # Zookeeper relation
 
         # Observe charm events
@@ -81,18 +76,19 @@ class ZookeeperK8sCharm(CharmBase):
 
     @property
     def zookeeper_properties(self) -> Dict[str, Any]:
-        """Get Zookeeper environment variables.
+        """Get environment variables for zookeeper.properties.
 
         This function uses the configuration zookeeper-properties to generate the
         environment variables needed to configure Zookeeper and in the format expected
         by the container.
 
         Returns:
-            Dictionary with the environment variables needed for Zookeeper container.
+            Dictionary with the environment variables needed by the Zookeeper container.
         """
         envs = {}
-        for zookeeper_property in self.config["zookeeper-properties"].splitlines():
-            if "=" not in zookeeper_property:
+        for zk_prop in self.config["zookeeper-properties"].splitlines():
+            zookeeper_property = zk_prop.strip()
+            if zookeeper_property.startswith("#") or "=" not in zookeeper_property:
                 continue
             key, value = zookeeper_property.split("=")
             key = _convert_key_to_confluent_syntax(key)
@@ -112,7 +108,7 @@ class ZookeeperK8sCharm(CharmBase):
     #   Handlers for Charm Events
     # ---------------------------------------------------------------------------
 
-    def _on_config_changed(self, event: ConfigChangedEvent) -> None:
+    def _on_config_changed(self, _) -> None:
         """Handler for the config-changed event."""
         # Validate charm configuration
         try:
@@ -129,31 +125,7 @@ class ZookeeperK8sCharm(CharmBase):
             return
 
         # Add Pebble layer with the zookeeper service
-        heap_size = self.config["heap-size"]
-        layer = {
-            "summary": "zookeeper layer",
-            "description": "pebble config layer for zookeeper",
-            "services": {
-                "zookeeper": {
-                    "override": "replace",
-                    "summary": "zookeeper service",
-                    "command": "/etc/confluent/docker/run",
-                    "startup": "enabled",
-                    "environment": {
-                        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                        "container": "oci",
-                        "LANG": "C.UTF-8",
-                        "CUB_CLASSPATH": "/usr/share/java/cp-base-new/*",
-                        "COMPONENT": "zookeeper",
-                        "ZOOKEEPER_SERVER_ID": self.server_id,
-                        "ZOOKEEPER_SERVERS": ";".join(self.cluster.cluster_addresses),
-                        "KAFKA_HEAP_OPTS": f"-Xmx{heap_size} -Xms{heap_size}",
-                        **self.zookeeper_properties,
-                    },
-                }
-            },
-        }
-        container.add_layer("zookeeper", layer, combine=True)
+        container.add_layer("zookeeper", self._get_zookeeper_layer(), combine=True)
         container.replan()
 
         # Provide zookeeper client addresses through the relation
@@ -177,14 +149,9 @@ class ZookeeperK8sCharm(CharmBase):
         else:
             self.unit.status = BlockedStatus("zookeeper service is not running")
 
-    def _on_cluster_relation_created(self, _: RelationCreatedEvent) -> None:
+    def _on_cluster_relation_created(self, _) -> None:
         """Handler for the cluster relation-created event."""
-        self.cluster.register_server(
-            host=socket.getfqdn(),
-            client_port=self.client_port,
-            server_port=2888,
-            election_port=3888,
-        )
+        self.cluster.register_server(host=socket.getfqdn())
 
     def _on_zookeeper_relation_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for the zookeeper relation-joined event."""
@@ -204,6 +171,33 @@ class ZookeeperK8sCharm(CharmBase):
             Exception: if charm configuration is invalid.
         """
         pass
+
+    def _get_zookeeper_layer(self) -> Dict[str, Any]:
+        """Get Zookeeper layer for Pebble."""
+        heap_size = self.config["heap-size"]
+        return {
+            "summary": "zookeeper layer",
+            "description": "pebble config layer for zookeeper",
+            "services": {
+                "zookeeper": {
+                    "override": "replace",
+                    "summary": "zookeeper service",
+                    "command": "/etc/confluent/docker/run",
+                    "startup": "enabled",
+                    "environment": {
+                        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                        "container": "oci",
+                        "LANG": "C.UTF-8",
+                        "CUB_CLASSPATH": "/usr/share/java/cp-base-new/*",
+                        "COMPONENT": "zookeeper",
+                        "ZOOKEEPER_SERVER_ID": self.server_id,
+                        "ZOOKEEPER_SERVERS": ";".join(self.cluster.cluster_addresses),
+                        "KAFKA_HEAP_OPTS": f"-Xmx{heap_size} -Xms{heap_size}",
+                        **self.zookeeper_properties,
+                    },
+                }
+            },
+        }
 
 
 if __name__ == "__main__":  # pragma: no cover
