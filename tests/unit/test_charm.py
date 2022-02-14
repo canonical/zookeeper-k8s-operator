@@ -37,14 +37,24 @@ def test_on_config_changed(mocker: MockerFixture, harness: Harness):
     harness.charm._validate_config = _validate_config_original
     # test pebble not ready
     harness.charm.unit.get_container("zookeeper").can_connect = mocker.Mock()
-    harness.charm.unit.get_container("zookeeper").can_connect.side_effect = [False, True, True]
+    harness.charm.unit.get_container("zookeeper").can_connect.side_effect = [False]
     harness.charm.on.config_changed.emit()
     assert harness.charm.unit.status == MaintenanceStatus("waiting for pebble to start")
     # test pebble ready
+    harness.charm.unit.get_container("zookeeper").can_connect.side_effect = None
     spy = mocker.spy(harness.charm.unit.get_container("zookeeper"), "replan")
     harness.charm.on.zookeeper_pebble_ready.emit("zookeeper")
     assert harness.charm.unit.status == ActiveStatus()
     assert spy.call_count == 1
+    # update config
+    add_layer_spy = mocker.spy(harness.charm.unit.get_container("zookeeper"), "add_layer")
+    harness.update_config({"zookeeper-properties": "clientPort=2182"})
+    assert (
+        add_layer_spy.call_args[0][1]["services"]["zookeeper"]["environment"][
+            "ZOOKEEPER_CLIENT_PORT"
+        ]
+        == "2182"
+    )
 
 
 def test_on_update_status(mocker: MockerFixture, harness: Harness):
@@ -100,6 +110,7 @@ def test_scaling(harness: Harness):
         "zookeeper-0:2181",
         "zookeeper-1:2181",
     ] == harness.charm.cluster.client_addresses
+
 
 def test_zookeeper_relation(mocker: MockerFixture, harness_startup: Harness):
     # Set current unit the leader

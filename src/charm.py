@@ -99,6 +99,15 @@ class ZookeeperK8sCharm(CharmBase):
             envs[key] = value
         return envs
 
+    @property
+    def client_port(self) -> int:
+        """Get the client port from the config.
+
+        Returns:
+            int: The clientPort specified in the zookeeper-properties config. Default=2181.
+        """
+        return self.zookeeper_properties.get("ZOOKEEPER_CLIENT_PORT", 2181)
+
     # ---------------------------------------------------------------------------
     #   Handlers for Charm Events
     # ---------------------------------------------------------------------------
@@ -172,7 +181,7 @@ class ZookeeperK8sCharm(CharmBase):
         """Handler for the cluster relation-created event."""
         self.cluster.register_server(
             host=socket.getfqdn(),
-            client_port=2181,
+            client_port=self.client_port,
             server_port=2888,
             election_port=3888,
         )
