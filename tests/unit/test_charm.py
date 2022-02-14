@@ -96,7 +96,10 @@ def test_scaling(harness: Harness):
         "zookeeper-0:2888:3888",
         "zookeeper-1:2888:3888",
     ] == harness.charm.cluster.cluster_addresses
-
+    assert [
+        "zookeeper-0:2181",
+        "zookeeper-1:2181",
+    ] == harness.charm.cluster.client_addresses
 
 def test_zookeeper_relation(mocker: MockerFixture, harness_startup: Harness):
     # Set current unit the leader

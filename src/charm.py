@@ -83,9 +83,9 @@ class ZookeeperK8sCharm(CharmBase):
     def zookeeper_properties(self) -> Dict[str, Any]:
         """Get Zookeeper environment variables.
 
-        This function uses the template `templates/zookeeper.properties`,
-        replaces the variables taking into account the charm configuration,
-        and converts it to the expected environment variables in the container.
+        This function uses the configuration zookeeper-properties to generate the
+        environment variables needed to configure Zookeeper and in the format expected
+        by the container.
 
         Returns:
             Dictionary with the environment variables needed for Zookeeper container.
@@ -148,7 +148,7 @@ class ZookeeperK8sCharm(CharmBase):
         container.replan()
 
         # Provide zookeeper client addresses through the relation
-        if self.cluster.client_addresses:
+        if self.unit.is_leader() and self.cluster.client_addresses:
             self.zookeeper.update_hosts(",".join(self.cluster.client_addresses))
 
         # Update charm status
