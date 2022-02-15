@@ -9,6 +9,7 @@ import socket
 from typing import Any, Dict
 
 from charms.zookeeper_k8s.v0.cluster import ZooKeeperCluster, ZooKeeperClusterEvents
+from charms.zookeeper_k8s.v0.zookeeper import ZooKeeperProvides
 from ops.charm import CharmBase, RelationJoinedEvent
 from ops.main import main
 from ops.model import (
@@ -19,8 +20,6 @@ from ops.model import (
     WaitingStatus,
 )
 from ops.pebble import ServiceStatus
-
-from zookeeper_provides import ZooKeeperProvides
 
 logger = logging.getLogger(__name__)
 
