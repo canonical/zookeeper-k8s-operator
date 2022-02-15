@@ -6,13 +6,13 @@ from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingSta
 from ops.testing import Harness
 from pytest_mock import MockerFixture
 
-from charm import ZookeeperK8sCharm
+from charm import ZooKeeperK8sCharm
 
 
 @pytest.fixture
 def harness(mocker: MockerFixture):
     mocker.patch("charm.socket.getfqdn", return_value="zookeeper-0")
-    zookeeper_harness = Harness(ZookeeperK8sCharm)
+    zookeeper_harness = Harness(ZooKeeperK8sCharm)
     zookeeper_harness.begin()
     yield zookeeper_harness
     zookeeper_harness.cleanup()
@@ -21,7 +21,7 @@ def harness(mocker: MockerFixture):
 @pytest.fixture
 def harness_startup(mocker: MockerFixture):
     mocker.patch("charm.socket.getfqdn", return_value="zookeeper-0")
-    zookeeper_harness = Harness(ZookeeperK8sCharm)
+    zookeeper_harness = Harness(ZooKeeperK8sCharm)
     zookeeper_harness.begin_with_initial_hooks()
     yield zookeeper_harness
     zookeeper_harness.cleanup()

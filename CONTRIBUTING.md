@@ -3,7 +3,7 @@
 ## Overview
 
 This documents explains the processes and practices recommended for contributing enhancements to
-the Zookeeper K8s charm.
+the ZooKeeper K8s charm.
 
 - Generally, before developing enhancements to this charm, you should consider [opening an issue
   ](https://github.com/charmed-osm/zookeeper-k8s-operator/issues) explaining your use case.
@@ -60,4 +60,4 @@ juju deploy ./zookeeper-k8s_ubuntu-20.04-amd64.charm \
 
 ## Canonical Contributor Agreement
 
-Canonical welcomes contributions to the Charmed Zookeeper K8s Operator. Please check out our [contributor agreement](https://ubuntu.com/legal/contributors) if you're interested in contributing to the solution.
+Canonical welcomes contributions to the Charmed ZooKeeper K8s Operator. Please check out our [contributor agreement](https://ubuntu.com/legal/contributors) if you're interested in contributing to the solution.

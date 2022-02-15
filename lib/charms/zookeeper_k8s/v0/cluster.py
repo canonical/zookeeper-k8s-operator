@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 
-"""Zookeeper cluster peer relation module."""
+"""Library for the ZooKeeper Cluster peer relation."""
 
-__all__ = ["ZookeeperClusterEvents", "ZookeeperCluster"]
+# The unique Charmhub library identifier, never change it
+LIBID = "96a636f0d6384b3da051a095c12c8437"
+
+# Increment this major API version when introducing breaking changes
+LIBAPI = 0
+
+# Increment this PATCH version before using `charmcraft publish-lib` or reset
+# to 0 if you are raising the major API version
+LIBPATCH = 1
+
 
 import logging
 import re
@@ -54,17 +63,17 @@ class _ServersChangedEvent(EventBase):
     """Event emitted whenever there is a change in the set of zookeeper servers."""
 
 
-class ZookeeperClusterEvents(CharmEvents):
-    """Zookeeper cluster events.
+class ZooKeeperClusterEvents(CharmEvents):
+    """ZooKeeper cluster events.
 
-    This class defines the events that the Zookeeper cluster can emit.
+    This class defines the events that the ZooKeeper cluster can emit.
 
     Events:
         servers_changed (_ServersChangedEvent)
 
     Example:
-        class ZookeeperK8sCharm(CharmBase):
-            on = ZookeeperClusterEvents()
+        class ZooKeeperK8sCharm(CharmBase):
+            on = ZooKeeperClusterEvents()
 
             def __init__(self, *args):
                 super().__init__(*args)
@@ -78,19 +87,19 @@ class ZookeeperClusterEvents(CharmEvents):
     servers_changed = EventSource(_ServersChangedEvent)
 
 
-class ZookeeperCluster(Object):
-    """Zookeeper cluster peer relation.
+class ZooKeeperCluster(Object):
+    """ZooKeeper cluster peer relation.
 
     Example:
         import socket
 
 
-        class ZookeeperK8sCharm(CharmBase):
-            on = ZookeeperClusterEvents()
+        class ZooKeeperK8sCharm(CharmBase):
+            on = ZooKeeperClusterEvents()
 
             def __init__(self, *args):
                 super().__init__(*args)
-                self.cluster = ZookeeperCluster(self)
+                self.cluster = ZooKeeperCluster(self)
                 self.framework.observe(
                     self.servers_changed,
                     self._on_servers_changed
@@ -188,7 +197,7 @@ class ZookeeperCluster(Object):
         """Handler for the relation-changed, and relation-departed events.
 
         If the application data has been updated,
-        the ZookeeperClusterEvents.servers_changed event will be triggered.
+        the ZooKeeperClusterEvents.servers_changed event will be triggered.
         """
         # Only need to continue if:
         #   - The unit is the leader
@@ -265,8 +274,8 @@ class ZookeeperCluster(Object):
 
         Args:
             host (str): IP or hostname of the zookeeper server to be registered.
-            server_port (int): Zookeeper server port.
-            election_port (int): Zookeeper election port.
+            server_port (int): ZooKeeper server port.
+            election_port (int): ZooKeeper election port.
 
         Returns:
             str: String with the following format: <host>:<server-port>:<election-port>.
@@ -278,7 +287,7 @@ class ZookeeperCluster(Object):
 
         Args:
             host (str): IP or hostname of the zookeeper server to be registered.
-            client_port (int): Zookeeper client port.
+            client_port (int): ZooKeeper client port.
 
         Returns:
             str: String with the following format: <host>:<client-port>.

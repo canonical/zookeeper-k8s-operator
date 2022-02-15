@@ -1,37 +1,53 @@
 <!-- Copyright 2022 Canonical Ltd.
 See LICENSE file for licensing details. -->
 
-# Zookeeper K8s Operator
+# ZooKeeper K8s Operator
 
 [![code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black/tree/main)
 [![Run-Tests](https://github.com/charmed-osm/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/charmed-osm/zookeeper-k8s-operator/actions/workflows/ci.yaml)
 
-
-[![Zookeeper K8s](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper-k8s)
+[![ZooKeeper K8s](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper-k8s)
 
 ## Description
 
-TODO: Describe your charm in a few paragraphs of Markdown
+Apache [ZooKeeper](https://zookeeper.apache.org) is an effort to develop and maintain an open-source server which enables highly reliable distributed coordination.
 
+This repository contains a Charm Operator for deploying the ZooKeeper in a Kubernetes cluster.
 
-## Usage
+<!-- ## Tutorials
+-  -->
 
-The Zookeeper K8s Operator may be deployed using the Juju command line as in
+## How-to guides
+
+### How to deploy Zookeeper
+
+The ZooKeeper K8s Operator may be deployed using the Juju command line as in
 
 ```shell
 $ juju add-model zookeeper-k8s
 $ juju deploy zookeeper-k8s
 ```
 
-### Scale
+### How to scale Zookeeper
+
+Scale ZooKeeper by executing the following command
 
 ```shell
 $ juju scale-application zookeeper-k8s 3
 ```
 
-## OCI Images
+### How to integrate with ZooKeeper
 
-- [zookeeper-k8s](https://hub.docker.com/layers/confluentinc/cp-zookeeper/7.0.1/images)
+If you are developing a charm that needs to integrate with ZooKeeper, please follow the instructions [here](https://charmhub.io/zookeeper-k8s/libraries/zookeeper) to do so.
+
+## Reference
+
+- [ZooKeeper 3.6.3 documentation](https://zookeeper.apache.org/doc/r3.6.3/index.html)
+- [OCI image](https://hub.docker.com/r/confluentinc/cp-zookeeper): currently using tag `7.0.1`.
+
+## Explanation
+
+- [What is ZooKeeper?](https://zookeeper.apache.org/doc/r3.6.3/zookeeperOver.html)
 
 ## Contributing
 

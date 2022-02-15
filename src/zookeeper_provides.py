@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # Copyright 2022 Canonical Ltd.
 
-"""Zookeeper provides relation module."""
+"""ZooKeeper provides relation module."""
 
-__all__ = ["ZookeeperProvides"]
+__all__ = ["ZooKeeperProvides"]
 
 import logging
 from typing import Optional
@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 HOSTS_APP_KEY = "hosts"
 
 
-class ZookeeperProvides(Object):
-    """Zookeeper provides relation.
+class ZooKeeperProvides(Object):
+    """ZooKeeper provides relation.
 
     Example:
-        class ZookeeperK8sCharm(CharmBase):
-            on = ZookeeperClusterEvents()
+        class ZooKeeperK8sCharm(CharmBase):
+            on = ZooKeeperClusterEvents()
 
             def __init__(self, *args):
                 super().__init__(*args)
-                self.cluster = ZookeeperCluster(self)
-                self.zookeeper = ZookeeperProvides(self)
+                self.cluster = ZooKeeperCluster(self)
+                self.zookeeper = ZooKeeperProvides(self)
                 self.framework.observe(
                     self.on.zookeeper_relation_changed,
                     self._update_hosts

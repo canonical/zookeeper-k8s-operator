@@ -2,12 +2,13 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Zookeeper K8s charm module."""
+"""ZooKeeper K8s charm module."""
 
 import logging
 import socket
 from typing import Any, Dict
 
+from charms.zookeeper_k8s.v0.cluster import ZooKeeperCluster, ZooKeeperClusterEvents
 from ops.charm import CharmBase, RelationJoinedEvent
 from ops.main import main
 from ops.model import (
@@ -19,8 +20,7 @@ from ops.model import (
 )
 from ops.pebble import ServiceStatus
 
-from cluster import ZookeeperCluster, ZookeeperClusterEvents
-from zookeeper_provides import ZookeeperProvides
+from zookeeper_provides import ZooKeeperProvides
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +31,17 @@ def _convert_key_to_confluent_syntax(key: str) -> str:
     return f"ZOOKEEPER_{new_key.upper()}"
 
 
-class ZookeeperK8sCharm(CharmBase):
-    """Zookeeper K8s Charm operator."""
+class ZooKeeperK8sCharm(CharmBase):
+    """ZooKeeper K8s Charm operator."""
 
-    on = ZookeeperClusterEvents()
+    on = ZooKeeperClusterEvents()
 
     def __init__(self, *args):
         super().__init__(*args)
 
         # Relation objects
-        self.cluster = ZookeeperCluster(self, self.client_port)  # Peer relation
-        self.zookeeper = ZookeeperProvides(self)  # Zookeeper relation
+        self.cluster = ZooKeeperCluster(self, self.client_port)  # Peer relation
+        self.zookeeper = ZooKeeperProvides(self)  # ZooKeeper relation
 
         # Observe charm events
         event_observe_mapping = {
@@ -79,11 +79,11 @@ class ZookeeperK8sCharm(CharmBase):
         """Get environment variables for zookeeper.properties.
 
         This function uses the configuration zookeeper-properties to generate the
-        environment variables needed to configure Zookeeper and in the format expected
+        environment variables needed to configure ZooKeeper and in the format expected
         by the container.
 
         Returns:
-            Dictionary with the environment variables needed by the Zookeeper container.
+            Dictionary with the environment variables needed by the ZooKeeper container.
         """
         envs = {}
         for zk_prop in self.config["zookeeper-properties"].splitlines():
@@ -173,7 +173,7 @@ class ZookeeperK8sCharm(CharmBase):
         pass
 
     def _get_zookeeper_layer(self) -> Dict[str, Any]:
-        """Get Zookeeper layer for Pebble."""
+        """Get ZooKeeper layer for Pebble."""
         heap_size = self.config["heap-size"]
         return {
             "summary": "zookeeper layer",
@@ -201,4 +201,4 @@ class ZookeeperK8sCharm(CharmBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main(ZookeeperK8sCharm)
+    main(ZooKeeperK8sCharm)
