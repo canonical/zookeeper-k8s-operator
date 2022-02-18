@@ -19,16 +19,16 @@ This repository contains a Charm Operator for deploying the ZooKeeper in a Kuber
 
 ## How-to guides
 
-### How to deploy ZooKeeper
+### Deploy ZooKeeper
 
-The ZooKeeper K8s Operator may be deployed using the Juju command line as in
+Deploy the ZooKeeper K8s Operator using the Juju command line:
 
 ```shell
 $ juju add-model zookeeper-k8s
 $ juju deploy zookeeper-k8s
 ```
 
-### How to scale ZooKeeper
+### Scale ZooKeeper
 
 Scale ZooKeeper by executing the following command
 
@@ -38,7 +38,7 @@ $ juju scale-application zookeeper-k8s 3
 
 ### How to integrate with ZooKeeper
 
-If you are developing a charm that needs to integrate with ZooKeeper, please follow the instructions [here](https://charmhub.io/zookeeper-k8s/libraries/zookeeper) to do so.
+If you are developing a charm that needs to integrate with ZooKeeper, please follow [the instructions](https://charmhub.io/zookeeper-k8s/libraries/zookeeper) to do so.
 
 ## Reference
 
