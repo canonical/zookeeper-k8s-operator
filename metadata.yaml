@@ -40,6 +40,6 @@ provides:
     limit: 1
 
 storage:
-  database:
+  data:
     type: filesystem
     location: /var/lib/zookeeper
