@@ -10,13 +10,14 @@ options:
       dataDir=/var/lib/zookeeper/data
       dataLogDir=/var/lib/zookeeper/log
       tickTime=2000
-      initLimit=5
       syncLimit=2
-      maxClientCnxns=60
+      initLimit=5
       minSessionTimeout=4000
       maxSessionTimeout=40000
+      autopurge.purgeInterval=24
       autopurge.snapRetainCount=3
-      autopurge.purgeInterval=0
+      maxClientCnxns=60
+      4lw.commands.whitelist=*
   heap-size:
     description: Heap memory
     type: string
