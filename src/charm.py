@@ -17,6 +17,7 @@ from ops.model import (
     BlockedStatus,
     Container,
     MaintenanceStatus,
+    StatusBase,
     WaitingStatus,
 )
 from ops.pebble import ServiceStatus
@@ -28,6 +29,14 @@ def _convert_key_to_confluent_syntax(key: str) -> str:
     new_key = key.replace("_", "___").replace("-", "__").replace(".", "_")
     new_key = "".join([f"_{char}" if char.isupper() else char for char in new_key])
     return f"ZOOKEEPER_{new_key.upper()}"
+
+
+class CharmError(Exception):
+    """Charm Error Exception."""
+
+    def __init__(self, message: str, status: StatusBase = BlockedStatus) -> None:
+        self.message = message
+        self.status = status
 
 
 class ZooKeeperK8sCharm(CharmBase):
@@ -109,44 +118,37 @@ class ZooKeeperK8sCharm(CharmBase):
 
     def _on_config_changed(self, _) -> None:
         """Handler for the config-changed event."""
-        # Validate charm configuration
         try:
+            # Validations
             self._validate_config()
-        except Exception as e:
-            self.unit.status = BlockedStatus(f"{e}")
-            return
+            container: Container = self.unit.get_container("zookeeper")
+            self._check_container_ready(container)
 
-        # Check Pebble has started in the container
-        container: Container = self.unit.get_container("zookeeper")
-        if not container.can_connect():
-            logger.debug("waiting for pebble to start")
-            self.unit.status = MaintenanceStatus("waiting for pebble to start")
-            return
+            # Add Pebble layer with the zookeeper service
+            container.add_layer("zookeeper", self._get_zookeeper_layer(), combine=True)
+            container.replan()
 
-        # Add Pebble layer with the zookeeper service
-        container.add_layer("zookeeper", self._get_zookeeper_layer(), combine=True)
-        container.replan()
+            # Provide zookeeper client addresses through the relation
+            if self.unit.is_leader() and self.cluster.client_addresses:
+                self.zookeeper.update_hosts(",".join(self.cluster.client_addresses))
 
-        # Provide zookeeper client addresses through the relation
-        if self.unit.is_leader() and self.cluster.client_addresses:
-            self.zookeeper.update_hosts(",".join(self.cluster.client_addresses))
-
-        # Update charm status
-        self._on_update_status()
+            # Update charm status
+            self._on_update_status()
+        except CharmError as e:
+            logger.debug(e.message)
+            self.unit.status = e.status(e.message)
 
     def _on_update_status(self, _=None) -> None:
         """Handler for the update-status event."""
-        # Check if the zookeeper service is configured
-        container: Container = self.unit.get_container("zookeeper")
-        if not container.can_connect() or "zookeeper" not in container.get_plan().services:
-            self.unit.status = WaitingStatus("zookeeper service not configured yet")
-            return
-
-        # Check if the zookeeper service is running
-        if container.get_service("zookeeper").current == ServiceStatus.ACTIVE:
+        try:
+            container: Container = self.unit.get_container("zookeeper")
+            self._check_container_ready(container)
+            self._check_service_configured(container)
+            self._check_service_active(container)
             self.unit.status = ActiveStatus()
-        else:
-            self.unit.status = BlockedStatus("zookeeper service is not running")
+        except CharmError as e:
+            logger.debug(e.message)
+            self.unit.status = e.status(e.message)
 
     def _on_cluster_relation_created(self, _) -> None:
         """Handler for the cluster relation-created event."""
@@ -167,9 +169,42 @@ class ZooKeeperK8sCharm(CharmBase):
         """Validate charm configuration.
 
         Raises:
-            Exception: if charm configuration is invalid.
+            CharmError: if charm configuration is invalid.
         """
         pass
+
+    def _check_container_ready(self, container: Container) -> None:
+        """Check Pebble has started in the container.
+
+        Args:
+            container (Container): Container to be checked.
+
+        Raises:
+            CharmError: if container is not ready.
+        """
+        if not container.can_connect():
+            raise CharmError("waiting for pebble to start", MaintenanceStatus)
+
+    def _check_service_configured(self, container: Container) -> None:
+        """Check if zookeeper service has been successfully configured.
+
+        Args:
+            container (Container): Container to be checked.
+
+        Raises:
+            CharmError: if zookeeper service has not been configured.
+        """
+        if "zookeeper" not in container.get_plan().services:
+            raise CharmError("zookeeper service not configured yet", WaitingStatus)
+
+    def _check_service_active(self, container: Container) -> None:
+        """Check if the zookeeper service is running.
+
+        Raises:
+            CharmError: if zookeeper service is not running.
+        """
+        if container.get_service("zookeeper").current != ServiceStatus.ACTIVE:
+            raise CharmError("zookeeper service is not running")
 
     def _get_zookeeper_layer(self) -> Dict[str, Any]:
         """Get ZooKeeper layer for Pebble."""
