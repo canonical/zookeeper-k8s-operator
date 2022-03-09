@@ -4,7 +4,7 @@ See LICENSE file for licensing details. -->
 # ZooKeeper K8s Operator
 
 [![code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black/tree/main)
-[![Run-Tests](https://github.com/charmed-osm/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/charmed-osm/zookeeper-k8s-operator/actions/workflows/ci.yaml)
+[![Run-Tests](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml)
 
 [![ZooKeeper K8s](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper-k8s)
 
