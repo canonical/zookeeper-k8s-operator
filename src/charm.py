@@ -2,237 +2,186 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""ZooKeeper K8s charm module."""
+"""Charmed Machine Operator for Apache ZooKeeper."""
 
 import logging
-import socket
-from typing import Any, Dict
 
-from charms.zookeeper_k8s.v0.cluster import ZooKeeperCluster, ZooKeeperClusterEvents
-from charms.zookeeper_k8s.v0.zookeeper import ZooKeeperProvides
-from ops.charm import CharmBase, RelationJoinedEvent
+from charms.rolling_ops.v0.rollingops import RollingOpsManager
+from ops.charm import CharmBase
+from ops.framework import EventBase
 from ops.main import main
-from ops.model import (
-    ActiveStatus,
-    BlockedStatus,
-    Container,
-    MaintenanceStatus,
-    StatusBase,
-    WaitingStatus,
+from ops.model import ActiveStatus
+from ops.pebble import Layer, PathError
+
+from cluster import (
+    NoPasswordError,
+    NotUnitTurnError,
+    UnitNotFoundError,
+    ZooKeeperCluster,
 )
-from ops.pebble import ServiceStatus
+from config import ZooKeeperConfig
+from provider import ZooKeeperProvider
 
 logger = logging.getLogger(__name__)
 
 
-def _convert_key_to_confluent_syntax(key: str) -> str:
-    new_key = key.replace("_", "___").replace("-", "__").replace(".", "_")
-    new_key = "".join([f"_{char}" if char.isupper() else char for char in new_key])
-    return f"ZOOKEEPER_{new_key.upper()}"
-
-
-class CharmError(Exception):
-    """Charm Error Exception."""
-
-    def __init__(self, message: str, status: StatusBase = BlockedStatus) -> None:
-        self.message = message
-        self.status = status
-
-
-class ZooKeeperK8sCharm(CharmBase):
-    """ZooKeeper K8s Charm operator."""
-
-    on = ZooKeeperClusterEvents()
+class ZooKeeperCharm(CharmBase):
+    """Charmed Operator for ZooKeeper."""
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.cluster = ZooKeeperCluster(self)
+        self.zookeeper_config = ZooKeeperConfig(self)
+        self.provider = ZooKeeperProvider(self)
+        self.restart = RollingOpsManager(self, relation="restart", callback=self._restart)
 
-        # Relation objects
-        self.cluster = ZooKeeperCluster(self, self.client_port)  # Peer relation
-        self.zookeeper = ZooKeeperProvides(self)  # ZooKeeper relation
-
-        # Observe charm events
-        event_observe_mapping = {
-            self.on.zookeeper_pebble_ready: self._on_config_changed,
-            self.on.config_changed: self._on_config_changed,
-            self.on.servers_changed: self._on_config_changed,
-            self.on.update_status: self._on_update_status,
-            self.on.cluster_relation_created: self._on_cluster_relation_created,
-            self.on.zookeeper_relation_joined: self._on_zookeeper_relation_joined,
-        }
-        for event, observer in event_observe_mapping.items():
-            self.framework.observe(event, observer)
-
-    # ---------------------------------------------------------------------------
-    #   Properties
-    # ---------------------------------------------------------------------------
-
-    @property
-    def server_id(self) -> str:
-        """Get zookeeper server id.
-
-        The server id must be a string containing a number from 1 to 255.
-        This function uses the charm unit number to generate the server id.
-        Since the unit numbers start with 0, the returned number will be the
-        number of the unit plus 1.
-
-        Returns:
-            A string with the zookeeper server id.
-        """
-        unit_number = int(self.unit.name.split("/")[1])
-        return str(unit_number + 1)
+        self.framework.observe(
+            getattr(self.on, "zookeeper_pebble_ready"), self._on_zookeeper_pebble_ready
+        )
+        self.framework.observe(
+            getattr(self.on, "leader_elected"), self._on_cluster_relation_updated
+        )
+        self.framework.observe(
+            getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_updated
+        )
+        self.framework.observe(
+            getattr(self.on, "cluster_relation_joined"), self._on_cluster_relation_updated
+        )
+        self.framework.observe(
+            getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_updated
+        )
 
     @property
-    def zookeeper_properties(self) -> Dict[str, Any]:
-        """Get environment variables for zookeeper.properties.
-
-        This function uses the configuration zookeeper-properties to generate the
-        environment variables needed to configure ZooKeeper and in the format expected
-        by the container.
-
-        Returns:
-            Dictionary with the environment variables needed by the ZooKeeper container.
-        """
-        envs = {}
-        for zk_prop in self.config["zookeeper-properties"].splitlines():
-            zookeeper_property = zk_prop.strip()
-            if zookeeper_property.startswith("#") or "=" not in zookeeper_property:
-                continue
-            key, value = zookeeper_property.split("=")
-            key = _convert_key_to_confluent_syntax(key)
-            envs[key] = value
-        return envs
+    def container(self):
+        return self.unit.get_container("zookeeper")
 
     @property
-    def client_port(self) -> int:
-        """Get the client port from the config.
-
-        Returns:
-            int: The clientPort specified in the zookeeper-properties config. Default=2181.
-        """
-        return self.zookeeper_properties.get("ZOOKEEPER_CLIENT_PORT", 2181)
-
-    # ---------------------------------------------------------------------------
-    #   Handlers for Charm Events
-    # ---------------------------------------------------------------------------
-
-    def _on_config_changed(self, _) -> None:
-        """Handler for the config-changed event."""
-        try:
-            # Validations
-            self._validate_config()
-            container: Container = self.unit.get_container("zookeeper")
-            self._check_container_ready(container)
-
-            # Add Pebble layer with the zookeeper service
-            container.add_layer("zookeeper", self._get_zookeeper_layer(), combine=True)
-            container.replan()
-
-            # Provide zookeeper client addresses through the relation
-            if self.unit.is_leader() and self.cluster.client_addresses:
-                self.zookeeper.update_hosts(",".join(self.cluster.client_addresses))
-
-            # Update charm status
-            self._on_update_status()
-        except CharmError as e:
-            logger.debug(e.message)
-            self.unit.status = e.status(e.message)
-
-    def _on_update_status(self, _=None) -> None:
-        """Handler for the update-status event."""
-        try:
-            container: Container = self.unit.get_container("zookeeper")
-            self._check_container_ready(container)
-            self._check_service_configured(container)
-            self._check_service_active(container)
-            self.unit.status = ActiveStatus()
-        except CharmError as e:
-            logger.debug(e.message)
-            self.unit.status = e.status(e.message)
-
-    def _on_cluster_relation_created(self, _) -> None:
-        """Handler for the cluster relation-created event."""
-        self.cluster.register_server(host=socket.getfqdn())
-
-    def _on_zookeeper_relation_joined(self, event: RelationJoinedEvent) -> None:
-        """Handler for the zookeeper relation-joined event."""
-        if self.unit.is_leader():
-            self.zookeeper.update_hosts(
-                ",".join(self.cluster.client_addresses), relation_id=event.relation.id
-            )
-
-    # ---------------------------------------------------------------------------
-    #   Validation and configuration
-    # ---------------------------------------------------------------------------
-
-    def _validate_config(self) -> None:
-        """Validate charm configuration.
-
-        Raises:
-            CharmError: if charm configuration is invalid.
-        """
-        pass
-
-    def _check_container_ready(self, container: Container) -> None:
-        """Check Pebble has started in the container.
-
-        Args:
-            container (Container): Container to be checked.
-
-        Raises:
-            CharmError: if container is not ready.
-        """
-        if not container.can_connect():
-            raise CharmError("waiting for pebble to start", MaintenanceStatus)
-
-    def _check_service_configured(self, container: Container) -> None:
-        """Check if zookeeper service has been successfully configured.
-
-        Args:
-            container (Container): Container to be checked.
-
-        Raises:
-            CharmError: if zookeeper service has not been configured.
-        """
-        if "zookeeper" not in container.get_plan().services:
-            raise CharmError("zookeeper service not configured yet", WaitingStatus)
-
-    def _check_service_active(self, container: Container) -> None:
-        """Check if the zookeeper service is running.
-
-        Raises:
-            CharmError: if zookeeper service is not running.
-        """
-        if container.get_service("zookeeper").current != ServiceStatus.ACTIVE:
-            raise CharmError("zookeeper service is not running")
-
-    def _get_zookeeper_layer(self) -> Dict[str, Any]:
-        """Get ZooKeeper layer for Pebble."""
-        heap_size = self.config["heap-size"]
-        return {
+    def _zookeeper_layer(self) -> Layer:
+        """Returns a Pebble configuration layer for ZooKeeper."""
+        layer_config = {
             "summary": "zookeeper layer",
-            "description": "pebble config layer for zookeeper",
+            "description": "Pebble config layer for zookeeper",
             "services": {
                 "zookeeper": {
                     "override": "replace",
-                    "summary": "zookeeper service",
-                    "command": "/etc/confluent/docker/run",
+                    "summary": "zookeeper",
+                    "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
                     "environment": {
-                        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                        "container": "oci",
-                        "LANG": "C.UTF-8",
-                        "CUB_CLASSPATH": "/usr/share/java/cp-base-new/*",
-                        "COMPONENT": "zookeeper",
-                        "ZOOKEEPER_SERVER_ID": self.server_id,
-                        "ZOOKEEPER_SERVERS": ";".join(self.cluster.cluster_addresses),
-                        "KAFKA_HEAP_OPTS": f"-Xmx{heap_size} -Xms{heap_size}",
-                        **self.zookeeper_properties,
+                        "EXTRA_ARGS": self.zookeeper_config.extra_args
                     },
                 }
             },
         }
+        return Layer(layer_config)
+
+    def _on_zookeeper_pebble_ready(self, event: EventBase) -> None:
+        """Handler for the `zookeeper_pebble_ready` event.
+
+        This includes:
+            - Writing config to config files
+        """
+        if not self.container.can_connect():
+            event.defer()
+            return
+
+        # setting default app passwords on leader start
+        if self.unit.is_leader():
+            for password in ["super_password", "sync_password"]:
+                current_value = self.cluster.relation.data[self.app].get(password, None)
+                self.cluster.relation.data[self.app].update(
+                    {password: current_value or self.cluster.generate_password()}
+                )
+
+        if not self.cluster.passwords_set:
+            event.defer()
+            return
+
+        # checks if the unit is next, grabs the servers to add, and it's own config for debugging
+        try:
+            servers, unit_config = self.cluster.ready_to_start(self.unit)
+        except (NotUnitTurnError, UnitNotFoundError, NoPasswordError) as e:
+            logger.info(str(e))
+            self.unit.status = self.cluster.status
+            event.defer()
+            return
+
+        # grabbing up-to-date jaas users from the relations
+        super_password, sync_password = self.cluster.passwords
+        users = self.provider.build_jaas_users(event=event)
+
+        try:
+            # servers properties needs to be written to dynamic config
+            self.zookeeper_config.set_zookeeper_myid()
+            self.zookeeper_config.set_zookeeper_properties()
+            self.zookeeper_config.set_zookeeper_dynamic_properties(servers=servers)
+            self.zookeeper_config.set_jaas_config(
+                sync_password=sync_password, super_password=super_password, users=users
+            )
+        except PathError:
+            event.defer()
+
+        self.container.add_layer("zookeeper", self._zookeeper_layer, combine=True)
+        self.container.replan()
+        self.unit.status = ActiveStatus()
+
+        # unit flags itself as 'started' so it can be retrieved by the leader
+        self.cluster.relation.data[self.unit].update(unit_config)
+        self.cluster.relation.data[self.unit].update({"state": "started"})
+
+    def _on_cluster_relation_updated(self, event: EventBase) -> None:
+        """Handler for events triggered by changing units.
+
+        This includes:
+            - Adding ready-to-start units to app data
+            - Updating ZK quorum config
+            - Updating app data state
+        """
+        if not self.unit.is_leader():
+            return
+
+        # ensures leader doesn't remove all units upon departure
+        if getattr(event, "departing_unit", None) == self.unit:
+            return
+
+        # units need to exist in the app data to be iterated through for next_turn
+        for unit in self.cluster.started_units:
+            unit_id = self.cluster.get_unit_id(unit)
+            current_value = self.cluster.relation.data[self.app].get(str(unit_id), None)
+
+            # sets to "added" for init quorum leader, if not already exists
+            # may already exist if during the case of a failover of the first unit
+            if unit_id == self.cluster.lowest_unit_id:
+                self.cluster.relation.data[self.app].update(
+                    {str(unit_id): current_value or "added"}
+                )
+
+        if not self.cluster.passwords_set:
+            event.defer()
+            return
+
+        # adds + removes members for all self-confirmed started units
+        updated_servers = self.cluster.update_cluster()
+
+        # either Active if successful, else Maintenance
+        self.unit.status = self.cluster.status
+
+        if self.cluster.status == ActiveStatus():
+            self.cluster.relation.data[self.app].update(updated_servers)
+        else:
+            # in the event some unit wasn't started/ready
+            event.defer()
+            return
+
+    def _restart(self, event: EventBase):
+        """Handler for rolling restart events triggered by zookeeper_relation_changed/broken."""
+        # for when relations trigger during start-up of the cluster
+        if not self.cluster.relation.data[self.unit].get("state", None) == "started":
+            event.defer()
+            return
+
+        self._on_zookeeper_pebble_ready(event=event)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    main(ZooKeeperK8sCharm)
+if __name__ == "__main__":
+    main(ZooKeeperCharm)
