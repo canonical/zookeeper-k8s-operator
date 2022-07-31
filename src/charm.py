@@ -10,7 +10,7 @@ from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import CharmBase
 from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus
+from ops.model import ActiveStatus, Container
 from ops.pebble import Layer, PathError
 
 from cluster import (
@@ -52,7 +52,8 @@ class ZooKeeperCharm(CharmBase):
         )
 
     @property
-    def container(self):
+    def container(self) -> Container:
+        """Grabs the current ZooKeeper container."""
         return self.unit.get_container("zookeeper")
 
     @property
@@ -67,9 +68,7 @@ class ZooKeeperCharm(CharmBase):
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {
-                        "EXTRA_ARGS": self.zookeeper_config.extra_args
-                    },
+                    "environment": {"EXTRA_ARGS": self.zookeeper_config.extra_args},
                 }
             },
         }

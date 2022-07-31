@@ -7,7 +7,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
-from charms.zookeeper_k8s.v0.client import (
+from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
     QuorumLeaderNotFoundError,
@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class ZooKeeperProvider(Object):
+    """Handler for updating client relations to ZooKeeper."""
+
     def __init__(self, charm) -> None:
         super().__init__(charm, "client")
 
@@ -177,7 +179,9 @@ class ZooKeeperProvider(Object):
         return {config.get(key, "") for config in self.relations_config(event=event).values()}
 
     def update_acls(self, event: Optional[EventBase] = None) -> None:
-        """Compares leader auth config to incoming relation config, applies necessary add/update/remove actions.
+        """Compares leader auth config to incoming relation config.
+
+        Applies necessary add/update/remove actions.
 
         Args:
             event (optional): used for checking `RelationBrokenEvent`

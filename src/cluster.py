@@ -10,7 +10,7 @@ import secrets
 import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-from charms.zookeeper_k8s.v0.client import (
+from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
     QuorumLeaderNotFoundError,
@@ -157,7 +157,7 @@ class ZooKeeperCluster:
         return int(unit.name.split("/")[1])
 
     def get_unit_from_id(self, unit_id: int) -> Unit:
-        """Grabs the corresponding Unit for a given Juju unit ID
+        """Grabs the corresponding Unit for a given Juju unit ID.
 
         Args:
             unit_id: The target unit id
@@ -186,19 +186,20 @@ class ZooKeeperCluster:
 
         Returns:
             The generated config for the given unit.
-                e.g for unit zookeeper/1:
+            e.g for unit zookeeper/1:
 
-                {
-                    "host": 10.121.23.23,
-                    "server_string": "server.1=host:server_port:election_port:role;localhost:clientport",
-                    "server_id": "2",
-                    "unit_id": "1",
-                    "unit_name": "zookeeper/1",
-                    "state": "ready",
-                }
+            {
+                "host": 10.121.23.23,
+                "server_string": "server.1=host:serverport:electionport:role;localhost:clientport",
+                "server_id": "2",
+                "unit_id": "1",
+                "unit_name": "zookeeper/1",
+                "state": "ready",
+            }
 
         Raises:
-            UnitNotFoundError: When the target unit can't be found in the unit relation data, and/or cannot extract the host
+            UnitNotFoundError:
+            When the target unit can't be found in the unit relation data ∨ cannot extract the host
         """
         unit_id = None
         server_id = None
@@ -244,7 +245,7 @@ class ZooKeeperCluster:
 
         To be ran by the Juju leader.
 
-        After grabbing all the "started" units that the leader can see in the peer relation unit data.
+        After grabbing all the "started" units in the peer relation unit data.
         Removes members not in the quorum anymore (i.e `relation_departed`/`leader_elected` event)
         Adds new members to the quorum (i.e `relation_joined` event).
 
@@ -292,8 +293,8 @@ class ZooKeeperCluster:
             return {}
 
     def _is_unit_turn(self, unit_id: int) -> bool:
-        """Checks if all units with a lower id than the current unit has been added/removed to the ZK quorum."""
-        if self.lowest_unit_id == None:
+        """Checks if all units with a lower id than the current unit is in quorum."""
+        if self.lowest_unit_id == None:  # noqa: E711
             # not all units have related yet
             return False
 

@@ -7,6 +7,3 @@
 CHARM_KEY = "zookeeper"
 PEER = "cluster"
 REL_NAME = "zookeeper"
-
-UNIX_USER = "zookeeper"
-UNIX_GROUP = "zookeeper"
