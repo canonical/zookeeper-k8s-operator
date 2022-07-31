@@ -11,7 +11,7 @@ of the libraries in this repository.
 import logging
 import random
 
-from ops.charm import CharmBase, RelationEvent
+from ops.charm import CharmBase
 from ops.main import main
 from ops.model import ActiveStatus
 
@@ -32,7 +32,6 @@ class ApplicationCharm(CharmBase):
 
         self.framework.observe(getattr(self.on, "start"), self._on_start)
         self.framework.observe(self.on[REL_NAME].relation_changed, self._log)
-        self.framework.observe(self.on[REL_NAME].relation_broken, self._log)
         self.framework.observe(self.on[REL_NAME].relation_joined, self._set_data)
 
     @property
@@ -47,10 +46,16 @@ class ApplicationCharm(CharmBase):
             return
 
         # reasonable confidence there won't be conflicting chroots
-        self.relation.data[self.app].update({"chroot": f"{CHARM_KEY}_{random.randrange(1,99)}"})
+        current_chroot = self.relation.data[self.app].get("chroot", None)
+        self.relation.data[self.app].update(
+            {"chroot": current_chroot or f"{CHARM_KEY}_{random.randrange(1,99)}"}
+        )
 
-    def _log(self, event: RelationEvent):
-        return
+    def _log(self, _):
+        if not self.unit.is_leader():
+            return
+
+        logger.info(f"{self.relation.data[self.app]=}")
 
 
 if __name__ == "__main__":

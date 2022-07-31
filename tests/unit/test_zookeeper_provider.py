@@ -9,10 +9,11 @@ from collections import namedtuple
 
 import ops.testing
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from charms.zookeeper.v0.cluster import ZooKeeperCluster
-from charms.zookeeper.v0.zookeeper_provider import ZooKeeperProvider
 from ops.charm import CharmBase, RelationBrokenEvent
 from ops.testing import Harness
+
+from cluster import ZooKeeperCluster
+from provider import ZooKeeperProvider
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -257,19 +258,19 @@ class TestProvider(unittest.TestCase):
         self.harness.update_relation_data(
             self.provider.app_relation.id,
             "zookeeper/0",
-            {"private-address": "treebeard", "state": "started"},
+            {"state": "started"},
         )
         self.harness.add_relation_unit(self.provider.app_relation.id, "zookeeper/1")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
             "zookeeper/1",
-            {"private-address": "shelob", "state": "ready"},
+            {"state": "ready"},
         )
         self.harness.add_relation_unit(self.provider.app_relation.id, "zookeeper/2")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
             "zookeeper/2",
-            {"private-address": "balrog", "state": "started"},
+            {"state": "started"},
         )
 
         self.harness.charm.client_relation.apply_relation_data()

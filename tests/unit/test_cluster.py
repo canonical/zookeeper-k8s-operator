@@ -6,15 +6,16 @@ import re
 import unittest
 
 import ops.testing
-from charms.zookeeper.v0.cluster import (
+from ops.charm import CharmBase
+from ops.model import Unit
+from ops.testing import Harness
+
+from cluster import (
     NoPasswordError,
     NotUnitTurnError,
     UnitNotFoundError,
     ZooKeeperCluster,
 )
-from ops.charm import CharmBase
-from ops.model import Unit
-from ops.testing import Harness
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -81,23 +82,12 @@ class TestCluster(unittest.TestCase):
 
     def test_unit_config_succeeds_for_id(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/1", {"private-address": "treebeard"}
-        )
-
         self.cluster.unit_config(unit=1)
 
     def test_unit_config_succeeds_for_unit(self):
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-
         self.cluster.unit_config(self.harness.charm.unit)
 
     def test_unit_config_has_all_keys(self):
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
         config = self.cluster.unit_config(0)
 
         self.assertEqual(
@@ -106,14 +96,10 @@ class TestCluster(unittest.TestCase):
         )
 
     def test_unit_config_server_string_format(self):
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
         server_string = self.cluster.unit_config(0)["server_string"]
         split_string = re.split("=|:|;", server_string)
 
         self.assertEqual(len(split_string), 7)
-        self.assertIn("treebeard", split_string)
 
     def test_get_updated_servers(self):
         added_servers = [
@@ -166,12 +152,6 @@ class TestCluster(unittest.TestCase):
 
     def test_ready_to_start_raises_no_password(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
-        )
         self.harness.update_relation_data(self.relation_id, "zookeeper", {"0": "removed"})
 
         with self.assertRaises(NoPasswordError):
@@ -181,15 +161,6 @@ class TestCluster(unittest.TestCase):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
         self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/2", {"private-address": "gimli"}
-        )
-        self.harness.update_relation_data(
             self.relation_id, "zookeeper", {"0": "added", "1": "added"}
         )
 
@@ -198,21 +169,12 @@ class TestCluster(unittest.TestCase):
         ]
         generated_servers = self.cluster._generate_units(unit_string=new_unit_string)
 
-        self.assertIn("server.3=gimli", generated_servers)
+        self.assertIn("server.3=zookeeper-2", generated_servers)
         self.assertEqual(len(generated_servers.splitlines()), 4)
 
     def test_generate_units_scaleup_adds_correct_roles_for_added_units(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
         self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/2", {"private-address": "gimli"}
-        )
         self.harness.update_relation_data(
             self.relation_id, "zookeeper", {"0": "added", "1": "removed"}
         )
@@ -229,12 +191,6 @@ class TestCluster(unittest.TestCase):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
         self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
-        )
-        self.harness.update_relation_data(
             self.relation_id, "zookeeper", {"0": "removed", "1": "added", "2": "removed"}
         )
 
@@ -248,27 +204,15 @@ class TestCluster(unittest.TestCase):
     def test_ready_to_start_raises_for_missing_data(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
         self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-        self.harness.update_relation_data(
             self.relation_id, "zookeeper", {"0": "removed", "sync_password": "Mellon"}
         )
 
-        with self.assertRaises(UnitNotFoundError):
+        with self.assertRaises(NotUnitTurnError):
             self.cluster.ready_to_start(unit=2)
 
     def test_ready_to_start_raises_for_not_unit_turn(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
         self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/2", {"private-address": "gimli"}
-        )
         self.harness.update_relation_data(
             self.relation_id, "zookeeper", {"0": "removed", "sync_password": "Mellon"}
         )
@@ -277,9 +221,6 @@ class TestCluster(unittest.TestCase):
             self.cluster.ready_to_start(unit=2)
 
     def test_ready_to_start_succeeds_init(self):
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
         self.harness.update_relation_data(
             self.relation_id,
             "zookeeper",
@@ -290,12 +231,6 @@ class TestCluster(unittest.TestCase):
 
     def test_ready_to_start_succeeds_failover_after_init(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/0", {"private-address": "treebeard"}
-        )
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper/1", {"private-address": "gandalf"}
-        )
         self.harness.update_relation_data(
             self.relation_id,
             "zookeeper",
