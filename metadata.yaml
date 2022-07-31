@@ -1,8 +1,8 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-name: zookeeper
-display-name: Zookeeper 
+name: zookeeper-k8s
+display-name: Zookeeper K8s
 summary: |
   ""
 description: |
