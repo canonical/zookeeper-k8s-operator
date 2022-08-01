@@ -20,13 +20,14 @@ from cluster import (
     ZooKeeperCluster,
 )
 from config import ZooKeeperConfig
+from literals import CHARM_KEY
 from provider import ZooKeeperProvider
 
 logger = logging.getLogger(__name__)
 
 
-class ZooKeeperCharm(CharmBase):
-    """Charmed Operator for ZooKeeper."""
+class ZooKeeperK8sCharm(CharmBase):
+    """Charmed Operator for ZooKeeper K8s."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -54,7 +55,7 @@ class ZooKeeperCharm(CharmBase):
     @property
     def container(self) -> Container:
         """Grabs the current ZooKeeper container."""
-        return self.unit.get_container("zookeeper")
+        return self.unit.get_container(CHARM_KEY)
 
     @property
     def _zookeeper_layer(self) -> Layer:
@@ -63,12 +64,12 @@ class ZooKeeperCharm(CharmBase):
             "summary": "zookeeper layer",
             "description": "Pebble config layer for zookeeper",
             "services": {
-                "zookeeper": {
+                CHARM_KEY: {
                     "override": "replace",
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {"EXTRA_ARGS": self.zookeeper_config.extra_args},
+                    "environment": {"KAFKA_OPTS": self.zookeeper_config.extra_args},
                 }
             },
         }
@@ -120,7 +121,7 @@ class ZooKeeperCharm(CharmBase):
         except PathError:
             event.defer()
 
-        self.container.add_layer("zookeeper", self._zookeeper_layer, combine=True)
+        self.container.add_layer(CHARM_KEY, self._zookeeper_layer, combine=True)
         self.container.replan()
         self.unit.status = ActiveStatus()
 
@@ -179,8 +180,20 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
             return
 
-        self._on_zookeeper_pebble_ready(event=event)
+        # grabbing up-to-date jaas users from the relations
+        super_password, sync_password = self.cluster.passwords
+        users = self.provider.build_jaas_users(event=event)
+
+        try:
+            self.zookeeper_config.set_jaas_config(
+                sync_password=sync_password, super_password=super_password, users=users
+            )
+        except PathError:
+            event.defer()
+
+        self.container.restart(CHARM_KEY)
+
 
 
 if __name__ == "__main__":
-    main(ZooKeeperCharm)
+    main(ZooKeeperK8sCharm)
