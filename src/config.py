@@ -113,7 +113,7 @@ class ZooKeeperConfig:
         opts = (
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
-            f"-Djava.security.auth.login.config={self.default_config_path}/zookeeper-jaas.cfg",
+            f"-Djava.security.auth.login.config={self.jaas_filepath}",
         )
 
         return " ".join(opts)
