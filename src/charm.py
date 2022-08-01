@@ -176,7 +176,11 @@ class ZooKeeperK8sCharm(CharmBase):
     def _restart(self, event: EventBase):
         """Handler for rolling restart events triggered by zookeeper_relation_changed/broken."""
         # for when relations trigger during start-up of the cluster
-        if not self.cluster.relation.data[self.unit].get("state", None) == "started":
+        if (not self.cluster.relation.data[self.unit].get("state", None) == "started") or (
+            not self.cluster.relation.data[self.app].get(
+                str(self.cluster.get_unit_id(self.unit)), None
+            )
+        ):
             event.defer()
             return
 
@@ -192,7 +196,6 @@ class ZooKeeperK8sCharm(CharmBase):
             event.defer()
 
         self.container.restart(CHARM_KEY)
-
 
 
 if __name__ == "__main__":
