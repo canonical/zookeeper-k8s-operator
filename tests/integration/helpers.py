@@ -2,6 +2,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
 import re
 from pathlib import Path
 from subprocess import PIPE, check_output
@@ -18,12 +19,12 @@ APP_NAME = METADATA["name"]
 def get_password(model_full_name: str) -> str:
     # getting relation data
     show_unit = check_output(
-        f"JUJU_MODEL={model_full_name} juju show-unit {APP_NAME}/0",
+        f"JUJU_MODEL={model_full_name} juju show-unit {APP_NAME}/0 --format json",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
     )
-    response = yaml.safe_load(show_unit)
+    response = json.loads(show_unit)
     relations_info = response[f"{APP_NAME}/0"]["relation-info"]
 
     for info in relations_info:
@@ -32,30 +33,6 @@ def get_password(model_full_name: str) -> str:
             return password
     else:
         raise Exception("no relations found")
-
-
-def restart_unit(model_full_name: str, unit: str) -> None:
-    # getting juju id
-    machine_id = check_output(
-        f"JUJU_MODEL={model_full_name} juju status | grep {unit} | awk '{{ print $4 }}'",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-
-    # getting lxc machine name
-    machine_name = check_output(
-        f"JUJU_MODEL={model_full_name} juju machines | grep awk '{{print $4}}' | grep -e '-{machine_id}'| head -1",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    _ = check_output(
-        f"lxc restart {machine_name}",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
 
 
 def write_key(host: str, password: str, username: str = "super") -> None:
@@ -119,7 +96,7 @@ async def ping_servers(ops_test: OpsTest) -> bool:
 
 def check_jaas_config(model_full_name: str, unit: str):
     config = check_output(
-        f"JUJU_MODEL={model_full_name} juju exec cat /var/snap/kafka/common/zookeeper-jaas.cfg --unit {unit}",
+        f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'cat /data/zookeeper/config/zookeeper-jaas.cfg'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,

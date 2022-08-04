@@ -120,6 +120,7 @@ class ZooKeeperK8sCharm(CharmBase):
             )
         except PathError:
             event.defer()
+            return
 
         self.container.add_layer(CHARM_KEY, self._zookeeper_layer, combine=True)
         self.container.replan()
@@ -194,6 +195,7 @@ class ZooKeeperK8sCharm(CharmBase):
             )
         except PathError:
             event.defer()
+            return
 
         self.container.restart(CHARM_KEY)
 

@@ -23,7 +23,12 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
     app_charm = await ops_test.build_charm("tests/integration/app-charm")
 
     await asyncio.gather(
-        ops_test.model.deploy(zk_charm, application_name=APP_NAME, num_units=3),
+        ops_test.model.deploy(
+            zk_charm,
+            application_name=APP_NAME,
+            num_units=3,
+            resources={"zookeeper-image": "ubuntu/zookeeper:latest"},
+        ),
         ops_test.model.deploy(app_charm, application_name=DUMMY_NAME_1, num_units=1),
     )
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_1])
@@ -65,7 +70,7 @@ async def test_deploy_multiple_charms_relate_active(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_scale_up_gets_new_jaas_users(ops_test: OpsTest):
-    await ops_test.model.applications[APP_NAME].add_units(count=1)
+    await ops_test.model.applications[APP_NAME].scale(scale=4)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 4)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active")
 
