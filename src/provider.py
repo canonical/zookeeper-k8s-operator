@@ -15,7 +15,7 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
-from ops.charm import RelationBrokenEvent
+from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
 from ops.model import MaintenanceStatus, Relation
 
@@ -261,7 +261,7 @@ class ZooKeeperProvider(Object):
                 relation_data
             )
 
-    def _on_client_relation_updated(self, event: EventBase) -> None:
+    def _on_client_relation_updated(self, event: RelationEvent) -> None:
         """Updates ACLs while handling `client_relation_changed`.
 
         Args:
@@ -283,6 +283,14 @@ class ZooKeeperProvider(Object):
                 return
 
             self.apply_relation_data(event=event)
+            logger.debug(f"passwords set for {event.relation}")
+
+        # don't trigger rolling restart until leader has finished updating relation data
+        for config in self.relations_config(event=event).values():
+            if config.get("chroot", None) and not config.get("password", None):
+                logger.debug("passwords not set for {event.relation}")
+                event.defer()
+                return
 
         # All units restart after relation changed event to add new users
         self.charm.on[self.charm.restart.name].acquire_lock.emit()
