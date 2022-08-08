@@ -1,23 +1,26 @@
-# Copyright 2022 David Garcia
+#!/usr/bin/env python3
+# Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 options:
-  zookeeper-properties:
-    description: zookeeper.properties configuration file.
+  data-dir:
+    description: filepath for setting the ZooKeeper dataDir option
     type: string
-    default: |
-      clientPort=2181
-      dataDir=/var/lib/zookeeper/data
-      dataLogDir=/var/lib/zookeeper/log
-      tickTime=2000
-      initLimit=5
-      syncLimit=2
-      maxClientCnxns=60
-      minSessionTimeout=4000
-      maxSessionTimeout=40000
-      autopurge.snapRetainCount=3
-      autopurge.purgeInterval=0
-  heap-size:
-    description: Heap memory
+    default: "/data/zookeeper"
+  log-dir: 
+    description: filepath for setting the ZooKeeper dataLogDir option
     type: string
-    default: 512M
+    default: "/logs/zookeeper"
+  tick-time: 
+    description: length of a single tick, in milliseconds, that ZooKeeper uses as the basic time unit to regulate timeouts
+    type: int
+    default: 2000
+  init-limit: 
+    description: timeouts ZooKeeper uses to limit the length of time the ZooKeeper servers in quorum have to connect to a leader
+    type: int
+    default: 5
+  sync-limit: 
+    description: maximum number of ticks for the followers to wait to synchronize with the leader before the followers time out
+    type: int
+    default: 2
+

@@ -2,23 +2,13 @@
 # See LICENSE file for licensing details.
 
 name: zookeeper-k8s
-display-name: ZooKeeper K8s
+display-name: Zookeeper K8s
 summary: |
-  Apache ZooKeeper is an effort to develop and maintain an open-source server
-  which enables highly reliable distributed coordination.
+  ""
 description: |
-  ZooKeeper is a centralized service for maintaining configuration information,
-  naming, providing distributed synchronization, and providing group services.
-  All of these kinds of services are used in some form or another by distributed
-  applications. Each time they are implemented there is a lot of work that goes
-  into fixing the bugs and race conditions that are inevitable.
-  Because of the difficulty of implementing these kinds of services, applications
-  initially usually skimp on them, which make them brittle in the presence of
-  change and difficult to manage. Even when done correctly, different
-  implementations of these services lead to management complexity when the 
-  applications are deployed.
+  ""
 maintainers:
-  - David Garcia <david.garcia@canonical.com> 
+  - Marc Oppenheimer <marc.oppenheimer@canonical.com>
 
 containers:
   zookeeper:
@@ -27,19 +17,15 @@ containers:
 resources:
   zookeeper-image:
     type: oci-image
-    description: OCI image for ZooKeeper K8s
-    upstream-source: confluentinc/cp-zookeeper:7.0.1
+    description: OCI Image for Apache ZooKeeper
+    upstream-source: ubuntu/zookeeper:latest
 
 peers:
   cluster:
     interface: cluster
+  restart:
+    interface: rolling_op
 
 provides:
   zookeeper:
     interface: zookeeper
-    limit: 1
-
-storage:
-  data:
-    type: filesystem
-    location: /var/lib/zookeeper

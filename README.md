@@ -1,56 +1,25 @@
-<!-- Copyright 2022 Canonical Ltd.
-See LICENSE file for licensing details. -->
+## ZooKeeper K8s Operator - a Charmed Operator for running ZooKeeper on Kubernetes from Canonical
 
-# ZooKeeper K8s Operator
+This repository hosts the Machine Python Operator for [Apache ZooKeeper](https://zookeeper.apache.org/index.html).
+The ZooKeeper K8s Operator is a Python script that uses the latest upstream ZooKeeper binaries released by the The Apache Software Foundation that comes with [Apache Kafka](https://github.com/apache/kafka), made available using the [Kafka Snap](https://snapcraft.io/kafka) distributed by Canonical.
 
-[![code style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black/tree/main)
-[![Run-Tests](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml)
+### Usage
 
-[![ZooKeeper K8s](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper-k8s)
+The ZooKeeper K8s Operator may be deployed using the Juju command line as follows:
 
-## Description
-
-Apache [ZooKeeper](https://zookeeper.apache.org) is an effort to develop and maintain an open-source server which enables highly reliable distributed coordination.
-
-This repository contains a Charm Operator for deploying the ZooKeeper in a Kubernetes cluster.
-
-<!-- ## Tutorials
--  -->
-
-## How-to guides
-
-### Deploy ZooKeeper
-
-Deploy the ZooKeeper K8s Operator using the Juju command line:
-
-```shell
-$ juju add-model zookeeper-k8s
-$ juju deploy zookeeper-k8s
+```bash
+$ juju deploy zookeeper-k8s -n 3
 ```
 
-### Scale ZooKeeper
+## A scalable, secure distributed coordinator for Apache Kafka, Apache Hadoop and more!
 
-Scale ZooKeeper by executing the following command
+Manual, Day 2 operations for deploying and operating Apache ZooKeeper, scaling-up/retiring servers, updating users and distributing ACL permissions are handled automatically using the [Juju Operator Lifecycle Manager](https://juju.is/docs/olm).
 
-```shell
-$ juju scale-application zookeeper-k8s 3
-```
-
-### How to integrate with ZooKeeper
-
-If you are developing a charm that needs to integrate with ZooKeeper, please follow [the instructions](https://charmhub.io/zookeeper-k8s/libraries/zookeeper) to do so.
-
-## Reference
-
-- [ZooKeeper 3.6.3 documentation](https://zookeeper.apache.org/doc/r3.6.3/index.html)
-- [OCI image](https://hub.docker.com/r/confluentinc/cp-zookeeper): currently using tag `7.0.1`.
-
-## Explanation
-
-- [What is ZooKeeper?](https://zookeeper.apache.org/doc/r3.6.3/zookeeperOver.html)
+### Key Features
+- Horizontal scaling for high-availability out-of-the-box
+- Server-Server and Client-Server authentication both enabled by default
+- Access control management supported with user-provided ACL lists.
 
 ## Contributing
 
-Please see the [Juju SDK docs](https://juju.is/docs/sdk) for guidelines
-on enhancements to this charm following best practice guidelines, and
-`CONTRIBUTING.md` for developer guidance.
+This charm is still in active development. If you would like to contribute, please refer to [CONTRIBUTING.md](https://github.com/canonical/zookeeper-k8s-operator/blob/main/CONTRIBUTING.md)
