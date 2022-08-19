@@ -2,12 +2,12 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charmed Machine Operator for Apache ZooKeeper."""
+"""Charmed k8s Operator for Apache ZooKeeper."""
 
 import logging
 
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import CharmBase
+from ops.charm import ActionEvent, CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, Container
@@ -50,6 +50,15 @@ class ZooKeeperK8sCharm(CharmBase):
         )
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_updated
+        )
+        self.framework.observe(
+            getattr(self.on, "get_super_password_action"), self._get_super_password_action
+        )
+        self.framework.observe(
+            getattr(self.on, "get_sync_password_action"), self._get_sync_password_action
+        )
+        self.framework.observe(
+            getattr(self.on, "rotate_passwords_action"), self._rotate_passwords_action
         )
 
     @property
@@ -138,6 +147,22 @@ class ZooKeeperK8sCharm(CharmBase):
             - Updating ZK quorum config
             - Updating app data state
         """
+        # Logic for password rotation
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            # All units have rotated the password, we can to remove the global flag
+            if self.unit.is_leader() and self.cluster._all_rotated():
+                self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+
+            logger.debug("Acquiring lock for password rotation")
+            self.on[self.restart.name].acquire_lock.emit()
+            return
+
+        else:
+            # After removal of global flag, each unit can reset its state so more
+            # password rotations can happen
+            self.cluster.relation.data[self.unit]["password-rotated"] = ""
+            logger.debug("Password rotation finished for unit {}".format(self.unit.name))
+
         if not self.unit.is_leader():
             return
 
@@ -198,6 +223,51 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         self.container.restart(CHARM_KEY)
+
+        # If restart is because of a password rotation, indicate that this unit is finished
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
+
+        # If leader runs last on RollingOps restart, this code would be enough
+        """
+        if self.unit.is_leader() and self.cluster.relation.data[self.app].get("rotate-passwords"):
+            logger.error("LEADER REMOVING ROTATE_PASSWORDS")
+            self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+        """
+
+    def _get_super_password_action(self, event: ActionEvent) -> None:
+        """Handler for get-super-password action event."""
+        event.set_results({"super-password": self.cluster.passwords[0]})
+
+    def _get_sync_password_action(self, event: ActionEvent) -> None:
+        """Handler for get-sync-password action event."""
+        event.set_results({"sync-password": self.cluster.passwords[1]})
+
+    def _rotate_passwords_action(self, event: ActionEvent) -> None:
+        """Handler for rotate-passwords action.
+
+        Will generate new passwords and update the Zookeeper service.
+        """
+        if not self.unit.is_leader():
+            msg = "Password rotation must be called on leader unit"
+            logger.error(msg)
+            event.set_results({"result": msg})
+            return
+
+        # Generate new passwords
+        super_password = self.cluster.generate_password()
+        sync_password = self.cluster.generate_password()
+
+        # Store those passwords on application databag
+        self.cluster.relation.data[self.app].update(
+            {
+                "super_password": super_password,
+                "sync_password": sync_password,
+            }
+        )
+
+        # Add password flag
+        self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
 
 
 if __name__ == "__main__":

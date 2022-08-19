@@ -353,6 +353,21 @@ class ZooKeeperCluster:
 
         return servers, unit_config
 
+    def _all_rotated(self) -> bool:
+        """Check if all units have rotated their passwords.
+
+        All units need to have `password-rotated` for the process to be finished.
+
+        Returns:
+            result : bool
+        """
+        all_finished = True
+        for unit in self.peer_units:
+            if self.relation.data[unit].get("password-rotated") is None:
+                all_finished = False
+                break
+        return all_finished
+
     @staticmethod
     def generate_password():
         """Creates randomized string for use as app passwords.

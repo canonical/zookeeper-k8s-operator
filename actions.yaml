@@ -1,2 +1,11 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
+
+get-super-password:
+  description: Returns the Zookeeper super user password (for the cluster)
+
+get-sync-password:
+  description: Returns the Zookeeper sync user password
+
+rotate-passwords:
+  description: Generates new passwords for {super, sync} users
