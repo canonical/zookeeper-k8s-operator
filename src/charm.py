@@ -149,9 +149,10 @@ class ZooKeeperK8sCharm(CharmBase):
         """
         # Logic for password rotation
         if self.cluster.relation.data[self.app].get("rotate-passwords"):
-            # All units have rotated the password, we can to remove the global flag
+            # All units have rotated the password, we can remove the global flag
             if self.unit.is_leader() and self.cluster._all_rotated():
                 self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+                return
 
             logger.debug("Acquiring lock for password rotation")
             self.on[self.restart.name].acquire_lock.emit()
