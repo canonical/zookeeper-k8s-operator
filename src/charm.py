@@ -154,15 +154,20 @@ class ZooKeeperK8sCharm(CharmBase):
                 self.cluster.relation.data[self.app]["rotate-passwords"] = ""
                 return
 
-            logger.debug("Acquiring lock for password rotation")
+            # Own unit finished rotation, no need to issue a new lock
+            if self.cluster.relation.data[self.unit].get("password-rotated"):
+                return
+
+            logger.info("Acquiring lock for password rotation")
             self.on[self.restart.name].acquire_lock.emit()
+            # Indicate that unit has queued for password rotation
+            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
             return
 
         else:
             # After removal of global flag, each unit can reset its state so more
             # password rotations can happen
             self.cluster.relation.data[self.unit]["password-rotated"] = ""
-            logger.debug("Password rotation finished for unit {}".format(self.unit.name))
 
         if not self.unit.is_leader():
             return
@@ -224,10 +229,6 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         self.container.restart(CHARM_KEY)
-
-        # If restart is because of a password rotation, indicate that this unit is finished
-        if self.cluster.relation.data[self.app].get("rotate-passwords"):
-            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
         # If leader runs last on RollingOps restart, this code would be enough
         """
