@@ -270,6 +270,7 @@ class ZooKeeperK8sCharm(CharmBase):
 
         # Add password flag
         self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
+        event.set_results({"result": "Called for password rotation"})
 
 
 if __name__ == "__main__":

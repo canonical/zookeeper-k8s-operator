@@ -35,6 +35,28 @@ def get_password(model_full_name: str) -> str:
         raise Exception("no relations found")
 
 
+async def get_user_password(ops_test: OpsTest, user: str, num_unit=0) -> str:
+    """Use the charm action to retrieve the password for user.
+
+    Return:
+        String with the password stored on the peer relation databag.
+    """
+    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(
+        f"get-{user}-password"
+    )
+    password = await action.wait()
+    return password.results[f"{user}-password"]
+
+
+async def rotate_passwords(ops_test: OpsTest, num_unit=0) -> str:
+    """Use the charm action to start a password rotation."""
+    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(
+        "rotate-passwords"
+    )
+    password = await action.wait()
+    return password.results["result"]
+
+
 def write_key(host: str, password: str, username: str = "super") -> None:
     kc = KazooClient(
         hosts=host,
