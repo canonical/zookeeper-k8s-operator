@@ -48,13 +48,15 @@ async def get_user_password(ops_test: OpsTest, user: str, num_unit=0) -> str:
     return password.results[f"{user}-password"]
 
 
-async def rotate_passwords(ops_test: OpsTest, num_unit=0) -> str:
+async def set_password(ops_test: OpsTest, username="super", password=None, num_unit=0) -> str:
     """Use the charm action to start a password rotation."""
-    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(
-        "rotate-passwords"
-    )
+    command = f"set-password username={username}"
+    if password:
+        command += f" password={password}"
+
+    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(command)
     password = await action.wait()
-    return password.results["result"]
+    return password.results
 
 
 def write_key(host: str, password: str, username: str = "super") -> None:

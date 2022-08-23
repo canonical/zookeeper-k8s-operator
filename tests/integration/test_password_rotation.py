@@ -13,7 +13,7 @@ from tests.integration.helpers import (
     check_key,
     get_user_password,
     ping_servers,
-    rotate_passwords,
+    set_password,
     write_key,
 )
 
@@ -59,10 +59,18 @@ async def test_password_rotation(ops_test: OpsTest):
         if await unit.is_leader_from_status():
             leader = unit.name
             break
-
     leader_num = leader.split("/")[-1]
-    result = await rotate_passwords(ops_test, leader_num)
-    assert result == "Called for password rotation"
+
+    # Change both passwords
+    result = await set_password(ops_test, username="super", num_unit=leader_num)
+    assert "super-password" in result.keys()
+
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
+    assert ops_test.model.applications[APP_NAME].status == "active"
+    assert ping_servers(ops_test)
+
+    result = await set_password(ops_test, username="sync", num_unit=leader_num)
+    assert "sync-password" in result.keys()
 
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
     assert ops_test.model.applications[APP_NAME].status == "active"

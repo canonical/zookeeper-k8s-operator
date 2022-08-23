@@ -20,7 +20,7 @@ from cluster import (
     ZooKeeperCluster,
 )
 from config import ZooKeeperConfig
-from literals import CHARM_KEY
+from literals import CHARM_KEY, CHARM_USERS
 from provider import ZooKeeperProvider
 
 logger = logging.getLogger(__name__)
@@ -57,9 +57,7 @@ class ZooKeeperK8sCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "get_sync_password_action"), self._get_sync_password_action
         )
-        self.framework.observe(
-            getattr(self.on, "rotate_passwords_action"), self._rotate_passwords_action
-        )
+        self.framework.observe(getattr(self.on, "set_password_action"), self._set_password_action)
 
     @property
     def container(self) -> Container:
@@ -160,8 +158,6 @@ class ZooKeeperK8sCharm(CharmBase):
 
             logger.info("Acquiring lock for password rotation")
             self.on[self.restart.name].acquire_lock.emit()
-            # Indicate that unit has queued for password rotation
-            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
             return
 
         else:
@@ -230,6 +226,9 @@ class ZooKeeperK8sCharm(CharmBase):
 
         self.container.restart(CHARM_KEY)
 
+        # Indicate that unit has completed restart
+        self.cluster.relation.data[self.unit]["password-rotated"] = "true"
+
         # If leader runs last on RollingOps restart, this code would be enough
         """
         if self.unit.is_leader() and self.cluster.relation.data[self.app].get("rotate-passwords"):
@@ -245,32 +244,42 @@ class ZooKeeperK8sCharm(CharmBase):
         """Handler for get-sync-password action event."""
         event.set_results({"sync-password": self.cluster.passwords[1]})
 
-    def _rotate_passwords_action(self, event: ActionEvent) -> None:
-        """Handler for rotate-passwords action.
+    def _set_password_action(self, event: ActionEvent) -> None:
+        """Handler for set-password action.
 
-        Will generate new passwords and update the Zookeeper service.
+        Set the password for a specific user, if no passwords are passed, generate them.
         """
         if not self.unit.is_leader():
             msg = "Password rotation must be called on leader unit"
             logger.error(msg)
-            event.set_results({"result": msg})
+            event.fail(msg)
             return
 
-        # Generate new passwords
-        super_password = self.cluster.generate_password()
-        sync_password = self.cluster.generate_password()
+        username = "super"
+        if "username" in event.params:
+            username = event.params["username"]
+        if username not in CHARM_USERS:
+            msg = f"The action can be run only for users used by the charm: {CHARM_USERS} not {username}."
+            logger.error(msg)
+            event.fail(msg)
+            return
+
+        new_password = self.cluster.generate_password()
+        if "password" in event.params:
+            new_password = event.params["password"]
+
+        # Passwords should not be the same.
+        if new_password in self.cluster.passwords:
+            event.log("The old and new passwords are equal.")
+            event.set_results({f"{username}-password": new_password})
+            return
 
         # Store those passwords on application databag
-        self.cluster.relation.data[self.app].update(
-            {
-                "super_password": super_password,
-                "sync_password": sync_password,
-            }
-        )
+        self.cluster.relation.data[self.app].update({f"{username}_password": new_password})
 
         # Add password flag
         self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
-        event.set_results({"result": "Called for password rotation"})
+        event.set_results({f"{username}-password": new_password})
 
 
 if __name__ == "__main__":
