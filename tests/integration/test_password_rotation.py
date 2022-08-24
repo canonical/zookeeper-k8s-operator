@@ -11,6 +11,7 @@ from pytest_operator.plugin import OpsTest
 
 from tests.integration.helpers import (
     check_key,
+    get_address,
     get_user_password,
     ping_servers,
     set_password,
@@ -82,6 +83,6 @@ async def test_password_rotation(ops_test: OpsTest):
     assert super_password != new_super_password
     assert sync_password != new_sync_password
 
-    host = ops_test.model.applications[APP_NAME].units[0].public_address
+    host = await get_address(ops_test, APP_NAME, leader_num)
     write_key(host=host, password=new_super_password)
     check_key(host=host, password=new_super_password)

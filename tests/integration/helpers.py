@@ -50,11 +50,13 @@ async def get_user_password(ops_test: OpsTest, user: str, num_unit=0) -> str:
 
 async def set_password(ops_test: OpsTest, username="super", password=None, num_unit=0) -> str:
     """Use the charm action to start a password rotation."""
-    command = f"set-password username={username}"
+    params = {"username": username}
     if password:
-        command += f" password={password}"
+        params["password"] = password
 
-    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(command)
+    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(
+        "set-password", **params
+    )
     password = await action.wait()
     return password.results
 
@@ -133,3 +135,9 @@ def check_jaas_config(model_full_name: str, unit: str):
             user_lines[matched[1]] = matched[2]
 
     return user_lines
+
+async def get_address(ops_test: OpsTest, app_name=APP_NAME, unit_num=0) -> str:
+    """Get the address for a unit."""
+    status = await ops_test.model.get_status()  # noqa: F821
+    address = status["applications"][app_name]["units"][f"{app_name}/{unit_num}"]["address"]
+    return address
