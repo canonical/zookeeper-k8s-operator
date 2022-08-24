@@ -136,6 +136,7 @@ def check_jaas_config(model_full_name: str, unit: str):
 
     return user_lines
 
+
 async def get_address(ops_test: OpsTest, app_name=APP_NAME, unit_num=0) -> str:
     """Get the address for a unit."""
     status = await ops_test.model.get_status()  # noqa: F821
