@@ -2,12 +2,12 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charmed Machine Operator for Apache ZooKeeper."""
+"""Charmed k8s Operator for Apache ZooKeeper."""
 
 import logging
 
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import CharmBase
+from ops.charm import ActionEvent, CharmBase
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, Container
@@ -20,7 +20,7 @@ from cluster import (
     ZooKeeperCluster,
 )
 from config import ZooKeeperConfig
-from literals import CHARM_KEY
+from literals import CHARM_KEY, CHARM_USERS
 from provider import ZooKeeperProvider
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,13 @@ class ZooKeeperK8sCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_updated
         )
+        self.framework.observe(
+            getattr(self.on, "get_super_password_action"), self._get_super_password_action
+        )
+        self.framework.observe(
+            getattr(self.on, "get_sync_password_action"), self._get_sync_password_action
+        )
+        self.framework.observe(getattr(self.on, "set_password_action"), self._set_password_action)
 
     @property
     def container(self) -> Container:
@@ -138,6 +145,26 @@ class ZooKeeperK8sCharm(CharmBase):
             - Updating ZK quorum config
             - Updating app data state
         """
+        # Logic for password rotation
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            # All units have rotated the password, we can remove the global flag
+            if self.unit.is_leader() and self.cluster._all_rotated():
+                self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+                return
+
+            # Own unit finished rotation, no need to issue a new lock
+            if self.cluster.relation.data[self.unit].get("password-rotated"):
+                return
+
+            logger.info("Acquiring lock for password rotation")
+            self.on[self.restart.name].acquire_lock.emit()
+            return
+
+        else:
+            # After removal of global flag, each unit can reset its state so more
+            # password rotations can happen
+            self.cluster.relation.data[self.unit]["password-rotated"] = ""
+
         if not self.unit.is_leader():
             return
 
@@ -198,6 +225,58 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         self.container.restart(CHARM_KEY)
+
+        # Indicate that unit has completed restart
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
+
+        # If leader runs last on RollingOps restart, this code would be enough
+        """
+        if self.unit.is_leader() and self.cluster.relation.data[self.app].get("rotate-passwords"):
+            logger.error("LEADER REMOVING ROTATE_PASSWORDS")
+            self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+        """
+
+    def _get_super_password_action(self, event: ActionEvent) -> None:
+        """Handler for get-super-password action event."""
+        event.set_results({"super-password": self.cluster.passwords[0]})
+
+    def _get_sync_password_action(self, event: ActionEvent) -> None:
+        """Handler for get-sync-password action event."""
+        event.set_results({"sync-password": self.cluster.passwords[1]})
+
+    def _set_password_action(self, event: ActionEvent) -> None:
+        """Handler for set-password action.
+
+        Set the password for a specific user, if no passwords are passed, generate them.
+        """
+        if not self.unit.is_leader():
+            msg = "Password rotation must be called on leader unit"
+            logger.error(msg)
+            event.fail(msg)
+            return
+
+        username = event.params.get("username", "super")
+        if username not in CHARM_USERS:
+            msg = f"The action can be run only for users used by the charm: {CHARM_USERS} not {username}."
+            logger.error(msg)
+            event.fail(msg)
+            return
+
+        new_password = event.params.get("password", self.cluster.generate_password())
+
+        # Passwords should not be the same.
+        if new_password in self.cluster.passwords:
+            event.log("The old and new passwords are equal.")
+            event.set_results({f"{username}-password": new_password})
+            return
+
+        # Store those passwords on application databag
+        self.cluster.relation.data[self.app].update({f"{username}_password": new_password})
+
+        # Add password flag
+        self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
+        event.set_results({f"{username}-password": new_password})
 
 
 if __name__ == "__main__":

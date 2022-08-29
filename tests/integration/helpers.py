@@ -35,6 +35,32 @@ def get_password(model_full_name: str) -> str:
         raise Exception("no relations found")
 
 
+async def get_user_password(ops_test: OpsTest, user: str, num_unit=0) -> str:
+    """Use the charm action to retrieve the password for user.
+
+    Return:
+        String with the password stored on the peer relation databag.
+    """
+    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(
+        f"get-{user}-password"
+    )
+    password = await action.wait()
+    return password.results[f"{user}-password"]
+
+
+async def set_password(ops_test: OpsTest, username="super", password=None, num_unit=0) -> str:
+    """Use the charm action to start a password rotation."""
+    params = {"username": username}
+    if password:
+        params["password"] = password
+
+    action = await ops_test.model.units.get(f"{APP_NAME}/{num_unit}").run_action(
+        "set-password", **params
+    )
+    password = await action.wait()
+    return password.results
+
+
 def write_key(host: str, password: str, username: str = "super") -> None:
     kc = KazooClient(
         hosts=host,
@@ -109,3 +135,10 @@ def check_jaas_config(model_full_name: str, unit: str):
             user_lines[matched[1]] = matched[2]
 
     return user_lines
+
+
+async def get_address(ops_test: OpsTest, app_name=APP_NAME, unit_num=0) -> str:
+    """Get the address for a unit."""
+    status = await ops_test.model.get_status()  # noqa: F821
+    address = status["applications"][app_name]["units"][f"{app_name}/{unit_num}"]["address"]
+    return address

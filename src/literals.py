@@ -7,3 +7,4 @@
 CHARM_KEY = "zookeeper"
 PEER = "cluster"
 REL_NAME = "zookeeper"
+CHARM_USERS = ["super", "sync"]

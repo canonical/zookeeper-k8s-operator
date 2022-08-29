@@ -1,2 +1,21 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
+
+get-super-password:
+  description: Returns the Zookeeper super user password (for the cluster)
+
+get-sync-password:
+  description: Returns the Zookeeper sync user password
+
+set-password:
+  description: Change the system user's password, which is used by the charm.
+    It is for internal charm users and SHOULD NOT be used by applications.
+    This action must be called on the leader unit.
+  params:
+    username:
+      type: string
+      description: The username, the default value 'operator'.
+        Possible values - super, sync.
+    password:
+      type: string
+      description: The password will be auto-generated if this option is not specified.
