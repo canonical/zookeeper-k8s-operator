@@ -227,7 +227,8 @@ class ZooKeeperK8sCharm(CharmBase):
         self.container.restart(CHARM_KEY)
 
         # Indicate that unit has completed restart
-        self.cluster.relation.data[self.unit]["password-rotated"] = "true"
+        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
         # If leader runs last on RollingOps restart, this code would be enough
         """
@@ -255,18 +256,14 @@ class ZooKeeperK8sCharm(CharmBase):
             event.fail(msg)
             return
 
-        username = "super"
-        if "username" in event.params:
-            username = event.params["username"]
+        username = event.params.get("username", "super")
         if username not in CHARM_USERS:
             msg = f"The action can be run only for users used by the charm: {CHARM_USERS} not {username}."
             logger.error(msg)
             event.fail(msg)
             return
 
-        new_password = self.cluster.generate_password()
-        if "password" in event.params:
-            new_password = event.params["password"]
+        new_password = event.params.get("password", self.cluster.generate_password())
 
         # Passwords should not be the same.
         if new_password in self.cluster.passwords:
