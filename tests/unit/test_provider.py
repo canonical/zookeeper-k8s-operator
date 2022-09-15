@@ -6,68 +6,58 @@ import logging
 import re
 import unittest
 from collections import namedtuple
+from pathlib import Path
 
 import ops.testing
-from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import CharmBase, RelationBrokenEvent
+import yaml
+from ops.charm import RelationBrokenEvent
 from ops.testing import Harness
 
-from cluster import ZooKeeperCluster
-from provider import ZooKeeperProvider
+from charm import ZooKeeperK8sCharm
+from literals import CHARM_KEY, PEER, REL_NAME
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
 logger = logging.getLogger(__name__)
 
-METADATA = """
-    name: zookeeper
-    peers:
-        cluster:
-            interface: cluster
-        restart:
-            interface: rolling_op
-    provides:
-        zookeeper:
-            interface: zookeeper
-"""
+METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
+CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
+ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
 
 CustomRelation = namedtuple("Relation", ["id"])
 
 
-class DummyZooKeeperCharm(CharmBase):
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.cluster = ZooKeeperCluster(self)
-        self.client_relation = ZooKeeperProvider(self)
-        self.restart = RollingOpsManager(self, relation="restart", callback=lambda x: x)
-
-
 class TestProvider(unittest.TestCase):
     def setUp(self):
-        self.harness = Harness(DummyZooKeeperCharm, meta=METADATA)
+        self.harness = Harness(ZooKeeperK8sCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
         self.addCleanup(self.harness.cleanup)
-        self.harness.add_relation("zookeeper", "application")
-        self.harness.begin_with_initial_hooks()
+        self.harness.add_relation(REL_NAME, "application")
+        self.harness.add_relation(PEER, CHARM_KEY)
+        self.harness.begin()
 
     @property
     def provider(self):
-        return self.harness.charm.client_relation
+        return self.harness.charm.provider
 
     def test_relation_config_new_relation_no_chroot(self):
-        config = self.harness.charm.client_relation.relation_config(
+        config = self.harness.charm.provider.relation_config(
             relation=self.provider.client_relations[0]
         )
         self.assertIsNone(config)
 
     def test_relation_config_new_relation(self):
+
         self.harness.update_relation_data(
             self.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
         self.harness.update_relation_data(
-            self.provider.app_relation.id, "zookeeper", {"relation-0": "password"}
+            self.provider.app_relation.id, CHARM_KEY, {"relation-0": "password"}
         )
 
-        config = self.harness.charm.client_relation.relation_config(
+        logger.info(self.provider.client_relations[0].data)
+        logger.info(self.provider.app_relation.data)
+
+        config = self.harness.charm.provider.relation_config(
             relation=self.provider.client_relations[0]
         )
 
@@ -86,10 +76,10 @@ class TestProvider(unittest.TestCase):
             self.provider.client_relations[0].id, "application", {"database": "app"}
         )
         self.harness.update_relation_data(
-            self.provider.app_relation.id, "zookeeper", {"relation-0": "password"}
+            self.provider.app_relation.id, CHARM_KEY, {"relation-0": "password"}
         )
 
-        config = self.harness.charm.client_relation.relation_config(
+        config = self.harness.charm.provider.relation_config(
             relation=self.provider.client_relations[0]
         )
 
@@ -108,7 +98,7 @@ class TestProvider(unittest.TestCase):
             self.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
 
-        config = self.harness.charm.client_relation.relation_config(
+        config = self.harness.charm.provider.relation_config(
             relation=self.provider.client_relations[0]
         )
 
@@ -129,7 +119,7 @@ class TestProvider(unittest.TestCase):
             {"chroot": "app", "chroot-acl": "rw"},
         )
 
-        config = self.harness.charm.client_relation.relation_config(
+        config = self.harness.charm.provider.relation_config(
             relation=self.provider.client_relations[0]
         )
 
@@ -152,7 +142,7 @@ class TestProvider(unittest.TestCase):
 
         custom_relation = CustomRelation(id=self.provider.client_relations[0].id)
 
-        config = self.harness.charm.client_relation.relation_config(
+        config = self.harness.charm.provider.relation_config(
             relation=self.provider.client_relations[0],
             event=RelationBrokenEvent(handle="", relation=custom_relation),
         )
@@ -160,7 +150,7 @@ class TestProvider(unittest.TestCase):
         self.assertIsNone(config)
 
     def test_relations_config_multiple_relations(self):
-        self.harness.add_relation("zookeeper", "new_application")
+        self.harness.add_relation(REL_NAME, "new_application")
         self.harness.update_relation_data(
             self.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
@@ -168,7 +158,7 @@ class TestProvider(unittest.TestCase):
             self.provider.client_relations[1].id, "new_application", {"chroot": "new_app"}
         )
 
-        relations_config = self.harness.charm.client_relation.relations_config()
+        relations_config = self.harness.charm.provider.relations_config()
 
         self.assertEqual(
             relations_config,
@@ -179,8 +169,8 @@ class TestProvider(unittest.TestCase):
                     "chroot": "/app",
                     "acl": "cdrwa",
                 },
-                "3": {
-                    "username": "relation-3",
+                "2": {
+                    "username": "relation-2",
                     "password": "",
                     "chroot": "/new_app",
                     "acl": "cdrwa",
@@ -199,7 +189,7 @@ class TestProvider(unittest.TestCase):
             {"chroot": "new_app", "chroot-acl": "rw"},
         )
 
-        acls = self.harness.charm.client_relation.build_acls()
+        acls = self.harness.charm.provider.build_acls()
 
         self.assertEqual(len(acls), 2)
         self.assertEqual(sorted(acls.keys()), ["/app", "/new_app"])
@@ -209,7 +199,7 @@ class TestProvider(unittest.TestCase):
 
         self.assertEqual(new_app_acl.acl_list, ["READ", "WRITE"])
         self.assertEqual(new_app_acl.id.scheme, "sasl")
-        self.assertEqual(new_app_acl.id.id, "relation-3")
+        self.assertEqual(new_app_acl.id.id, "relation-2")
 
     def test_relations_config_values_for_key(self):
         self.harness.add_relation("zookeeper", "new_application")
@@ -222,27 +212,21 @@ class TestProvider(unittest.TestCase):
             {"chroot": "new_app", "chroot-acl": "rw"},
         )
 
-        config_values = self.harness.charm.client_relation.relations_config_values_for_key(
-            key="username"
-        )
+        config_values = self.harness.charm.provider.relations_config_values_for_key(key="username")
 
-        self.assertEqual(config_values, {"relation-3", "relation-0"})
+        self.assertEqual(config_values, {"relation-2", "relation-0"})
 
     def test_is_child_of(self):
         chroot = "/gandalf/the/white"
         chroots = {"/gandalf", "/saruman"}
 
-        self.assertTrue(
-            self.harness.charm.client_relation._is_child_of(path=chroot, chroots=chroots)
-        )
+        self.assertTrue(self.harness.charm.provider._is_child_of(path=chroot, chroots=chroots))
 
     def test_is_child_of_not(self):
         chroot = "/the/one/ring"
         chroots = {"/gandalf", "/saruman"}
 
-        self.assertFalse(
-            self.harness.charm.client_relation._is_child_of(path=chroot, chroots=chroots)
-        )
+        self.assertFalse(self.harness.charm.provider._is_child_of(path=chroot, chroots=chroots))
 
     def test_apply_relation_data(self):
         self.harness.set_leader(True)
@@ -255,25 +239,26 @@ class TestProvider(unittest.TestCase):
             "new_application",
             {"chroot": "new_app", "chroot-acl": "rw"},
         )
+        self.harness.add_relation_unit(self.provider.app_relation.id, "{CHARM_KEY}/0")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
-            "zookeeper/0",
+            "{CHARM_KEY}/0",
             {"state": "started"},
         )
-        self.harness.add_relation_unit(self.provider.app_relation.id, "zookeeper/1")
+        self.harness.add_relation_unit(self.provider.app_relation.id, "{CHARM_KEY}/1")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
-            "zookeeper/1",
+            "{CHARM_KEY}/1",
             {"state": "ready"},
         )
-        self.harness.add_relation_unit(self.provider.app_relation.id, "zookeeper/2")
+        self.harness.add_relation_unit(self.provider.app_relation.id, "{CHARM_KEY}/2")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
-            "zookeeper/2",
+            "{CHARM_KEY}/2",
             {"state": "started"},
         )
 
-        self.harness.charm.client_relation.apply_relation_data()
+        self.harness.charm.provider.apply_relation_data()
 
         self.assertIsNotNone(
             self.harness.charm.cluster.relation.data[self.harness.charm.app].get(
@@ -282,7 +267,7 @@ class TestProvider(unittest.TestCase):
         )
         self.assertIsNotNone(
             self.harness.charm.cluster.relation.data[self.harness.charm.app].get(
-                "relation-3", None
+                "relation-2", None
             )
         )
 

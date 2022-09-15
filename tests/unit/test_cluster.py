@@ -10,12 +10,7 @@ from ops.charm import CharmBase
 from ops.model import Unit
 from ops.testing import Harness
 
-from cluster import (
-    NoPasswordError,
-    NotUnitTurnError,
-    UnitNotFoundError,
-    ZooKeeperCluster,
-)
+from cluster import UnitNotFoundError, ZooKeeperCluster
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -120,7 +115,10 @@ class TestCluster(unittest.TestCase):
             self.relation_id, "zookeeper", {"0": "added", "1": "added", "2": "added"}
         )
 
-        self.assertTrue(self.cluster._is_unit_turn(3))
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(1)
+        self.assertTrue(self.cluster.is_unit_turn(units[0]))
 
     def test_is_unit_turn_fails_scaleup(self):
         self.harness.update_relation_data(
@@ -129,7 +127,14 @@ class TestCluster(unittest.TestCase):
             {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
 
-        self.assertFalse(self.cluster._is_unit_turn(3))
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/3")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(4)
+
+        self.assertFalse(self.cluster.is_unit_turn(units[3]))
 
     def test_is_unit_turn_succeeds_failover(self):
         self.harness.update_relation_data(
@@ -137,9 +142,16 @@ class TestCluster(unittest.TestCase):
             "zookeeper",
             {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/3")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(4)
 
-        self.assertTrue(self.cluster._is_unit_turn(0))
-        self.assertTrue(self.cluster._is_unit_turn(2))
+        self.assertTrue(self.cluster.is_unit_turn(units[0]))
+        self.assertTrue(self.cluster.is_unit_turn(units[2]))
+        self.assertFalse(self.cluster.is_unit_turn(units[3]))
 
     def test_is_unit_turn_fails_failover(self):
         self.harness.update_relation_data(
@@ -148,14 +160,14 @@ class TestCluster(unittest.TestCase):
             {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
         )
 
-        self.assertFalse(self.cluster._is_unit_turn(3))
-
-    def test_ready_to_start_raises_no_password(self):
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/0")
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
-        self.harness.update_relation_data(self.relation_id, "zookeeper", {"0": "removed"})
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
+        self.harness.add_relation_unit(self.relation_id, "zookeeper/3")
+        units = sorted(list(self.harness.charm.cluster.relation.units), key=lambda x: x.name)
+        self.harness.set_planned_units(4)
 
-        with self.assertRaises(NoPasswordError):
-            self.cluster.ready_to_start(unit=1)
+        self.assertFalse(self.cluster.is_unit_turn(units[3]))
 
     def test_generate_units_scaleup_adds_all_servers(self):
         self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
@@ -200,44 +212,3 @@ class TestCluster(unittest.TestCase):
         generated_servers = self.cluster._generate_units(unit_string=new_unit_string)
 
         self.assertEqual(len(generated_servers.splitlines()), 3)
-
-    def test_ready_to_start_raises_for_missing_data(self):
-        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "removed", "sync_password": "Mellon"}
-        )
-
-        with self.assertRaises(NotUnitTurnError):
-            self.cluster.ready_to_start(unit=2)
-
-    def test_ready_to_start_raises_for_not_unit_turn(self):
-        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
-        self.harness.add_relation_unit(self.relation_id, "zookeeper/2")
-        self.harness.update_relation_data(
-            self.relation_id, "zookeeper", {"0": "removed", "sync_password": "Mellon"}
-        )
-
-        with self.assertRaises(NotUnitTurnError):
-            self.cluster.ready_to_start(unit=2)
-
-    def test_ready_to_start_succeeds_init(self):
-        self.harness.update_relation_data(
-            self.relation_id,
-            "zookeeper",
-            {"sync_password": "gollum", "super_password": "precious"},
-        )
-        servers, _ = self.cluster.ready_to_start(unit=0)
-        self.assertNotIn("observer", servers)
-
-    def test_ready_to_start_succeeds_failover_after_init(self):
-        self.harness.add_relation_unit(self.relation_id, "zookeeper/1")
-        self.harness.update_relation_data(
-            self.relation_id,
-            "zookeeper",
-            {"0": "removed", "1": "added", "sync_password": "Mellon"},
-        )
-
-        generated_servers, _ = self.cluster.ready_to_start(unit=0)
-
-        self.assertEqual(len(re.findall("participant", generated_servers)), 1)
-        self.assertEqual(len(re.findall("observer", generated_servers)), 1)
