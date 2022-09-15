@@ -29,3 +29,8 @@ peers:
 provides:
   zookeeper:
     interface: zookeeper
+
+requires:
+  certificates:
+    interface: tls-certificates
+    limit: 1
