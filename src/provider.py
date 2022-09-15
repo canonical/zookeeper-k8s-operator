@@ -19,8 +19,9 @@ from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
 from ops.model import MaintenanceStatus, Relation
 
-from cluster import UnitNotFoundError, ZooKeeperCluster
+from cluster import UnitNotFoundError
 from literals import PEER, REL_NAME
+from utils import generate_password
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +189,10 @@ class ZooKeeperProvider(Object):
         """
         super_password, _ = self.charm.cluster.passwords
         zk = ZooKeeperManager(
-            hosts=self.charm.cluster.active_hosts, username="super", password=super_password
+            hosts=self.charm.cluster.active_hosts,
+            client_port=self.charm.cluster.client_port,
+            username="super",
+            password=super_password,
         )
 
         leader_chroots = zk.leader_znodes(path="/")
@@ -245,7 +249,7 @@ class ZooKeeperProvider(Object):
 
             relation_data = {}
             relation_data["username"] = config["username"]
-            relation_data["password"] = config["password"] or ZooKeeperCluster.generate_password()
+            relation_data["password"] = config["password"] or generate_password()
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
             relation_data["uris"] = (

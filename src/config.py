@@ -15,7 +15,6 @@ from utils import push
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROPERTIES = """
-clientPort=2181
 syncEnabled=true
 maxClientCnxns=60
 minSessionTimeout=4000
@@ -237,3 +236,12 @@ class ZooKeeperConfig:
                 and "secureClientPort" not in prop
             )
         ]
+
+    @property
+    def zookeeper_command(self) -> str:
+        """The run command for starting the ZooKeeper service.
+        Returns:
+            String of startup command and expected config filepath
+        """
+        entrypoint = "/opt/kafka/bin/zookeeper-server-start.sh"
+        return f"{entrypoint} {self.properties_filepath}"

@@ -262,7 +262,11 @@ class ZooKeeperTLS(Object):
             logger.error("Can't set private-key to unit, missing private-key in relation data")
             return
 
-        push(container=self.container, content=self.private_key, path=f"{self.charm.config.default_config_path}/server.key")
+        push(
+            container=self.container,
+            content=self.private_key,
+            path=f"{self.charm.config.default_config_path}/server.key",
+        )
 
     def set_ca(self) -> None:
         """Sets the unit ca."""
@@ -270,7 +274,11 @@ class ZooKeeperTLS(Object):
             logger.error("Can't set CA to unit, missing CA in relation data")
             return
 
-        push(container=self.container, content=self.ca, path=f"{self.charm.config.default_config_path}/ca.pem")
+        push(
+            container=self.container,
+            content=self.ca,
+            path=f"{self.charm.config.default_config_path}/ca.pem",
+        )
 
     def set_certificate(self) -> None:
         """Sets the unit signed certificate."""
@@ -278,7 +286,11 @@ class ZooKeeperTLS(Object):
             logger.error("Can't set certificate to unit, missing certificate in relation data")
             return
 
-        push(container=self.container, content=self.certificate, path=f"{self.charm.config.default_config_path}/server.pem")
+        push(
+            container=self.container,
+            content=self.certificate,
+            path=f"{self.charm.config.default_config_path}/server.pem",
+        )
 
     def set_truststore(self) -> None:
         """Adds CA to JKS truststore."""
