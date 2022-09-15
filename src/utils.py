@@ -31,7 +31,7 @@ def pull(container: Container, path: str) -> str:
     Returns:
         String of container file contents
     """
-    return str(container.pull(path, encoding="utf-8"))
+    return str(container.pull(path, encoding="utf-8").read())
 
 
 def generate_password() -> str:

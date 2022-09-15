@@ -7,6 +7,7 @@
 PEER = "cluster"
 REL_NAME = "zookeeper"
 STATE = "state"
-CHARM_KEY = "zookeeper"
+CHARM_KEY = "zookeeper-k8s"
+CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"

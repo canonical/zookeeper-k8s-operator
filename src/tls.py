@@ -20,7 +20,8 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
 )
 from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
-from ops.model import Relation
+from ops.model import Container, Relation
+from ops.pebble import ExecError
 
 from literals import PEER
 from utils import generate_password, push
@@ -265,7 +266,7 @@ class ZooKeeperTLS(Object):
         push(
             container=self.container,
             content=self.private_key,
-            path=f"{self.charm.config.default_config_path}/server.key",
+            path=f"{self.charm.zookeeper_config.default_config_path}/server.key",
         )
 
     def set_ca(self) -> None:
@@ -277,7 +278,7 @@ class ZooKeeperTLS(Object):
         push(
             container=self.container,
             content=self.ca,
-            path=f"{self.charm.config.default_config_path}/ca.pem",
+            path=f"{self.charm.zookeeper_config.default_config_path}/ca.pem",
         )
 
     def set_certificate(self) -> None:
@@ -289,52 +290,78 @@ class ZooKeeperTLS(Object):
         push(
             container=self.container,
             content=self.certificate,
-            path=f"{self.charm.config.default_config_path}/server.pem",
+            path=f"{self.charm.zookeeper_config.default_config_path}/server.pem",
         )
 
     def set_truststore(self) -> None:
         """Adds CA to JKS truststore."""
         try:
-            subprocess.check_output(
-                f"keytool -import -v -alias ca -file ca.pem -keystore truststore.jks -storepass {self.keystore_password} -noprompt",
-                stderr=subprocess.PIPE,
-                shell=True,
-                universal_newlines=True,
-                cwd=self.charm.config.default_config_path,
+            self.container.exec(
+                [
+                    "keytool",
+                    "-import",
+                    "-v",
+                    "-alias",
+                    "ca",
+                    "-file",
+                    "ca.pem",
+                    "-keystore truststore.jks",
+                    "-storepass",
+                    f"{self.keystore_password}",
+                    "-noprompt",
+                ],
+                working_dir=self.charm.zookeeper_config.default_config_path,
             )
-        except subprocess.CalledProcessError as e:
+        except ExecError as e:
             # in case this reruns and fails
-            if "already exists" in e.output:
+            if "already exists" in (str(e.stderr) or str(e.stdout)):
                 return
-            logger.error(e.output)
+            logger.error(e.stdout)
             raise e
 
     def set_p12_keystore(self) -> None:
         """Creates and adds unit cert and private-key to a PCKS12 keystore."""
         try:
-            subprocess.check_output(
-                f"openssl pkcs12 -export -in server.pem -inkey server.key -passin pass:{self.keystore_password} -certfile server.pem -out keystore.p12 -password pass:{self.keystore_password}",
-                stderr=subprocess.PIPE,
-                shell=True,
-                universal_newlines=True,
-                cwd=self.charm.config.default_config_path,
+            self.container.exec(
+                [
+                    "openssl",
+                    "pkcs12",
+                    "-export",
+                    "-in",
+                    "server.pem",
+                    "-inkey",
+                    "server.key",
+                    "-passin",
+                    f"pass:{self.keystore_password}",
+                    "-certfile",
+                    "server.pem",
+                    "-out",
+                    "keystore.p12",
+                    "-password",
+                    f"pass:{self.keystore_password}",
+                ],
+                working_dir=self.charm.zookeeper_config.default_config_path,
             )
-        except subprocess.CalledProcessError as e:
-            logger.error(e.output)
+        except ExecError as e:
+            logger.error(e.stdout)
             raise e
 
     def remove_stores(self) -> None:
         """Cleans up all keys/certs/stores on a unit."""
         try:
-            subprocess.check_output(
-                "rm -r *.pem *.key *.p12 *.jks",
-                stderr=subprocess.PIPE,
-                shell=True,
-                universal_newlines=True,
-                cwd=self.charm.config.default_config_path,
+            self.container.exec(
+                [
+                    "rm",
+                    "-r",
+                    "*.pem",
+                    "*.key",
+                    "*.p12",
+                    "*.jks",
+                ],
+                working_dir=self.charm.zookeeper_config.default_config_path,
             )
-        except subprocess.CalledProcessError as e:
-            logger.error(e.output)
+        except ExecError as e:
+            logger.error(e.stdout)
             raise e
 
     @staticmethod

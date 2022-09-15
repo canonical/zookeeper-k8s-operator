@@ -22,7 +22,7 @@ from ops.pebble import Layer
 
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_KEY, CHARM_USERS
+from literals import CHARM_USERS, CONTAINER
 from provider import ZooKeeperProvider
 from tls import ZooKeeperTLS
 from utils import generate_password, pull
@@ -70,7 +70,7 @@ class ZooKeeperK8sCharm(CharmBase):
     @property
     def container(self) -> Container:
         """Grabs the current ZooKeeper container."""
-        return self.unit.get_container(CHARM_KEY)
+        return self.unit.get_container(CONTAINER)
 
     @property
     def _zookeeper_layer(self) -> Layer:
@@ -79,12 +79,12 @@ class ZooKeeperK8sCharm(CharmBase):
             "summary": "zookeeper layer",
             "description": "Pebble config layer for zookeeper",
             "services": {
-                CHARM_KEY: {
+                CONTAINER: {
                     "override": "replace",
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {"KAFKA_OPTS": self.zookeeper_config.kafka_opts},
+                    "environment": {"KAFKA_OPTS": " ".join(self.zookeeper_config.kafka_opts)},
                 }
             },
         }
@@ -129,15 +129,19 @@ class ZooKeeperK8sCharm(CharmBase):
         # check whether restart is needed for all `*_changed` events
         self.on[self.restart.name].acquire_lock.emit()
 
-    def _restart(self, _) -> None:
+    def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
-        # 'snap restart' starts the service, so this can cause issues if ran before `init_server()`
+        # this can cause issues if ran before `init_server()`
         if not self.cluster.started:
+            return
+
+        if not self.container.can_connect():
+            event.defer()
             return
 
         if self.config_changed() or self.cluster.manual_restart:
             logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} restarting")
-            self.container.restart(CHARM_KEY)
+            self.container.restart(CONTAINER)
 
             # gives time for server to rejoin quorum, as command exits too fast
             # without, other units might restart before this unit rejoins, losing quorum
@@ -185,7 +189,7 @@ class ZooKeeperK8sCharm(CharmBase):
         self.zookeeper_config.set_zookeeper_properties()
         self.zookeeper_config.set_jaas_config()
 
-        self.container.add_layer(CHARM_KEY, self._zookeeper_layer, combine=True)
+        self.container.add_layer(CONTAINER, self._zookeeper_layer, combine=True)
         self.container.replan()
         self.unit.status = ActiveStatus()
 
@@ -201,18 +205,20 @@ class ZooKeeperK8sCharm(CharmBase):
     def config_changed(self):
         """Compares expected vs actual config that would require a restart to apply."""
         properties = (
-            pull(
-                container=self.container, path=self.zookeeper_config.properties_filepath
-            ).splitlines()
+            pull(container=self.container, path=self.zookeeper_config.properties_filepath).split(
+                "\n"
+            )
             or []
         )
+
         server_properties = self.zookeeper_config.build_static_properties(properties)
         config_properties = self.zookeeper_config.static_properties
 
         properties_changed = set(server_properties) ^ set(config_properties)
 
         jaas_config = (
-            pull(container=self.container, path=self.zookeeper_config.jaas_filepath) or []
+            pull(container=self.container, path=self.zookeeper_config.jaas_filepath).splitlines()
+            or []
         )
         jaas_changed = set(jaas_config) ^ set(self.zookeeper_config.jaas_config.splitlines())
 

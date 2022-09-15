@@ -9,7 +9,7 @@ from typing import List
 
 from ops.model import Relation
 
-from literals import PEER, REL_NAME
+from literals import CONTAINER, PEER, REL_NAME
 from utils import push
 
 logger = logging.getLogger(__name__)
@@ -29,8 +29,7 @@ quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
 quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
-audit.enable=true
-"""
+audit.enable=true"""
 
 TLS_PROPERTIES = """
 secureClientPort=2182
@@ -51,7 +50,7 @@ class ZooKeeperConfig:
 
     def __init__(self, charm):
         self.charm = charm
-        self.container = self.charm.unit.get_container("zookeeper")
+        self.container = self.charm.unit.get_container(CONTAINER)
         self.default_config_path = f"{self.charm.config['data-dir']}/config"
         self.properties_filepath = f"{self.default_config_path}/zookeeper.properties"
         self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
