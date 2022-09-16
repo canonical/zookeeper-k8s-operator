@@ -9,7 +9,6 @@ import logging
 import os
 import re
 import socket
-import subprocess
 from typing import List, Optional
 
 from charms.tls_certificates_interface.v1.tls_certificates import (
@@ -20,7 +19,7 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
 )
 from ops.charm import ActionEvent, RelationJoinedEvent
 from ops.framework import Object
-from ops.model import Container, Relation
+from ops.model import Relation
 from ops.pebble import ExecError
 
 from literals import PEER
@@ -65,6 +64,7 @@ class ZooKeeperTLS(Object):
     @property
     def cluster(self) -> Relation:
         """Relation property to be used by both the instance and charm.
+
         Returns:
             The peer relation instance
         """
@@ -73,6 +73,7 @@ class ZooKeeperTLS(Object):
     @property
     def private_key(self) -> Optional[str]:
         """The unit private-key set during `certificates_joined`.
+
         Returns:
             String of key contents
             None if key not yet generated
@@ -82,8 +83,10 @@ class ZooKeeperTLS(Object):
     @property
     def keystore_password(self) -> Optional[str]:
         """The unit keystore password set during `certificates_joined`.
+
         Password is to be assigned to keystore + truststore.
         Passwords need to be the same for both stores in ZK.
+
         Returns:
             String of password
             None if password not yet generated
@@ -93,6 +96,7 @@ class ZooKeeperTLS(Object):
     @property
     def csr(self) -> Optional[str]:
         """The unit cert signing request.
+
         Returns:
             String of csr contents
             None if csr not yet generated
@@ -102,6 +106,7 @@ class ZooKeeperTLS(Object):
     @property
     def certificate(self) -> Optional[str]:
         """The signed unit certificate from the provider relation.
+
         Returns:
             String of cert contents in PEM format
             None if cert not yet generated/signed
@@ -111,6 +116,7 @@ class ZooKeeperTLS(Object):
     @property
     def ca(self) -> Optional[str]:
         """The ca used to sign unit cert.
+
         Returns:
             String of ca contents in PEM format
             None if cert not yet generated/signed
@@ -120,6 +126,7 @@ class ZooKeeperTLS(Object):
     @property
     def enabled(self) -> bool:
         """Flag to check the cluster should run with SSL quorum encryption.
+
         Returns:
             True if SSL quorum encryption should be active. Otherwise False
         """
@@ -128,6 +135,7 @@ class ZooKeeperTLS(Object):
     @property
     def upgrading(self) -> bool:
         """Flag to check the cluster is switching between SSL <> non-SSL quorum encryption.
+
         Returns:
             True if the cluster is switching. Otherwise False
         """
@@ -136,6 +144,7 @@ class ZooKeeperTLS(Object):
     @property
     def all_units_unified(self) -> bool:
         """Flag to check whether all started units are currently running with `portUnification`.
+
         Returns:
             True if all units are running with `portUnification`. Otherwise False
         """
@@ -369,6 +378,7 @@ class ZooKeeperTLS(Object):
         """Parse TLS files from both plain text or base64 format."""
         if re.match(r"(-+(BEGIN|END) [A-Z ]+-+)", raw_content):
             return raw_content
+
         return base64.b64decode(raw_content).decode("utf-8")
 
     def _get_sans(self) -> List[str]:

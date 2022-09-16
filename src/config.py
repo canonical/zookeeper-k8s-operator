@@ -61,6 +61,7 @@ class ZooKeeperConfig:
     @property
     def cluster(self) -> Relation:
         """Relation property to be used by both the instance and charm.
+
         Returns:
             The peer relation instance
         """
@@ -79,30 +80,38 @@ class ZooKeeperConfig:
     @property
     def jaas_users(self) -> List[str]:
         """Builds the necessary user strings to add to ZK JAAS config files.
+
         Returns:
             Newline delimited string of JAAS users from relation data
         """
         client_relations = self.charm.model.relations[REL_NAME]
+
         if not client_relations:
             return []
+
         jaas_users = []
         for relation in client_relations:
             username = f"relation-{relation.id}"
             password = self.cluster.data[self.charm.app].get(username, None)
+
             if not (username and password):
                 continue
+
             jaas_users.append(f'user_{username}="{password}"')
+
         return jaas_users
 
     @property
     def jaas_config(self) -> str:
         """Builds the JAAS config.
+
         Returns:
             String of JAAS config for super/user config
         """
         sync_password = self.cluster.data[self.charm.app].get("sync-password", None)
         super_password = self.cluster.data[self.charm.app].get("super-password", None)
         users = "\n".join(self.jaas_users) or ""
+
         return f"""
             QuorumServer {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
@@ -123,6 +132,7 @@ class ZooKeeperConfig:
     @property
     def zookeeper_properties(self) -> List[str]:
         """Build the zookeeper.properties content.
+
         Returns:
             List of properties to be set to zookeeper.properties config file
         """
@@ -181,6 +191,7 @@ class ZooKeeperConfig:
     @property
     def static_properties(self) -> List[str]:
         """Build the zookeeper.properties content, without dynamic options.
+
         Returns:
             List of static properties to compared to current zookeeper.properties
         """
@@ -218,11 +229,14 @@ class ZooKeeperConfig:
     @staticmethod
     def build_static_properties(properties: List[str]) -> List[str]:
         """Removes dynamic config options from list of properties.
+
         Running ZooKeeper cluster with `reconfigEnabled` moves dynamic options
             to a dedicated dynamic file
         These options are `dynamicConfigFile`, `clientPort` and `secureClientPort`
+
         Args:
             properties: the properties to make static
+
         Returns:
             List of static properties
         """
@@ -239,6 +253,7 @@ class ZooKeeperConfig:
     @property
     def zookeeper_command(self) -> str:
         """The run command for starting the ZooKeeper service.
+
         Returns:
             String of startup command and expected config filepath
         """
