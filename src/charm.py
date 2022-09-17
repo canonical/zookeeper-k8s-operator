@@ -324,7 +324,6 @@ class ZooKeeperK8sCharm(CharmBase):
             if self.cluster.relation.data[self.unit].get("password-rotated"):
                 return False
 
-            logger.info("Acquiring lock for password rotation")
             self.on[self.restart.name].acquire_lock.emit()
             return False
 
@@ -369,7 +368,7 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         # Store those passwords on application databag
-        self.cluster.relation.data[self.app].update({f"{username}_password": new_password})
+        self.cluster.relation.data[self.app].update({f"{username}-password": new_password})
 
         # Add password flag
         self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
