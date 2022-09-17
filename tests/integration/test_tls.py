@@ -22,7 +22,12 @@ APP_NAME = METADATA["name"]
 async def test_deploy_ssl_quorum(ops_test: OpsTest):
     charm = await ops_test.build_charm(".")
     await asyncio.gather(
-        ops_test.model.deploy(charm, application_name=APP_NAME, num_units=3),
+        ops_test.model.deploy(
+            charm,
+            application_name=APP_NAME,
+            num_units=3,
+            resources={"zookeeper-image": "ubuntu/zookeeper:latest"},
+        ),
         ops_test.model.deploy(
             "tls-certificates-operator",
             application_name="tls-certificates-operator",
