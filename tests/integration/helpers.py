@@ -120,6 +120,16 @@ async def ping_servers(ops_test: OpsTest) -> bool:
     return True
 
 
+def check_properties(model_full_name: str, unit: str):
+    properties = check_output(
+        f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'cat /data/zookeeper/config/zookeeper.properties'",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+    return properties.splitlines()
+
+
 def check_jaas_config(model_full_name: str, unit: str):
     config = check_output(
         f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'cat /data/zookeeper/config/zookeeper-jaas.cfg'",

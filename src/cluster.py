@@ -4,10 +4,9 @@
 
 """ZooKeeperCluster class and methods."""
 
+
 import logging
 import re
-import secrets
-import string
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from charms.zookeeper.v0.client import (
@@ -16,9 +15,9 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
+from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
-from ops.charm import CharmBase
-from ops.model import ActiveStatus, MaintenanceStatus, Relation, StatusBase, Unit
+from ops.model import Relation, Unit
 
 from literals import PEER
 
@@ -31,18 +30,6 @@ class UnitNotFoundError(Exception):
     pass
 
 
-class NotUnitTurnError(Exception):
-    """A desired unit isn't next in line to start safely."""
-
-    pass
-
-
-class NoPasswordError(Exception):
-    """Required passwords not yet set in the app data."""
-
-    pass
-
-
 class ZooKeeperCluster:
     """Handler for managing the ZK peer-relation.
 
@@ -51,16 +38,17 @@ class ZooKeeperCluster:
 
     def __init__(
         self,
-        charm: CharmBase,
+        charm,
         client_port: int = 2181,
+        secure_client_port: int = 2182,
         server_port: int = 2888,
         election_port: int = 3888,
     ) -> None:
         self.charm = charm
         self.client_port = client_port
+        self.secure_client_port = secure_client_port
         self.server_port = server_port
         self.election_port = election_port
-        self.status: StatusBase = MaintenanceStatus("performing cluster operation")
 
     @property
     def relation(self) -> Relation:
@@ -81,6 +69,18 @@ class ZooKeeperCluster:
         return set([self.charm.unit] + list(self.relation.units))
 
     @property
+    def all_units_related(self) -> bool:
+        """Checks if currently related units make up all planned.
+
+        Returns:
+            True if all units are related. Otherwise False
+        """
+        if len(self.peer_units) != self.charm.app.planned_units():
+            return False
+
+        return True
+
+    @property
     def lowest_unit_id(self) -> Optional[int]:
         """Grabs the first unit in the currently deployed application.
 
@@ -89,7 +89,7 @@ class ZooKeeperCluster:
             None if not all planned units are related to the currently running unit.
         """
         # in the case that not all units are related yet
-        if len(self.peer_units) != self.charm.app.planned_units():
+        if not self.all_units_related:
             return None
 
         return min([self.get_unit_id(unit) for unit in self.peer_units])
@@ -110,6 +110,27 @@ class ZooKeeperCluster:
                 started_units.add(unit)
 
         return started_units
+
+    @property
+    def stale_quorum(self) -> bool:
+        """Checks whether it's necessary to update the servers in quorum.
+
+        Condition is dependent on all units being relating, and a unit not
+            yet been added to the quorum.
+
+        Returns:
+            True if the quorum needs updating. Otherwise False
+        """
+        if not self.all_units_related:
+            return False
+
+        for unit in self.peer_units:
+            unit_id = self.get_unit_id(unit)
+            if self.relation.data[self.charm.app].get(str(unit_id), None) != "added":
+                logger.debug(f"Unit {unit.name} needs adding")
+                return True
+
+        return False
 
     @property
     def active_hosts(self) -> List[str]:
@@ -186,20 +207,21 @@ class ZooKeeperCluster:
 
         Returns:
             The generated config for the given unit.
-            e.g for unit zookeeper/1:
+                e.g for unit zookeeper-k8s/1:
 
-            {
-                "host": 10.121.23.23,
-                "server_string": "server.1=host:serverport:electionport:role;localhost:clientport",
-                "server_id": "2",
-                "unit_id": "1",
-                "unit_name": "zookeeper/1",
-                "state": "ready",
-            }
+                {
+                    "host": 10.121.23.23,
+                    "server_string":
+                        "server.1=host:server_port:election_port:role;client_port",
+                    "server_id": "2",
+                    "unit_id": "1",
+                    "unit_name": "zookeeper/1",
+                    "state": "ready",
+                }
 
         Raises:
-            UnitNotFoundError:
-            When the target unit can't be found in the unit relation data ∨ cannot extract the host
+            UnitNotFoundError: When the target unit can't be found in the unit relation data,
+                and/or cannot extract the private-address
         """
         unit_id = None
         server_id = None
@@ -245,7 +267,8 @@ class ZooKeeperCluster:
 
         To be ran by the Juju leader.
 
-        After grabbing all the "started" units in the peer relation unit data.
+        After grabbing all the "started" units that the leader can see in the peer relation
+            unit data.
         Removes members not in the quorum anymore (i.e `relation_departed`/`leader_elected` event)
         Adds new members to the quorum (i.e `relation_joined` event).
 
@@ -255,6 +278,11 @@ class ZooKeeperCluster:
                 e.g {"0": "added", "1": "removed"}
         """
         super_password, _ = self.passwords
+
+        # NOTE - BUG in Apache ZooKeeper - https://issues.apache.org/jira/browse/ZOOKEEPER-3577
+        # This means that we cannot dynamically reconfigure without also having a PLAIN port open
+        # Ideally, have a check here for `client_port=self.secure_client_port` if tls.enabled
+        # Until then, we can just use the insecure port for convenience
 
         try:
             zk = ZooKeeperManager(
@@ -274,8 +302,6 @@ class ZooKeeperCluster:
             servers_to_add = sorted(self.active_servers - zk_members)
             zk.add_members(members=servers_to_add)
 
-            self.status = ActiveStatus()
-
             return self._get_updated_servers(
                 added_servers=servers_to_add, removed_servers=servers_to_remove
             )
@@ -287,71 +313,85 @@ class ZooKeeperCluster:
             QuorumLeaderNotFoundError,
             KazooTimeoutError,
             UnitNotFoundError,
+            BadArgumentsError,
         ) as e:
             logger.debug(str(e))
-            self.status = MaintenanceStatus(str(e))
             return {}
 
-    def _is_unit_turn(self, unit_id: int) -> bool:
-        """Checks if all units with a lower id than the current unit is in quorum."""
+    def is_unit_turn(self, unit: Optional[Unit] = None) -> bool:
+        """Checks if all units with a lower id than the unit has updated in the ZK quorum.
+
+        Returns:
+            True if unit is cleared to start. Otherwise False.
+        """
+        turn_unit = unit or self.charm.unit
+        unit_id = self.get_unit_id(turn_unit)
+
         if self.lowest_unit_id == None:  # noqa: E711
             # not all units have related yet
             return False
 
+        # the init leader does not need servers to start, so good to go
+        if self._is_init_leader(unit_id=unit_id):
+            return True
+
         for peer_id in range(self.lowest_unit_id, unit_id):
+            # missing relation data unit ids means that they are not yet added to quorum
             if not self.relation.data[self.charm.app].get(str(peer_id), None):
                 return False
+
         return True
+
+    def _is_init_leader(self, unit_id: int) -> bool:
+        """Checks if the passed unit should be the first unit to start."""
+        # if lowest_unit_id, and it exists in the relation data already, it's a restart, fail
+        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(
+            str(self.lowest_unit_id), None
+        ):
+            return True
+
+        return False
 
     def _generate_units(self, unit_string: str) -> str:
         """Gets valid start-up server strings for current ZK quorum units found in the app data."""
         servers = ""
         for unit_id, state in self.relation.data[self.charm.app].items():
             if state == "added":
-                server_string = self.unit_config(unit=int(unit_id))["server_string"]
+                try:
+                    server_string = self.unit_config(unit=int(unit_id))["server_string"]
+                except UnitNotFoundError as e:
+                    logger.debug(str(e))
+                    continue
+
                 servers = servers + "\n" + server_string
 
         servers = servers + "\n" + unit_string
         return servers
 
-    def ready_to_start(self, unit: Union[Unit, int]) -> Tuple[str, Dict]:
+    def startup_servers(self, unit: Union[Unit, int]) -> str:
         """Decides whether a unit should start the ZK service, and with what configuration.
 
         Args:
             unit: the `Unit` or Juju unit ID to evaluate startability
 
         Returns:
-            `servers`: a new-line delimited string of servers to add to a config file
-            `unit_config`: a mapping of configuration for the given unit to be added to unit data
-
-        Raises:
-            `UnitNotFoundError`: if a lower ID unit is missing from the app/unit data
-            `NotUnitTurnError`: if a lower ID unit has not yet been added to the ZK quorum
+            New-line delimited string of servers to add to a config file
         """
         servers = ""
         unit_config = self.unit_config(unit=unit, state="ready", role="observer")
         unit_string = unit_config["server_string"]
         unit_id = unit_config["unit_id"]
 
-        if not self.relation.data[self.charm.app].get("sync_password", None):
-            raise NoPasswordError
-
         # during cluster startup, we want the first unit to start as a solo participant
         # if the first unit fails and restarts after that, we want it to start as a normal unit
         # with all current members
-        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(
-            str(self.lowest_unit_id), None
-        ):
+        if self._is_init_leader(unit_id=int(unit_id)):
             unit_string = unit_string.replace("observer", "participant")
-            return unit_string.replace("observer", "participant"), unit_config
-
-        if not self._is_unit_turn(unit_id=int(unit_id)):
-            self.status = MaintenanceStatus("other units not yet added")
-            raise NotUnitTurnError
+            return unit_string
 
         servers = self._generate_units(unit_string=unit_string)
 
-        return servers, unit_config
+        return servers
 
     def _all_rotated(self) -> bool:
         """Check if all units have rotated their passwords.
@@ -368,15 +408,6 @@ class ZooKeeperCluster:
                 break
         return all_finished
 
-    @staticmethod
-    def generate_password():
-        """Creates randomized string for use as app passwords.
-
-        Returns:
-            String of 32 randomized letter+digit characters
-        """
-        return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
-
     @property
     def passwords(self) -> Tuple[str, str]:
         """Gets the current super+sync passwords from the app relation data.
@@ -384,8 +415,8 @@ class ZooKeeperCluster:
         Returns:
             Tuple of super_password, sync_password
         """
-        super_password = str(self.relation.data[self.charm.app].get("super_password", ""))
-        sync_password = str(self.relation.data[self.charm.app].get("sync_password", ""))
+        super_password = str(self.relation.data[self.charm.app].get("super-password", ""))
+        sync_password = str(self.relation.data[self.charm.app].get("sync-password", ""))
 
         return super_password, sync_password
 
@@ -401,3 +432,32 @@ class ZooKeeperCluster:
             return False
         else:
             return True
+
+    @property
+    def started(self) -> bool:
+        """Flag to check the whether the running unit has started.
+
+        Returns:
+            True if the unit has started. Otherwise False
+        """
+        return self.relation.data[self.charm.unit].get("state", None) == "started"
+
+    @property
+    def quorum(self) -> Optional[str]:
+        """Gets state of current quorum encryption.
+
+        Returns:
+            String of either `ssl` or `non-ssl`. None if quorum not yet reached
+        """
+        return self.relation.data[self.charm.app].get("quorum", None)
+
+    @property
+    def manual_restart(self) -> bool:
+        """Flag to ensure a rolling-restart will execute.
+
+        To be used during manually triggered restarts, where config doesn't change.
+
+        Returns:
+            True if manual-restart flag is set. Otherwise False
+        """
+        return bool(self.relation.data[self.charm.app].get("manual-restart", None))
