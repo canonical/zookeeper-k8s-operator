@@ -54,9 +54,6 @@ class TestProvider(unittest.TestCase):
             self.provider.app_relation.id, CHARM_KEY, {"relation-0": "password"}
         )
 
-        logger.info(self.provider.client_relations[0].data)
-        logger.info(self.provider.app_relation.data)
-
         config = self.harness.charm.provider.relation_config(
             relation=self.provider.client_relations[0]
         )
