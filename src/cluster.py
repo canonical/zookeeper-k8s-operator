@@ -124,6 +124,9 @@ class ZooKeeperCluster:
         if not self.all_units_related:
             return False
 
+        if self.relation.data[self.charm.app].get("changed-quorum", None):
+            return True
+
         for unit in self.peer_units:
             unit_id = self.get_unit_id(unit)
             if self.relation.data[self.charm.app].get(str(unit_id), None) != "added":
@@ -461,3 +464,25 @@ class ZooKeeperCluster:
             True if manual-restart flag is set. Otherwise False
         """
         return bool(self.relation.data[self.charm.app].get("manual-restart", None))
+
+    @property
+    def changed_quorum(self) -> bool:
+        """Flag to track that a change in quorum is in effect.
+
+        Returns:
+            True if changed-quorum flag in app data. Otherwise False
+        """
+        return bool(self.relation.data[self.charm.app].get("changed-quorum", None))
+
+    @property
+    def all_changed_quorum(self) -> bool:
+        """Checks that all units have changed quorum.
+
+        Returns:
+            True if all units have changed-quorum flag in unit data. Otherwise False
+        """
+        for unit in self.peer_units:
+            if not self.relation.data[unit].get("changed-quorum", None):
+                return False
+
+        return True

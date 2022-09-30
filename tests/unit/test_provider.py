@@ -275,7 +275,7 @@ class TestProvider(unittest.TestCase):
             # checking existence of all necessary keys
             self.assertEqual(
                 sorted(relation.data[self.harness.charm.app].keys()),
-                sorted(["chroot", "endpoints", "password", "uris", "username"]),
+                sorted(["chroot", "endpoints", "password", "ssl", "uris", "username"]),
             )
 
             username = relation.data[self.harness.charm.app]["username"]

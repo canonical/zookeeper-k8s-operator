@@ -96,28 +96,6 @@ class ZooKeeperProvider(Object):
             "acl": acl,
         }
 
-    def build_jaas_users(self, event: Optional[EventBase] = None) -> str:
-        """Builds the necessary user strings to add to ZK JAAS config files.
-
-        Args:
-            event (optional): used for checking `RelationBrokenEvent`
-
-        Returns:
-            Newline delimited string of JAAS users from relation data
-        """
-        jaas_users = []
-        for relation in self.relations_config(event=event).values():
-            username = relation.get("username", None)
-            password = relation.get("password", None)
-
-            # For during restarts when passwords are unset for departed relations
-            if username and not password:
-                continue
-
-            jaas_users.append(f'user_{username}="{password}"')
-
-        return "\n".join(jaas_users)
-
     def relations_config(self, event: Optional[EventBase] = None) -> Dict[str, Dict[str, str]]:
         """Gets auth configs for all currently related applications.
 
@@ -188,11 +166,26 @@ class ZooKeeperProvider(Object):
             event (optional): used for checking `RelationBrokenEvent`
         """
         super_password, _ = self.charm.cluster.passwords
+
+        if self.charm.cluster.quorum == "ssl":
+            port = self.charm.cluster.secure_client_port
+            use_ssl = True
+            keyfile_path = f"{self.charm.zookeeper_config.default_config_path}/server.key"
+            certfile_path = f"{self.charm.zookeeper_config.default_config_path}/server.pem"
+        else:
+            port = self.charm.cluster.client_port
+            use_ssl = False
+            keyfile_path = ""
+            certfile_path = ""
+
         zk = ZooKeeperManager(
             hosts=self.charm.cluster.active_hosts,
-            client_port=self.charm.cluster.client_port,
+            client_port=port,
             username="super",
             password=super_password,
+            use_ssl=use_ssl,
+            keyfile_path=keyfile_path,
+            certfile_path=certfile_path,
         )
 
         leader_chroots = zk.leader_znodes(path="/")
@@ -252,9 +245,16 @@ class ZooKeeperProvider(Object):
             relation_data["password"] = config["password"] or generate_password()
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
+
+            if self.charm.cluster.quorum == "ssl":
+                relation_data["ssl"] = "enabled"
+                port = self.charm.cluster.secure_client_port
+            else:
+                relation_data["ssl"] = "disabled"
+                port = self.charm.cluster.client_port
+
             relation_data["uris"] = (
-                ",".join([f"{host}:{self.charm.cluster.client_port}" for host in hosts])
-                + config["chroot"]
+                ",".join([f"{host}:{port}" for host in hosts]) + config["chroot"]
             )
 
             self.app_relation.data[self.charm.app].update(
@@ -271,6 +271,11 @@ class ZooKeeperProvider(Object):
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
+        # avoids failure from early relation
+        if not self.charm.cluster.quorum:
+            event.defer()
+            return
+
         if self.charm.unit.is_leader():
             try:
                 self.update_acls(event=event)
@@ -281,7 +286,7 @@ class ZooKeeperProvider(Object):
                 KazooTimeoutError,
                 UnitNotFoundError,
             ) as e:
-                logger.debug(str(e))
+                logger.warning(str(e))
                 self.charm.unit.status = MaintenanceStatus(str(e))
                 event.defer()
                 return
@@ -305,6 +310,10 @@ class ZooKeeperProvider(Object):
         Args:
             event: used for passing `RelationBrokenEvent` to subequent methods
         """
+        # Don't remove anything if ZooKeeper is going down
+        if self.charm.app.planned_units == 0:
+            return
+
         if self.charm.unit.is_leader():
             username = f"relation-{event.relation.id}"
             if username in self.charm.cluster.relation.data[self.charm.app]:
