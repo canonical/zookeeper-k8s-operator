@@ -23,4 +23,3 @@ options:
     description: maximum number of ticks for the followers to wait to synchronize with the leader before the followers time out
     type: int
     default: 2
-
