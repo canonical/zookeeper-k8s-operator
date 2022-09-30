@@ -124,9 +124,6 @@ class ZooKeeperCluster:
         if not self.all_units_related:
             return False
 
-        if self.relation.data[self.charm.app].get("changed-quorum", None):
-            return True
-
         for unit in self.peer_units:
             unit_id = self.get_unit_id(unit)
             if self.relation.data[self.charm.app].get(str(unit_id), None) != "added":
@@ -318,7 +315,7 @@ class ZooKeeperCluster:
             UnitNotFoundError,
             BadArgumentsError,
         ) as e:
-            logger.debug(str(e))
+            logger.error(str(e))
             return {}
 
     def is_unit_turn(self, unit: Optional[Unit] = None) -> bool:

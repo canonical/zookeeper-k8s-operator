@@ -103,7 +103,6 @@ class ZooKeeperK8sCharm(CharmBase):
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
         if not self.container.can_connect():
-            event.defer()
             return
 
         # If a password rotation is needed, or in progress
@@ -144,7 +143,6 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         if not self.container.can_connect():
-            event.defer()
             return
 
         if self.config_changed() or self.cluster.manual_restart:
@@ -290,6 +288,7 @@ class ZooKeeperK8sCharm(CharmBase):
                 event,
                 (RelationDepartedEvent, LeaderElectedEvent),
             )
+            or self.cluster.relation.data[self.app].get("force-update-quorum", None)
         ):
             updated_servers = self.cluster.update_cluster()
             # triggers a `cluster_relation_changed` to wake up following units
@@ -298,6 +297,8 @@ class ZooKeeperK8sCharm(CharmBase):
             # unset after successful restart
             if self.cluster.all_changed_quorum:
                 self.cluster.relation.data[self.app].update({"changed-quorum": ""})
+            if self.cluster.relation.data[self.app].get("force-update-quorum", None):
+                self.cluster.relation.data[self.app].update({"force-update-quorum": ""})
 
         # default startup without ssl relation
         if not self.cluster.stale_quorum and not self.tls.enabled and not self.tls.upgrading:
@@ -313,12 +314,22 @@ class ZooKeeperK8sCharm(CharmBase):
             if self.tls.enabled:
                 logger.info("ZooKeeper cluster switching to SSL quorum")
                 self.cluster.relation.data[self.app].update(
-                    {"quorum": "ssl", "upgrading": "", "changed-quorum": "true"}
+                    {
+                        "quorum": "ssl",
+                        "upgrading": "",
+                        "changed-quorum": "true",
+                        "force-update-quorum": "true",
+                    }
                 )
             else:
                 logger.info("ZooKeeper cluster switching to Non-SSL quorum")
                 self.cluster.relation.data[self.app].update(
-                    {"quorum": "non-ssl", "upgrading": "", "changed-quorum": "true"}
+                    {
+                        "quorum": "non-ssl",
+                        "upgrading": "",
+                        "changed-quorum": "true",
+                        "force-update-quorum": "true",
+                    }
                 )
 
         self.provider.apply_relation_data()
