@@ -7,16 +7,14 @@ import re
 import unittest
 from collections import namedtuple
 from pathlib import Path
+from unittest.mock import patch
 
-import ops.testing
 import yaml
 from ops.charm import RelationBrokenEvent
 from ops.testing import Harness
 
 from charm import ZooKeeperK8sCharm
 from literals import CHARM_KEY, PEER, REL_NAME
-
-ops.testing.SIMULATE_CAN_CONNECT = True
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +29,8 @@ class TestProvider(unittest.TestCase):
     def setUp(self):
         self.harness = Harness(ZooKeeperK8sCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
         self.addCleanup(self.harness.cleanup)
-        self.harness.add_relation(REL_NAME, "application")
-        self.harness.add_relation(PEER, CHARM_KEY)
+        self.client_rel_id = self.harness.add_relation(REL_NAME, "application")
+        self.peer_rel_id = self.harness.add_relation(PEER, CHARM_KEY)
         self.harness.begin()
 
     @property
@@ -225,6 +223,60 @@ class TestProvider(unittest.TestCase):
 
         self.assertFalse(self.harness.charm.provider._is_child_of(path=chroot, chroots=chroots))
 
+    def test_port_updates_if_tls(self):
+        self.harness.set_leader(True)
+        self.harness.update_relation_data(
+            self.provider.client_relations[0].id, "application", {"chroot": "app"}
+        )
+        # checking if ssl port and ssl flag are passed
+        self.harness.update_relation_data(
+            self.provider.app_relation.id,
+            f"{CHARM_KEY}/0",
+            {"state": "started"},
+        )
+        self.harness.update_relation_data(
+            self.provider.app_relation.id,
+            CHARM_KEY,
+            {"quorum": "ssl"},
+        )
+        self.harness.charm.provider.apply_relation_data()
+
+        for relation in self.provider.client_relations:
+            uris = relation.data[self.harness.charm.app].get("uris", "")
+            ssl = relation.data[self.harness.charm.app].get("tls", "")
+
+            self.assertIn(str(self.harness.charm.cluster.secure_client_port), uris)
+            self.assertEqual(ssl, "enabled")
+
+        self.harness.update_relation_data(
+            self.provider.app_relation.id,
+            CHARM_KEY,
+            {"quorum": "non-ssl"},
+        )
+        self.harness.charm.provider.apply_relation_data()
+
+        for relation in self.provider.client_relations:
+            uris = relation.data[self.harness.charm.app].get("uris", "")
+            ssl = relation.data[self.harness.charm.app].get("tls", "")
+
+            self.assertIn(str(self.harness.charm.cluster.client_port), uris)
+            self.assertEqual(ssl, "disabled")
+
+    @patch("ops.model.Container.can_connect")
+    @patch(
+        "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock", return_value=None
+    )
+    def test_provider_relation_data_updates_port(self, *_):
+        with patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched:
+            self.harness.set_leader(True)
+            self.harness.update_relation_data(
+                self.peer_rel_id,
+                CHARM_KEY,
+                {"quorum": "non-ssl"},
+            )
+
+            patched.assert_called_once()
+
     def test_apply_relation_data(self):
         self.harness.set_leader(True)
         self.harness.add_relation("zookeeper", "new_application")
@@ -275,7 +327,7 @@ class TestProvider(unittest.TestCase):
             # checking existence of all necessary keys
             self.assertEqual(
                 sorted(relation.data[self.harness.charm.app].keys()),
-                sorted(["chroot", "endpoints", "password", "uris", "username"]),
+                sorted(["chroot", "endpoints", "password", "tls", "uris", "username"]),
             )
 
             username = relation.data[self.harness.charm.app]["username"]

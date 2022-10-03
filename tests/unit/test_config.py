@@ -3,7 +3,9 @@
 # See LICENSE file for licensing details.
 
 from pathlib import Path
+from unittest.mock import patch
 
+import ops.testing
 import pytest
 import yaml
 from ops.testing import Harness
@@ -11,6 +13,15 @@ from ops.testing import Harness
 from charm import ZooKeeperK8sCharm
 from config import ZooKeeperConfig
 from literals import CHARM_KEY
+
+ops.testing.SIMULATE_CAN_CONNECT = True
+
+
+@pytest.fixture(autouse=True)
+def patched_pull():
+    with patch("ops.model.Container.pull"):
+        yield
+
 
 CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
@@ -29,7 +40,6 @@ def test_build_static_properties_removes_necessary_rows():
         "clientPort=2181",
         "authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider",
         "maxClientCnxns=60",
-        "dynamicConfigFile=/data/zookeeper/zookeeper.properties.dynamic.100000041",
     ]
 
     static = ZooKeeperConfig.build_static_properties(properties=properties)
