@@ -261,7 +261,7 @@ class ZooKeeperConfig:
 
         Running ZooKeeper cluster with `reconfigEnabled` moves dynamic options
             to a dedicated dynamic file
-        These options are `dynamicConfigFile`, `clientPort` and `secureClientPort`
+        These options are `clientPort` and `secureClientPort`
 
         Args:
             properties: the properties to make static
