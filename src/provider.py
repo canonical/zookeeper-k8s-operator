@@ -17,7 +17,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
 from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
-from ops.model import MaintenanceStatus, Relation
+from ops.model import Relation
 
 from cluster import UnitNotFoundError
 from literals import PEER, REL_NAME
@@ -252,9 +252,16 @@ class ZooKeeperProvider(Object):
             relation_data["password"] = config["password"] or generate_password()
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
+
+            if self.charm.cluster.quorum == "ssl":
+                relation_data["tls"] = "enabled"
+                port = self.charm.cluster.secure_client_port
+            else:
+                relation_data["tls"] = "disabled"
+                port = self.charm.cluster.client_port
+
             relation_data["uris"] = (
-                ",".join([f"{host}:{self.charm.cluster.client_port}" for host in hosts])
-                + config["chroot"]
+                ",".join([f"{host}:{port}" for host in hosts]) + config["chroot"]
             )
 
             self.app_relation.data[self.charm.app].update(
@@ -271,6 +278,11 @@ class ZooKeeperProvider(Object):
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
+        # avoids failure from early relation
+        if not self.charm.cluster.quorum:
+            event.defer()
+            return
+
         if self.charm.unit.is_leader():
             try:
                 self.update_acls(event=event)
@@ -281,8 +293,7 @@ class ZooKeeperProvider(Object):
                 KazooTimeoutError,
                 UnitNotFoundError,
             ) as e:
-                logger.debug(str(e))
-                self.charm.unit.status = MaintenanceStatus(str(e))
+                logger.warning(str(e))
                 event.defer()
                 return
 
