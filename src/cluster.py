@@ -461,3 +461,21 @@ class ZooKeeperCluster:
             True if manual-restart flag is set. Otherwise False
         """
         return bool(self.relation.data[self.charm.app].get("manual-restart", None))
+
+    @property
+    def all_units_quorum(self) -> bool:
+        """Checks if all units are running with the cluster quorum encryption.
+
+        Returns:
+            True if all units are running the quorum encryption in app data.
+                Otherwise False.
+        """
+        unit_quorums = set()
+        for unit in self.peer_units:
+            unit_quorum = self.relation.data[unit].get("quorum", None)
+            if unit_quorum != self.quorum:
+                return False
+
+            unit_quorums.add(unit_quorum)
+
+        return len(unit_quorums) == 1

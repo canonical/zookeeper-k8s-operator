@@ -8,9 +8,10 @@ import logging
 from typing import List
 
 from ops.model import Relation
+from ops.pebble import PathError
 
 from literals import CONTAINER, PEER, REL_NAME
-from utils import push
+from utils import pull, push
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +147,7 @@ class ZooKeeperConfig:
             + [
                 f"dataDir={self.default_config_path}/data",
                 f"dataLogDir={self.default_config_path}/log",
-                f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties",
+                f"{self.current_dynamic_config_file}",
             ]
         )
 
@@ -187,6 +188,34 @@ class ZooKeeperConfig:
             properties = properties + ["sslQuorum=true"]
 
         return properties
+
+    @property
+    def current_dynamic_config_file(self) -> str:
+        """Gets current dynamicConfigFile property from live unit.
+
+        When setting config dynamically, ZK creates a new properties file
+            that keeps track of the current dynamic config version.
+        When setting our config, we overwrite the file, losing the tracked version,
+            so we can re-set it with this.
+
+        Returns:
+            String of current `dynamicConfigFile=<value>` for the running server
+        """
+        try:
+            current_properties = pull(
+                container=self.container, path=self.properties_filepath
+            ).splitlines()
+        except PathError:
+            logger.debug("zookeeper.properties file not found - using default dynamic path")
+            return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
+
+        for current_property in current_properties:
+            if "dynamicConfigFile" in current_property:
+                return current_property
+
+        logger.debug("dynamicConfigFile property missing - using default dynamic path")
+
+        return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
 
     @property
     def static_properties(self) -> List[str]:
@@ -243,11 +272,7 @@ class ZooKeeperConfig:
         return [
             prop
             for prop in properties
-            if (
-                "dynamicConfigFile" not in prop
-                and "clientPort" not in prop
-                and "secureClientPort" not in prop
-            )
+            if ("clientPort" not in prop and "secureClientPort" not in prop)
         ]
 
     @property

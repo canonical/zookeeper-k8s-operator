@@ -129,6 +129,9 @@ class ZooKeeperK8sCharm(CharmBase):
         # check whether restart is needed for all `*_changed` events
         self.on[self.restart.name].acquire_lock.emit()
 
+        if self.tls.upgrading:
+            event.defer()
+
     def _restart(self, event: EventBase) -> None:
         """Handler for emitted restart events."""
         # this can cause issues if ran before `init_server()`
@@ -156,7 +159,11 @@ class ZooKeeperK8sCharm(CharmBase):
         # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         # in case restart was manual, also remove
         self.cluster.relation.data[self.unit].update(
-            {"unified": "true" if self.tls.upgrading else "", "manual-restart": ""}
+            {
+                "unified": "true" if self.tls.upgrading else "",
+                "manual-restart": "",
+                "quorum": self.cluster.quorum or "",
+            }
         )
 
     def init_server(self):
@@ -199,7 +206,11 @@ class ZooKeeperK8sCharm(CharmBase):
         # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         # added here in case a `restart` was missed
         self.cluster.relation.data[self.unit].update(
-            {"state": "started", "unified": "true" if self.tls.upgrading else ""}
+            {
+                "state": "started",
+                "unified": "true" if self.tls.upgrading else "",
+                "quorum": self.cluster.quorum or "",
+            }
         )
 
     def config_changed(self):
@@ -277,15 +288,27 @@ class ZooKeeperK8sCharm(CharmBase):
             # triggers a `cluster_relation_changed` to wake up following units
             self.cluster.relation.data[self.app].update(updated_servers)
 
+        # default startup without ssl relation
+        if not self.cluster.stale_quorum and not self.tls.enabled and not self.tls.upgrading:
+            if not self.cluster.quorum:  # avoids multiple loglines
+                logger.info("ZooKeeper cluster running with non-SSL quorum")
+
+            self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
+
         # declare upgrade complete only when all peer units have started
         # triggers `cluster_relation_changed` to rolling-restart without `portUnification`
         if self.tls.all_units_unified:
             if self.tls.enabled:
-                logger.info("ZooKeeper cluster running with quorum encryption")
-                self.cluster.relation.data[self.app].update({"quorum": "ssl", "upgrading": ""})
+                self.cluster.relation.data[self.app].update({"quorum": "ssl"})
             else:
-                logger.info("ZooKeeper cluster running without quorum encryption")
-                self.cluster.relation.data[self.app].update({"quorum": "non-ssl", "upgrading": ""})
+                self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
+
+            if self.cluster.all_units_quorum:
+                self.cluster.relation.data[self.app].update({"upgrading": ""})
+                logger.debug(f"ZooKeeper cluster switching to {self.cluster.quorum} quorum")
+
+        # attempt update of client relation data in case port updated
+        self.provider.apply_relation_data(event)
 
     def add_init_leader(self) -> None:
         """Adds the first leader server to the relation data for other units to ack."""
