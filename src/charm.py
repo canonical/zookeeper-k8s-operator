@@ -160,8 +160,11 @@ class ZooKeeperK8sCharm(CharmBase):
         # in case restart was manual, also remove
         self.cluster.relation.data[self.unit].update(
             {
+                # flag to declare unit running `portUnification` during ssl<->no-ssl upgrade
                 "unified": "true" if self.tls.upgrading else "",
+                # in case restart was manual
                 "manual-restart": "",
+                # flag to declare unit restarted with new quorum encryption
                 "quorum": self.cluster.quorum or "",
             }
         )
@@ -203,7 +206,6 @@ class ZooKeeperK8sCharm(CharmBase):
         # unit flags itself as 'started' so it can be retrieved by the leader
         logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} started")
 
-        # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
         # added here in case a `restart` was missed
         self.cluster.relation.data[self.unit].update(
             {
@@ -279,10 +281,12 @@ class ZooKeeperK8sCharm(CharmBase):
         # set first unit to "added" asap to get the units starting sooner
         self.add_init_leader()
 
-        if self.cluster.stale_quorum or isinstance(
-            # ensure these events always run without delay to maintain quorum on scale down
-            event,
-            (RelationDepartedEvent, LeaderElectedEvent),
+        if (
+            self.cluster.stale_quorum  # in case of scale-up
+            or isinstance(  # to run without delay to maintain quorum on scale down
+                event,
+                (RelationDepartedEvent, LeaderElectedEvent),
+            )
         ):
             updated_servers = self.cluster.update_cluster()
             # triggers a `cluster_relation_changed` to wake up following units

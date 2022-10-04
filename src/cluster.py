@@ -315,7 +315,7 @@ class ZooKeeperCluster:
             UnitNotFoundError,
             BadArgumentsError,
         ) as e:
-            logger.debug(str(e))
+            logger.warning(str(e))
             return {}
 
     def is_unit_turn(self, unit: Optional[Unit] = None) -> bool:
