@@ -335,7 +335,7 @@ class ZooKeeperTLS(Object):
     def set_p12_keystore(self) -> None:
         """Creates and adds unit cert and private-key to a PCKS12 keystore."""
         try:
-            self.container.exec(
+            proc = self.container.exec(
                 [
                     "openssl",
                     "pkcs12",
@@ -355,8 +355,9 @@ class ZooKeeperTLS(Object):
                 ],
                 working_dir=self.charm.zookeeper_config.default_config_path,
             )
+            logger.debug(str(proc.wait_output()[1]))
         except ExecError as e:
-            logger.error(e.stdout)
+            logger.error(str(e.stdout))
             raise e
 
     def remove_stores(self) -> None:
