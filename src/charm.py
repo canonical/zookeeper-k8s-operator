@@ -129,7 +129,7 @@ class ZooKeeperK8sCharm(CharmBase):
         # check whether restart is needed for all `*_changed` events
         self.on[self.restart.name].acquire_lock.emit()
 
-        if self.tls.upgrading:
+        if self.tls.upgrading and len(self.cluster.peer_units) == 1:
             event.defer()
 
     def _restart(self, event: EventBase) -> None:
