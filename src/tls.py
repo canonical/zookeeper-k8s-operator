@@ -210,7 +210,7 @@ class ZooKeeperTLS(Object):
         self.set_truststore()
         self.set_p12_keystore()
 
-        self.charm.on[self.charm.restart.name].acquire_lock.emit()
+        self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
