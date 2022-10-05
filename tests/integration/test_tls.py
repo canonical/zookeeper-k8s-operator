@@ -4,7 +4,6 @@
 
 import asyncio
 import logging
-import time
 from pathlib import Path
 
 import pytest
@@ -40,12 +39,11 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000
     )
-    time.sleep(10)
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications["tls-certificates-operator"].status == "active"
     await ops_test.model.add_relation(APP_NAME, "tls-certificates-operator")
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000
+        apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000, idle_period=30
     )
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications["tls-certificates-operator"].status == "active"
