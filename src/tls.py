@@ -305,7 +305,7 @@ class ZooKeeperTLS(Object):
     def set_truststore(self) -> None:
         """Adds CA to JKS truststore."""
         try:
-            self.container.exec(
+            proc = self.container.exec(
                 [
                     "keytool",
                     "-import",
@@ -314,24 +314,28 @@ class ZooKeeperTLS(Object):
                     "ca",
                     "-file",
                     "ca.pem",
-                    "-keystore truststore.jks",
+                    "-keystore",
+                    "truststore.jks",
                     "-storepass",
                     f"{self.keystore_password}",
                     "-noprompt",
                 ],
                 working_dir=self.charm.zookeeper_config.default_config_path,
             )
+            logger.debug(str(proc.wait_output()[1]))
         except ExecError as e:
-            # in case this reruns and fails
-            if "already exists" in (str(e.stderr) or str(e.stdout)):
+            expected_error_string = "alias <ca> already exists"
+            if expected_error_string in str(e.stdout):
+                logger.debug(expected_error_string)
                 return
+
             logger.error(e.stdout)
             raise e
 
     def set_p12_keystore(self) -> None:
         """Creates and adds unit cert and private-key to a PCKS12 keystore."""
         try:
-            self.container.exec(
+            proc = self.container.exec(
                 [
                     "openssl",
                     "pkcs12",
@@ -351,8 +355,9 @@ class ZooKeeperTLS(Object):
                 ],
                 working_dir=self.charm.zookeeper_config.default_config_path,
             )
+            logger.debug(str(proc.wait_output()[1]))
         except ExecError as e:
-            logger.error(e.stdout)
+            logger.error(str(e.stdout))
             raise e
 
     def remove_stores(self) -> None:

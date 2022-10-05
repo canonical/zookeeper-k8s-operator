@@ -43,7 +43,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
     assert ops_test.model.applications["tls-certificates-operator"].status == "active"
     await ops_test.model.add_relation(APP_NAME, "tls-certificates-operator")
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000
+        apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000, idle_period=30
     )
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications["tls-certificates-operator"].status == "active"
@@ -52,6 +52,9 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
 
     for unit in ops_test.model.applications[APP_NAME].units:
         assert "sslQuorum=true" in check_properties(
+            model_full_name=ops_test.model_full_name, unit=unit.name
+        )
+        assert "portUnification=true" not in check_properties(
             model_full_name=ops_test.model_full_name, unit=unit.name
         )
 
@@ -108,4 +111,17 @@ async def test_scale_up_tls(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=1)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 4)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
+    assert ping_servers(ops_test)
+
+
+@pytest.mark.abort_on_fail
+async def test_client_relate_maintains_quorum(ops_test: OpsTest):
+    dummy_name = "app"
+    app_charm = await ops_test.build_charm("tests/integration/app-charm")
+    await ops_test.model.deploy(app_charm, application_name=dummy_name, num_units=1)
+    await ops_test.model.wait_for_idle([APP_NAME, dummy_name], status="active", timeout=1000)
+    await ops_test.model.add_relation(APP_NAME, dummy_name)
+    await ops_test.model.wait_for_idle([APP_NAME, dummy_name], status="active", timeout=1000)
+    assert ops_test.model.applications[APP_NAME].status == "active"
+    assert ops_test.model.applications[dummy_name].status == "active"
     assert ping_servers(ops_test)
