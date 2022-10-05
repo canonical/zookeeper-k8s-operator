@@ -22,7 +22,7 @@ def harness():
     harness = Harness(ZooKeeperK8sCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
-    harness._update_config({"init-limit": "5", "sync-limit": "2", "tick-time": "2000"})
+    harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
     harness.begin()
     return harness
 

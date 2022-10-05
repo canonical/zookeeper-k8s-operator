@@ -288,22 +288,22 @@ class TestProvider(unittest.TestCase):
             "new_application",
             {"chroot": "new_app", "chroot-acl": "rw"},
         )
-        self.harness.add_relation_unit(self.provider.app_relation.id, "{CHARM_KEY}/0")
+        self.harness.add_relation_unit(self.provider.app_relation.id, f"{CHARM_KEY}/0")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
-            "{CHARM_KEY}/0",
+            f"{CHARM_KEY}/0",
             {"state": "started"},
         )
-        self.harness.add_relation_unit(self.provider.app_relation.id, "{CHARM_KEY}/1")
+        self.harness.add_relation_unit(self.provider.app_relation.id, f"{CHARM_KEY}/1")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
-            "{CHARM_KEY}/1",
+            f"{CHARM_KEY}/1",
             {"state": "ready"},
         )
-        self.harness.add_relation_unit(self.provider.app_relation.id, "{CHARM_KEY}/2")
+        self.harness.add_relation_unit(self.provider.app_relation.id, f"{CHARM_KEY}/2")
         self.harness.update_relation_data(
             self.provider.app_relation.id,
-            "{CHARM_KEY}/2",
+            f"{CHARM_KEY}/2",
             {"state": "started"},
         )
 
