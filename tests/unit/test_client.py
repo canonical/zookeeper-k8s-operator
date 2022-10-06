@@ -2,15 +2,20 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import unittest
+from pathlib import Path
 from unittest.mock import call, patch
 
+import pytest
+import yaml
 from charms.zookeeper.v0.client import (
     MembersSyncingError,
     QuorumLeaderNotFoundError,
     ZooKeeperClient,
     ZooKeeperManager,
 )
+from kazoo.client import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DummyClient:
@@ -51,65 +56,72 @@ class DummyClient:
         pass
 
 
-class TestClient(unittest.TestCase):
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    def test_config(self, client):
+CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
+ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
+METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
+
+
+def test_config():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         client = ZooKeeperClient(host="", client_port=0, username="", password="")
         result, version = client.config
         servers = [server.split("=")[0] for server in result]
 
-        self.assertEqual(version, 4294967296)
-        self.assertIn("server.1", servers)
-        self.assertIn("server.2", servers)
+        assert version == 4294967296
+        assert "server.1" in servers
+        assert "server.2" in servers
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    def test_srvr(self, client):
+
+def test_srvr():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         client = ZooKeeperClient(host="", client_port=0, username="", password="")
         result = client.srvr
 
-        self.assertEqual(set(result.keys()), set(["Zookeeper version", "Outstanding", "Mode"]))
+        assert set(result.keys()) == set(["Zookeeper version", "Outstanding", "Mode"])
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    def test_mntr(self, client):
+
+def test_mntr():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         client = ZooKeeperClient(host="", client_port=0, username="", password="")
         result = client.mntr
 
-        self.assertEqual(
-            set(result.keys()),
-            set(["zk_pending_syncs", "zk_peer_state"]),
-        )
+        assert set(result.keys()) == set(["zk_pending_syncs", "zk_peer_state"])
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(ready=False))
-    def test_is_ready(self, client):
+
+def test_is_ready():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(ready=False)):
         client = ZooKeeperClient(host="", client_port=0, username="", password="")
-        self.assertFalse(client.is_ready)
+        assert not client.is_ready
 
 
-class TestManager(unittest.TestCase):
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(follower=True))
-    def test_init_raises_if_leader_not_found(self, _):
-        with self.assertRaises(QuorumLeaderNotFoundError):
+def test_init_raises_if_leader_not_found():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(follower=True)):
+        with pytest.raises(QuorumLeaderNotFoundError):
             ZooKeeperManager(hosts=["host"], username="", password="")
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    def test_init_finds_leader(self, _):
-        zk = ZooKeeperManager(hosts=["host"], username="", password="")
-        self.assertEqual(zk.leader, "host")
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True))
-    def test_members_syncing(self, _):
+def test_init_finds_leader():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         zk = ZooKeeperManager(hosts=["host"], username="", password="")
-        self.assertTrue(zk.members_syncing)
+        assert zk.leader == "host"
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True))
-    def test_add_members_raises(self, _):
+
+def test_members_syncing():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True)):
         zk = ZooKeeperManager(hosts=["host"], username="", password="")
-        with self.assertRaises(MembersSyncingError):
+        assert zk.members_syncing
+
+
+def test_add_members_raises():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True)):
+        zk = ZooKeeperManager(hosts=["host"], username="", password="")
+        with pytest.raises(MembersSyncingError):
             zk.add_members(["server.1=bilbo.baggins"])
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    @patch.object(DummyClient, "reconfig")
-    def test_add_members_correct_args(self, reconfig, _):
+
+@patch.object(DummyClient, "reconfig")
+def test_add_members_correct_args(reconfig):
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], username="", password="")
         zk.add_members(["server.2=sam.gamgee"])
 
@@ -117,9 +129,10 @@ class TestManager(unittest.TestCase):
             joining="server.2=sam.gamgee", leaving=None, new_members=None, from_config=4294967296
         )
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    @patch.object(DummyClient, "reconfig")
-    def test_add_members_runs_on_leader(self, _, client):
+
+@patch.object(DummyClient, "reconfig")
+def test_add_members_runs_on_leader(_):
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()) as client:
         zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], username="", password="")
         zk.leader = "leader"
         zk.add_members(["server.2=sam.gamgee"])
@@ -136,17 +149,20 @@ class TestManager(unittest.TestCase):
                 verify_certs=False,
                 use_ssl=False,
             )
-        ) in calls
+            in calls
+        )
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True))
-    def test_remove_members_raises(self, _):
+
+def test_remove_members_raises():
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(syncing=True)):
         zk = ZooKeeperManager(hosts=["host"], username="", password="")
-        with self.assertRaises(MembersSyncingError):
+        with pytest.raises(MembersSyncingError):
             zk.remove_members(["server.1=bilbo.baggins"])
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    @patch.object(DummyClient, "reconfig")
-    def test_remove_members_correct_args(self, reconfig, _):
+
+@patch.object(DummyClient, "reconfig")
+def test_remove_members_correct_args(reconfig):
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], username="", password="")
         zk.remove_members(["server.2=sam.gamgee"])
 
@@ -154,9 +170,10 @@ class TestManager(unittest.TestCase):
             joining=None, leaving="2", new_members=None, from_config=4294967296
         )
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    @patch.object(DummyClient, "reconfig")
-    def test_remove_members_handles_zeroes(self, reconfig, _):
+
+@patch.object(DummyClient, "reconfig")
+def test_remove_members_handles_zeroes(reconfig):
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         zk = ZooKeeperManager(
             hosts=[
                 "server.1=bilbo.baggins",
@@ -175,9 +192,10 @@ class TestManager(unittest.TestCase):
             joining=None, leaving="300", new_members=None, from_config=4294967296
         )
 
-    @patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient())
-    @patch.object(DummyClient, "reconfig")
-    def test_remove_members_runs_on_leader(self, _, client):
+
+@patch.object(DummyClient, "reconfig")
+def test_remove_members_runs_on_leader(_):
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()) as client:
         zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], username="", password="")
         zk.leader = "leader"
         zk.remove_members(["server.2=sam.gamgee"])
@@ -194,4 +212,5 @@ class TestManager(unittest.TestCase):
                 verify_certs=False,
                 use_ssl=False,
             )
-        ) in calls
+            in calls
+        )
