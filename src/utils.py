@@ -4,8 +4,11 @@
 
 """General purpose helper functions for managing common charm functions."""
 
+import logging
 import secrets
 import string
+
+logger = logging.getLogger(__name__)
 
 from ops.model import Container
 

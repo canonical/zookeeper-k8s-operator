@@ -17,7 +17,7 @@ ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
 METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def harness():
     harness = Harness(ZooKeeperK8sCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)

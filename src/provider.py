@@ -308,7 +308,7 @@ class ZooKeeperProvider(Object):
                 return
 
         # All units restart after relation changed event to add new users
-        self.charm.on[self.charm.restart.name].acquire_lock.emit()
+        self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
     def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Removes user from ZK app data on `client_relation_broken`.

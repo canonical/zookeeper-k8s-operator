@@ -106,13 +106,13 @@ class ZooKeeperK8sCharm(CharmBase):
             event.defer()
             return
 
-        # If a password rotation is needed, or in progress
-        if not self.rotate_passwords():
-            return
-
         # not all methods called
         if not self.cluster.relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
+            return
+
+        # If a password rotation is needed, or in progress
+        if not self.rotate_passwords():
             return
 
         # attempt startup of server
@@ -127,7 +127,7 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         # check whether restart is needed for all `*_changed` events
-        self.on[self.restart.name].acquire_lock.emit()
+        self.on[f"{self.restart.name}"].acquire_lock.emit()
 
         if self.tls.upgrading and len(self.cluster.peer_units) == 1:
             event.defer()
@@ -351,7 +351,7 @@ class ZooKeeperK8sCharm(CharmBase):
             if self.cluster.relation.data[self.unit].get("password-rotated"):
                 return False
 
-            self.on[self.restart.name].acquire_lock.emit()
+            self.on[f"{self.restart.name}"].acquire_lock.emit()
             return False
 
         else:
