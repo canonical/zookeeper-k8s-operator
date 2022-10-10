@@ -27,6 +27,9 @@ jobs:
 
   integration-test-password-rotation:
     name: Integration tests for password-rotation (microk8s)
+    needs:
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,6 +45,9 @@ jobs:
 
   integration-test-provider:
     name: Integration tests for provider (microk8s)
+    needs:
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -57,6 +63,9 @@ jobs:
 
   integration-test-scaling:
     name: Integration tests for scaling (microk8s)
+    needs:
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -72,6 +81,9 @@ jobs:
 
   integration-test-tls:
     name: Integration tests for tls (microk8s)
+    needs:
+      - lint
+      - unit-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
