@@ -4,6 +4,7 @@
 
 import asyncio
 import logging
+import time
 from pathlib import Path
 
 import pytest
@@ -42,11 +43,16 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications["tls-certificates-operator"].status == "active"
     await ops_test.model.add_relation(APP_NAME, "tls-certificates-operator")
+    await ops_test.log_model()
+    time.sleep(30)
+    await ops_test.log_model()
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000, idle_period=30
     )
+    await ops_test.log_model()
     assert ops_test.model.applications[APP_NAME].status == "active"
     assert ops_test.model.applications["tls-certificates-operator"].status == "active"
+    await ops_test.log_model()
 
     assert ping_servers(ops_test)
 
