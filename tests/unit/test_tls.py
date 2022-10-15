@@ -10,7 +10,7 @@ import yaml
 from ops.testing import Harness
 
 from charm import ZooKeeperK8sCharm
-from literals import CERTS_REL_NAME, CHARM_KEY, PEER
+from literals import CERTS_REL_NAME, CHARM_KEY, CONTAINER, PEER
 
 CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
@@ -23,6 +23,7 @@ def harness():
     peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
+    harness.set_can_connect(CONTAINER, True)
     harness.begin()
     return harness
 
