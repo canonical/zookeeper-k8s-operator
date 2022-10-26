@@ -6,7 +6,7 @@ options:
   data-dir:
     description: filepath for setting the ZooKeeper dataDir option
     type: string
-    default: "/data/zookeeper"
+    default: "/opt/zookeeper"
   log-dir: 
     description: filepath for setting the ZooKeeper dataLogDir option
     type: string

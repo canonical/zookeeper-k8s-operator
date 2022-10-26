@@ -84,7 +84,7 @@ class ZooKeeperK8sCharm(CharmBase):
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {"KAFKA_OPTS": " ".join(self.zookeeper_config.kafka_opts)},
+                    "environment": {"SERVER_JVMFLAGS": " ".join(self.zookeeper_config.kafka_opts)},
                 }
             },
         }

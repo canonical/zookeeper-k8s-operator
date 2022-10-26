@@ -52,8 +52,8 @@ class ZooKeeperConfig:
     def __init__(self, charm):
         self.charm = charm
         self.container = self.charm.unit.get_container(CONTAINER)
-        self.default_config_path = f"{self.charm.config['data-dir']}/config"
-        self.properties_filepath = f"{self.default_config_path}/zookeeper.properties"
+        self.default_config_path = f"{self.charm.config['data-dir']}/conf"
+        self.properties_filepath = f"{self.default_config_path}/zoo.cfg"
         self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
@@ -233,7 +233,9 @@ class ZooKeeperConfig:
     def set_kafka_opts(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         opts = " ".join(self.kafka_opts)
-        push(container=self.container, content=f"KAFKA_OPTS='{opts}'", path="/etc/environment")
+        push(
+            container=self.container, content=f"SERVER_JVMFLAGS='{opts}'", path="/etc/environment"
+        )
 
     def set_zookeeper_properties(self) -> None:
         """Writes built zookeeper.properties file."""
@@ -282,5 +284,5 @@ class ZooKeeperConfig:
         Returns:
             String of startup command and expected config filepath
         """
-        entrypoint = "/opt/kafka/bin/zookeeper-server-start.sh"
-        return f"{entrypoint} {self.properties_filepath}"
+        entrypoint = "/opt/zookeeper/bin/zkServer.sh"
+        return f"{entrypoint} --config {self.default_config_path} start-foreground"
