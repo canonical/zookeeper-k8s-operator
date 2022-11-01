@@ -69,7 +69,7 @@ class ZooKeeperConfig:
         return self.charm.model.get_relation(PEER)
 
     @property
-    def kafka_opts(self) -> List[str]:
+    def server_jvmflags(self) -> List[str]:
         """Builds necessary JVM config env vars for the Kafka snap."""
         return [
             "-Dzookeeper.requireClientAuthScheme=sasl",
@@ -230,9 +230,9 @@ class ZooKeeperConfig:
         """Sets the ZooKeeper JAAS config."""
         push(container=self.container, content=self.jaas_config, path=self.jaas_filepath)
 
-    def set_kafka_opts(self) -> None:
+    def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
-        opts = " ".join(self.kafka_opts)
+        opts = " ".join(self.server_jvmflags)
         push(
             container=self.container, content=f"SERVER_JVMFLAGS='{opts}'", path="/etc/environment"
         )

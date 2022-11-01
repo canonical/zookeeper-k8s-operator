@@ -84,7 +84,9 @@ class ZooKeeperK8sCharm(CharmBase):
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {"SERVER_JVMFLAGS": " ".join(self.zookeeper_config.kafka_opts)},
+                    "environment": {
+                        "SERVER_JVMFLAGS": " ".join(self.zookeeper_config.server_jvmflags)
+                    },
                 }
             },
         }
@@ -190,7 +192,7 @@ class ZooKeeperK8sCharm(CharmBase):
 
         # setting default properties
         self.zookeeper_config.set_zookeeper_myid()
-        self.zookeeper_config.set_kafka_opts()
+        self.zookeeper_config.set_server_jvmflags()
 
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)

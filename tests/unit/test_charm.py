@@ -336,7 +336,9 @@ def test_init_server_calls_necessary_methods(harness):
     )
     with patch("cluster.ZooKeeperCluster.is_unit_turn", return_value=True), patch(
         "config.ZooKeeperConfig.set_zookeeper_myid"
-    ) as zookeeper_myid, patch("config.ZooKeeperConfig.set_kafka_opts") as kafka_opts, patch(
+    ) as zookeeper_myid, patch(
+        "config.ZooKeeperConfig.set_server_jvmflags"
+    ) as server_jvmflags, patch(
         "config.ZooKeeperConfig.set_zookeeper_dynamic_properties"
     ) as zookeeper_dynamic_properties, patch(
         "config.ZooKeeperConfig.set_zookeeper_properties"
@@ -348,7 +350,7 @@ def test_init_server_calls_necessary_methods(harness):
         harness.charm.init_server()
 
         zookeeper_myid.assert_called_once()
-        kafka_opts.assert_called_once()
+        server_jvmflags.assert_called_once()
         zookeeper_dynamic_properties.assert_called_once()
         zookeeper_properties.assert_called_once()
         zookeeper_jaas_config.assert_called_once()
