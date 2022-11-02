@@ -52,7 +52,7 @@ class ZooKeeperConfig:
     def __init__(self, charm):
         self.charm = charm
         self.container = self.charm.unit.get_container(CONTAINER)
-        self.default_config_path = f"{self.charm.config['data-dir']}/conf"
+        self.default_config_path = f"{self.charm.config['conf-dir']}"
         self.properties_filepath = f"{self.default_config_path}/zoo.cfg"
         self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"

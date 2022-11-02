@@ -3,6 +3,10 @@
 # See LICENSE file for licensing details.
 
 options:
+  conf-dir:
+    description: filepath for setting the ZooKeeper conf directory
+    type: string
+    default: "/opt/zookeeper/conf"
   data-dir:
     description: filepath for setting the ZooKeeper dataDir option
     type: string
