@@ -28,7 +28,7 @@ async def test_deploy_active(ops_test: OpsTest):
         charm,
         application_name=APP_NAME,
         num_units=3,
-        resources={"zookeeper-image": "jardon/zookeeper:3.6.3"},
+        resources={"zookeeper-image": "dataplatformoci/zookeeper:3.6.3"},
         series="focal",
     ),
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
