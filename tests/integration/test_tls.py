@@ -27,7 +27,8 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             charm,
             application_name=APP_NAME,
             num_units=3,
-            resources={"zookeeper-image": "ubuntu/zookeeper:latest"},
+            resources={"zookeeper-image": "dataplatformoci/zookeeper:3.6.3"},
+            series="focal",
         ),
         ops_test.model.deploy(
             "tls-certificates-operator",
@@ -35,6 +36,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
+            series="focal",
         ),
     )
     await ops_test.model.wait_for_idle(
@@ -90,6 +92,7 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
+            series="focal",
         ),
     )
     await ops_test.model.wait_for_idle(
@@ -124,7 +127,12 @@ async def test_scale_up_tls(ops_test: OpsTest):
 async def test_client_relate_maintains_quorum(ops_test: OpsTest):
     dummy_name = "app"
     app_charm = await ops_test.build_charm("tests/integration/app-charm")
-    await ops_test.model.deploy(app_charm, application_name=dummy_name, num_units=1)
+    await ops_test.model.deploy(
+        app_charm,
+        application_name=dummy_name,
+        num_units=1,
+        series="focal",
+    )
     await ops_test.model.wait_for_idle([APP_NAME, dummy_name], status="active", timeout=1000)
     await ops_test.model.add_relation(APP_NAME, dummy_name)
     await ops_test.model.wait_for_idle([APP_NAME, dummy_name], status="active", timeout=1000)
