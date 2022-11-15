@@ -46,8 +46,8 @@ def test_build_static_properties_removes_necessary_rows():
     assert "clientPort" not in "".join(static)
 
 
-def test_kafka_opts_has_jaas(harness):
-    opts = ZooKeeperConfig(harness.charm).kafka_opts
+def test_server_jvmflags_has_jaas(harness):
+    opts = ZooKeeperConfig(harness.charm).server_jvmflags
     assert (
         f"-Djava.security.auth.login.config={harness.charm.zookeeper_config.jaas_filepath}" in opts
     )

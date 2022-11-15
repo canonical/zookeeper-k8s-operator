@@ -122,7 +122,7 @@ async def ping_servers(ops_test: OpsTest) -> bool:
 
 def check_properties(model_full_name: str, unit: str):
     properties = check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'cat /data/zookeeper/config/zookeeper.properties'",
+        f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'cat /opt/zookeeper/conf/zoo.cfg'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
@@ -132,7 +132,7 @@ def check_properties(model_full_name: str, unit: str):
 
 def check_jaas_config(model_full_name: str, unit: str):
     config = check_output(
-        f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'cat /data/zookeeper/config/zookeeper-jaas.cfg'",
+        f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'cat /opt/zookeeper/conf/zookeeper-jaas.cfg'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
