@@ -5,18 +5,14 @@
 import asyncio
 import logging
 import time
-from pathlib import Path
 
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
+from tests.integration import APP_NAME, ZOOKEEPER_IMAGE
 from tests.integration.helpers import check_properties, ping_servers
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
 
 
 @pytest.mark.abort_on_fail
@@ -27,7 +23,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             charm,
             application_name=APP_NAME,
             num_units=3,
-            resources={"zookeeper-image": "dataplatformoci/zookeeper:3.6.3"},
+            resources={"zookeeper-image": ZOOKEEPER_IMAGE},
             series="focal",
         ),
         ops_test.model.deploy(

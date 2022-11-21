@@ -18,7 +18,7 @@ resources:
   zookeeper-image:
     type: oci-image
     description: OCI Image for Apache ZooKeeper
-    upstream-source: ubuntu/zookeeper:latest
+    upstream-source: dataplatformoci/zookeeper:3.6.3
 
 peers:
   cluster:
