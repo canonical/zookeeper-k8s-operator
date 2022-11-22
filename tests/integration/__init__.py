@@ -7,6 +7,5 @@ import yaml
 
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
-ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"][
-    "upstream-source"
-]  # "dataplatformoci/zookeeper:3.6.3"
+ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
+SERIES = "focal"
