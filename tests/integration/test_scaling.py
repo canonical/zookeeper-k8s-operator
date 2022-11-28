@@ -5,20 +5,16 @@
 import asyncio
 import logging
 import time
-from pathlib import Path
 
 import pytest
-import yaml
 from lightkube.core.client import AsyncClient
 from lightkube.resources.core_v1 import Pod
 from pytest_operator.plugin import OpsTest
 
+from tests.integration import APP_NAME, SERIES, ZOOKEEPER_IMAGE
 from tests.integration.helpers import check_key, get_password, ping_servers, write_key
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
 
 
 @pytest.mark.abort_on_fail
@@ -28,8 +24,8 @@ async def test_deploy_active(ops_test: OpsTest):
         charm,
         application_name=APP_NAME,
         num_units=3,
-        resources={"zookeeper-image": "dataplatformoci/zookeeper:3.6.3"},
-        series="focal",
+        resources={"zookeeper-image": ZOOKEEPER_IMAGE},
+        series=SERIES,
     ),
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.set_config({"update-status-hook-interval": "10s"})
@@ -115,7 +111,8 @@ async def test_same_model_application_deploys(ops_test: OpsTest):
         charm,
         application_name=APP_NAME,
         num_units=3,
-        resources={"zookeeper-image": "ubuntu/zookeeper:latest"},
+        resources={"zookeeper-image": ZOOKEEPER_IMAGE},
+        series=SERIES,
     ),
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.set_config({"update-status-hook-interval": "10s"})

@@ -8,6 +8,7 @@ import logging
 import pytest
 from pytest_operator.plugin import OpsTest
 
+from tests.integration import SERIES, ZOOKEEPER_IMAGE
 from tests.integration.helpers import check_jaas_config, ping_servers
 
 logger = logging.getLogger(__name__)
@@ -27,14 +28,14 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
             zk_charm,
             application_name=APP_NAME,
             num_units=3,
-            resources={"zookeeper-image": "dataplatformoci/zookeeper:3.6.3"},
-            series="focal",
+            resources={"zookeeper-image": ZOOKEEPER_IMAGE},
+            series=SERIES,
         ),
         ops_test.model.deploy(
             app_charm,
             application_name=DUMMY_NAME_1,
             num_units=1,
-            series="focal",
+            series=SERIES,
         ),
     )
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_1])
@@ -61,7 +62,7 @@ async def test_deploy_multiple_charms_relate_active(ops_test: OpsTest):
         app_charm,
         application_name=DUMMY_NAME_2,
         num_units=1,
-        series="focal",
+        series=SERIES,
     ),
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_2])
     await ops_test.model.add_relation(APP_NAME, DUMMY_NAME_2)

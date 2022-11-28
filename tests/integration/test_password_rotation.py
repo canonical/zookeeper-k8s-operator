@@ -3,12 +3,11 @@
 # See LICENSE file for licensing details.
 
 import logging
-from pathlib import Path
 
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
+from tests.integration import APP_NAME, SERIES, ZOOKEEPER_IMAGE
 from tests.integration.helpers import (
     check_key,
     get_address,
@@ -20,9 +19,6 @@ from tests.integration.helpers import (
 
 logger = logging.getLogger(__name__)
 
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
-
 
 @pytest.mark.skip_if_deployed
 @pytest.mark.abort_on_fail
@@ -33,8 +29,8 @@ async def test_deploy_active(ops_test: OpsTest):
         charm,
         application_name=APP_NAME,
         num_units=3,
-        resources={"zookeeper-image": "dataplatformoci/zookeeper:3.6.3"},
-        series="focal",
+        resources={"zookeeper-image": ZOOKEEPER_IMAGE},
+        series=SERIES,
     ),
     async with ops_test.fast_forward():
         await ops_test.model.block_until(
