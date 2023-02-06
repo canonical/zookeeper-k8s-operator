@@ -184,7 +184,6 @@ def test_restart_restarts_service_if_config_changed(harness):
     with patch("ops.model.Container.restart") as patched, patch(
         "charm.ZooKeeperK8sCharm.config_changed", return_value=True
     ), patch("time.sleep"):
-
         harness.charm._restart(EventBase)
         patched.assert_called_once()
 
@@ -403,7 +402,7 @@ def test_config_changed_updates_properties_and_jaas(harness):
 
 
 def test_adding_units_updates_relation_data(harness):
-    with (patch("cluster.ZooKeeperCluster.update_cluster", return_value={"1": "added"})):
+    with patch("cluster.ZooKeeperCluster.update_cluster", return_value={"1": "added"}):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
