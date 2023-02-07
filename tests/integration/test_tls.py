@@ -32,7 +32,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
-            series=SERIES,
+            series="jammy",
         ),
     )
     await ops_test.model.wait_for_idle(
@@ -88,7 +88,7 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
-            series=SERIES,
+            series="jammy",
         ),
     )
     await ops_test.model.wait_for_idle(
