@@ -9,7 +9,7 @@ import time
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from tests.integration import APP_NAME, SERIES, ZOOKEEPER_IMAGE
+from tests.integration import APP_NAME, SERIES, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
 from tests.integration.helpers import check_properties, ping_servers
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
-            series=SERIES,
+            series=TLS_OPERATOR_SERIES,
         ),
     )
     await ops_test.model.wait_for_idle(
@@ -88,7 +88,7 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
             channel="edge",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
-            series=SERIES,
+            series=TLS_OPERATOR_SERIES,
         ),
     )
     await ops_test.model.wait_for_idle(
