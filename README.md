@@ -56,8 +56,11 @@ juju scale-application zookeeper-k8s 5
 
 ### Password rotation
 #### Internal users
-The Charmed ZooKeeper K8s Operator has two internal users `super` and `sync`, the `set-password` action can be used to rotate the password of one of them.
-If no username is passed, it will default to the `super` user.
+The Charmed ZooKeeper K8s Operator has two internal users:
+- `super`: admin user for the cluster. Used mainly with the Kafka operator.
+- `sync`: specific to the internal quorum handling. 
+
+The `set-password` action can be used to rotate the password of one of them. If no username is passed, it will default to the `super` user.
 ```shell
 # to set a specific password for the sync user
 juju run-action zookeeper-k8s/leader set-password username=sync password=<password> --wait
