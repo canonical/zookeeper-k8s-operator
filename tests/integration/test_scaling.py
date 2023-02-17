@@ -11,8 +11,8 @@ from lightkube.core.client import AsyncClient
 from lightkube.resources.core_v1 import Pod
 from pytest_operator.plugin import OpsTest
 
-from tests.integration import APP_NAME, SERIES, ZOOKEEPER_IMAGE
-from tests.integration.helpers import check_key, get_password, ping_servers, write_key
+from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
+from .helpers import check_key, get_password, ping_servers, write_key
 
 logger = logging.getLogger(__name__)
 
