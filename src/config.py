@@ -59,7 +59,9 @@ class ZooKeeperConfig:
         self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
         self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
         self.truststore_filepath = f"{self.default_config_path}/truststore.jks"
-        self.jmx_prometheus_javaagent_filepath = f"{self.default_path}/jmx_prometheus_javaagent.jar"
+        self.jmx_prometheus_javaagent_filepath = (
+            f"{self.default_path}/jmx_prometheus_javaagent.jar"
+        )
         self.jmx_prometheus_config_filepath = f"{self.default_config_path}/jmx_prometheus.yaml"
 
     @property
@@ -88,7 +90,7 @@ class ZooKeeperConfig:
             "-Dcom.sun.management.jmxremote",
             f"-javaagent:{self.jmx_prometheus_javaagent_filepath}={JMX_PORT}:{self.jmx_prometheus_config_filepath}",
         ]
-    
+
     @property
     def jvmflags(self) -> List[str]:
         """List of all jvmflags."""
@@ -125,7 +127,7 @@ class ZooKeeperConfig:
             "metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider",
             f"metricsProvider.httpPort={METRICS_PROVIDER_PORT}",
         ]
-    
+
     @property
     def jaas_config(self) -> str:
         """Builds the JAAS config.
@@ -262,7 +264,7 @@ class ZooKeeperConfig:
         push(
             container=self.container,
             content=f"SERVER_JVMFLAGS='{server_jvmflags} {jmx_jvmflags}'",
-            path="/etc/environment"
+            path="/etc/environment",
         )
 
     def set_zookeeper_properties(self) -> None:

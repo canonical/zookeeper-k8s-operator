@@ -7,6 +7,8 @@
 import logging
 import time
 
+from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import (
     ActionEvent,
@@ -22,7 +24,7 @@ from ops.pebble import Layer
 
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_USERS, CONTAINER
+from literals import CHARM_USERS, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT
 from provider import ZooKeeperProvider
 from tls import ZooKeeperTLS
 from utils import generate_password, pull
@@ -40,6 +42,14 @@ class ZooKeeperK8sCharm(CharmBase):
         self.provider = ZooKeeperProvider(self)
         self.restart = RollingOpsManager(self, relation="restart", callback=self._restart)
         self.tls = ZooKeeperTLS(self)
+        self.grafana_dashboards = GrafanaDashboardProvider(self)
+        self.metrics_endpoint = MetricsEndpointProvider(
+            self,
+            refresh_event=self.on.start,
+            jobs=[
+                {"static_configs": [{"targets": [f"*:{JMX_PORT}", f"*:{METRICS_PROVIDER_PORT}"]}]}
+            ],
+        )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(
@@ -84,9 +94,7 @@ class ZooKeeperK8sCharm(CharmBase):
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {
-                        "SERVER_JVMFLAGS": " ".join(self.zookeeper_config.jvmflags)
-                    },
+                    "environment": {"SERVER_JVMFLAGS": " ".join(self.zookeeper_config.jvmflags)},
                 }
             },
         }
