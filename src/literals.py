@@ -11,3 +11,5 @@ CHARM_KEY = "zookeeper-k8s"
 CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
+JMX_PORT = 9998
+METRICS_PROVIDER_PORT = 7000
