@@ -53,6 +53,15 @@ def test_server_jvmflags_has_jaas(harness):
     )
 
 
+def test_jmx_in_jvmflags(harness):
+    opts = ZooKeeperConfig(harness.charm).jmx_jvmflags
+    assert "-Dcom.sun.management.jmxremote" in opts
+    assert (
+        "-javaagent:/opt/zookeeper/jmx_prometheus_javaagent.jar=9998:/opt/zookeeper/conf/jmx_prometheus.yaml"
+        in opts
+    )
+
+
 def test_jaas_users_are_added(harness):
     harness.add_relation(REL_NAME, "application")
     harness.update_relation_data(
