@@ -29,6 +29,10 @@ peers:
 provides:
   zookeeper:
     interface: zookeeper
+  metrics-endpoint:
+    interface: prometheus_scrape
+  grafana-dashboard:
+    interface: grafana_dashboard
 
 requires:
   certificates:
