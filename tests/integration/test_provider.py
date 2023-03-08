@@ -8,8 +8,8 @@ import logging
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from tests.integration import SERIES, ZOOKEEPER_IMAGE
-from tests.integration.helpers import check_jaas_config, ping_servers
+from . import SERIES, ZOOKEEPER_IMAGE
+from .helpers import check_jaas_config, ping_servers
 
 logger = logging.getLogger(__name__)
 

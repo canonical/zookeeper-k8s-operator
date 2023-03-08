@@ -9,8 +9,8 @@ import time
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from tests.integration import APP_NAME, SERIES, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
-from tests.integration.helpers import check_properties, ping_servers
+from . import APP_NAME, SERIES, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
+from .helpers import check_properties, ping_servers
 
 logger = logging.getLogger(__name__)
 

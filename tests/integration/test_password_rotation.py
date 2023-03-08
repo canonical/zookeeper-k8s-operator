@@ -7,8 +7,8 @@ import logging
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from tests.integration import APP_NAME, SERIES, ZOOKEEPER_IMAGE
-from tests.integration.helpers import (
+from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
+from .helpers import (
     check_key,
     get_address,
     get_user_password,
