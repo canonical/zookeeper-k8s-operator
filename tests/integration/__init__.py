@@ -8,5 +8,5 @@ import yaml
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
-SERIES = "focal"
+SERIES = "jammy"
 TLS_OPERATOR_SERIES = "jammy"
