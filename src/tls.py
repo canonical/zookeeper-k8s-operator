@@ -17,9 +17,9 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
     generate_csr,
     generate_private_key,
 )
-from ops.charm import ActionEvent, RelationJoinedEvent
+from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import Object
-from ops.model import Relation
+from ops.model import Relation, Unit
 from ops.pebble import ExecError
 
 from literals import PEER
@@ -141,6 +141,17 @@ class ZooKeeperTLS(Object):
         """
         return bool(self.cluster.data[self.charm.app].get("upgrading", None) == "started")
 
+    def unit_unified(self, unit: Unit) -> bool:
+        """Checks if the unit is running `portUnification` configuration option.
+        Pertinent during an upgrade between `ssl` <-> `non-ssl` encryption switch.
+        Returns:
+            True if the cluster is running `portUnification`. Otherwise False
+        """
+        if self.charm.cluster.relation.data[unit].get("unified"):
+            return True
+
+        return False
+
     @property
     def all_units_unified(self) -> bool:
         """Flag to check whether all started units are currently running with `portUnification`.
@@ -151,15 +162,20 @@ class ZooKeeperTLS(Object):
         if not self.charm.cluster.all_units_related:
             return False
 
-        for unit in getattr(self.charm, "cluster").started_units:
-            if not self.cluster.data[unit].get("unified", None):
+        for unit in self.charm.cluster.started_units:
+            if not self.unit_unified(unit):
                 return False
 
         return True
 
-    def _on_certificates_created(self, _) -> None:
+    def _on_certificates_created(self, event: RelationCreatedEvent) -> None:
         """Handler for `certificates_relation_created` event."""
         if not self.charm.unit.is_leader():
+            return
+
+        if not self.charm.cluster.stable:
+            logger.debug("certificates relation created - quorum not stable - deferring")
+            event.defer()
             return
 
         # if this event fired, we don't know whether the cluster was fully running or not
@@ -169,7 +185,10 @@ class ZooKeeperTLS(Object):
 
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
-        if not self.cluster:
+        if not self.enabled:
+            logger.debug(
+                "certificates relation joined - tls not enabled and not upgrading - deferring"
+            )
             event.defer()
             return
 
@@ -187,9 +206,6 @@ class ZooKeeperTLS(Object):
 
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Handler for `certificates_available` event after provider updates signed certs."""
-        if not self.cluster:
-            event.defer()
-            return
 
         if not self.charm.container.can_connect():
             event.defer()
@@ -202,7 +218,7 @@ class ZooKeeperTLS(Object):
 
         # if certificate already exists, this event must be new, flag manual restart
         if self.certificate:
-            self.cluster.data[self.charm.unit].update({"manual-restart": "true"})
+            self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
         self.cluster.data[self.charm.unit].update(
             {"certificate": event.certificate, "ca": event.ca}
