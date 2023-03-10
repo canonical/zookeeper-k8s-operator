@@ -67,7 +67,7 @@ juju = "==2.9.11"
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
 requests = ">2.25"
-lightkube = ">0.11.0"
+lightkube = "==0.11.0"
 
 [tool.ruff]
 line-length = 99
