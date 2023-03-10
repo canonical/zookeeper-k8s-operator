@@ -97,8 +97,8 @@ def test_multiple_jaas_users_are_added(harness):
 def test_tls_enabled(harness):
     with harness.hooks_disabled():
         with patch(
-                "ops.model.Container.pull",
-                return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey")
+            "ops.model.Container.pull",
+            return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey"),
         ):
             harness.update_relation_data(
                 harness.charm.cluster.relation.id, CHARM_KEY, {"tls": "enabled"}
@@ -116,8 +116,8 @@ def test_tls_disabled(harness):
 def test_tls_upgrading(harness):
     with harness.hooks_disabled():
         with patch(
-                "ops.model.Container.pull",
-                return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey")
+            "ops.model.Container.pull",
+            return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey"),
         ):
             harness.update_relation_data(
                 harness.charm.cluster.relation.id, CHARM_KEY, {"upgrading": "started"}
@@ -127,14 +127,16 @@ def test_tls_upgrading(harness):
             harness.update_relation_data(
                 harness.charm.cluster.relation.id, CHARM_KEY, {"upgrading": ""}
             )
-            assert "portUnification=true" not in harness.charm.zookeeper_config.zookeeper_properties
+            assert (
+                "portUnification=true" not in harness.charm.zookeeper_config.zookeeper_properties
+            )
 
 
 def test_tls_ssl_quorum(harness):
     with harness.hooks_disabled():
         with patch(
-                "ops.model.Container.pull",
-                return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey")
+            "ops.model.Container.pull",
+            return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey"),
         ):
             harness.update_relation_data(
                 harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"}
@@ -152,7 +154,9 @@ def test_properties_tls_uses_passwords(harness):
         "ops.model.Container.pull", return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey")
     ):
         with harness.hooks_disabled():
-            harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+            harness.update_relation_data(
+                harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"}
+            )
             harness.update_relation_data(
                 harness.charm.tls.cluster.id, f"{CHARM_KEY}/0", {"keystore-password": "mellon"}
             )
@@ -170,7 +174,9 @@ def test_properties_tls_gets_dynamic_config_file_property(harness):
     ):
         fp.write("ensuring file exists")
         with harness.hooks_disabled():
-            harness.update_relation_data(harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"})
+            harness.update_relation_data(
+                harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"}
+            )
 
         assert (
             "dynamicConfigFile=/gandalf/the/grey"

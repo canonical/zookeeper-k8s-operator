@@ -280,7 +280,6 @@ def test_port_updates_if_tls(harness):
         assert ssl == "disabled"
 
 
-
 def test_provider_relation_data_updates_port_if_stable_and_ready(harness):
     with (
         patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,

@@ -475,7 +475,9 @@ def test_all_units_quorum_fails_wrong_quorum(harness):
 
         assert not harness.charm.cluster.all_units_quorum
 
-        harness.update_relation_data(harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"})
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"}
+        )
 
         assert not harness.charm.cluster.all_units_quorum
 
@@ -483,7 +485,9 @@ def test_all_units_quorum_fails_wrong_quorum(harness):
 def test_all_units_quorum_succeeds(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"})
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"}
+        )
         harness.update_relation_data(
             harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
         )

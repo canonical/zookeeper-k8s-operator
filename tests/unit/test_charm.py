@@ -446,7 +446,7 @@ def test_config_changed_updates_properties_and_jaas(harness):
         patch("config.ZooKeeperConfig.static_properties", new_callable=lambda: ["gandalf=white"]),
         patch("config.ZooKeeperConfig.jaas_config", new_callable=lambda: "gandalf=white"),
         patch("config.ZooKeeperConfig.set_zookeeper_properties") as set_props,
-        patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas
+        patch("config.ZooKeeperConfig.set_jaas_config") as set_jaas,
     ):
         harness.charm.config_changed()
         set_props.assert_not_called()
@@ -682,7 +682,9 @@ def test_restart_defers_if_not_stable(harness):
         harness.set_leader(True)
 
     with (
-        patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched_apply,
+        patch(
+            "provider.ZooKeeperProvider.apply_relation_data", return_value=None
+        ) as patched_apply,
         patch("cluster.ZooKeeperCluster.stable", new_callable=PropertyMock(return_value=False)),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
         patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
