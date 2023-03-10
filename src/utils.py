@@ -8,9 +8,9 @@ import logging
 import secrets
 import string
 
-logger = logging.getLogger(__name__)
-
 from ops.model import Container
+
+logger = logging.getLogger(__name__)
 
 
 def push(container: Container, content: str, path: str) -> None:

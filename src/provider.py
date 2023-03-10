@@ -172,6 +172,7 @@ class ZooKeeperProvider(Object):
         """Grabs a specific auth config value from all related applications.
 
         Args:
+            key: name of the key to be used
             event (optional): used for checking `RelationBrokenEvent`
 
         Returns:

@@ -77,7 +77,7 @@ def test_srvr():
         client = ZooKeeperClient(host="", client_port=0, username="", password="")
         result = client.srvr
 
-        assert set(result.keys()) == set(["Zookeeper version", "Outstanding", "Mode"])
+        assert set(result.keys()) == {"Zookeeper version", "Outstanding", "Mode"}
 
 
 def test_mntr():
@@ -85,7 +85,7 @@ def test_mntr():
         client = ZooKeeperClient(host="", client_port=0, username="", password="")
         result = client.mntr
 
-        assert set(result.keys()) == set(["zk_pending_syncs", "zk_peer_state"])
+        assert set(result.keys()) == {"zk_pending_syncs", "zk_peer_state"}
 
 
 def test_is_ready():

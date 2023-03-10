@@ -91,9 +91,14 @@ def test_unit_config_succeeds_for_unit(harness):
 def test_unit_config_has_all_keys(harness):
     config = harness.charm.cluster.unit_config(0)
 
-    assert set(config.keys()) == set(
-        ["host", "server_string", "server_id", "unit_id", "unit_name", "state"]
-    )
+    assert set(config.keys()) == {
+        "host",
+        "server_string",
+        "server_id",
+        "unit_id",
+        "unit_name",
+        "state",
+    }
 
 
 def test_unit_config_server_string_format(harness):
@@ -126,7 +131,7 @@ def test_is_unit_turn_succeeds_scaleup(harness):
         {"0": "added", "1": "added", "2": "added"},
     )
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
-    units = sorted(list(harness.charm.cluster.relation.units), key=lambda x: x.name)
+    units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(1)
     assert harness.charm.cluster.is_unit_turn(units[0])
 
@@ -141,7 +146,7 @@ def test_is_unit_turn_fails_scaleup(harness):
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
-    units = sorted(list(harness.charm.cluster.relation.units), key=lambda x: x.name)
+    units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(4)
 
     assert not harness.charm.cluster.is_unit_turn(units[3])
@@ -157,7 +162,7 @@ def test_is_unit_turn_succeeds_failover(harness):
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
-    units = sorted(list(harness.charm.cluster.relation.units), key=lambda x: x.name)
+    units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(4)
 
     assert harness.charm.cluster.is_unit_turn(units[0])
@@ -175,7 +180,7 @@ def test_is_unit_turn_fails_failover(harness):
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
     harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
-    units = sorted(list(harness.charm.cluster.relation.units), key=lambda x: x.name)
+    units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(4)
 
     assert not harness.charm.cluster.is_unit_turn(units[3])
