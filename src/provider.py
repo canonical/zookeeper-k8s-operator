@@ -301,11 +301,11 @@ class ZooKeeperProvider(Object):
             logger.debug(f"adding acls for {getattr(event.app, 'name', None)}")
             self.update_acls(event=event)
         except (
-                MembersSyncingError,
-                MemberNotReadyError,
-                QuorumLeaderNotFoundError,
-                KazooTimeoutError,
-                UnitNotFoundError,
+            MembersSyncingError,
+            MemberNotReadyError,
+            QuorumLeaderNotFoundError,
+            KazooTimeoutError,
+            UnitNotFoundError,
         ) as e:
             logger.warning(str(e))
             event.defer()
@@ -323,7 +323,6 @@ class ZooKeeperProvider(Object):
             # roll leader unit to apply password to jaas config
             self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
-
     def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Removes user from ZK app data on `client_relation_broken`.
 
@@ -340,10 +339,11 @@ class ZooKeeperProvider(Object):
 
     @property
     def ready(self) -> bool:
-        """Checks whether the cluster is ready to accept client relations.
-                Returns:
-                    True if ready. Otherwise False
-                """
+        """Check whether the cluster is ready to accept client relations.
+
+        Returns:
+            True if ready. Otherwise False
+        """
         if not self.charm.cluster.all_units_quorum:
             logger.debug("provider not ready - not all units quorum")
             return False
@@ -361,5 +361,3 @@ class ZooKeeperProvider(Object):
             return False
 
         return True
-
-

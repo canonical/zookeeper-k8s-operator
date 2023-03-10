@@ -17,11 +17,10 @@ from ops.charm import (
     LeaderElectedEvent,
     RelationDepartedEvent,
 )
-from ops.pebble import PathError
 from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, Container, MaintenanceStatus, WaitingStatus
-from ops.pebble import Layer
+from ops.pebble import Layer, PathError
 
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig

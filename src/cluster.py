@@ -131,7 +131,8 @@ class ZooKeeperCluster:
 
     @property
     def all_units_added(self) -> bool:
-        """Checks whether all related units are added to the peer data quorum tracker.
+        """Check whether all related units are added to the peer data quorum tracker.
+
         Returns:
             True if all related units have been added. Otherwise False
         """

@@ -143,7 +143,10 @@ class ZooKeeperTLS(Object):
 
     def unit_unified(self, unit: Unit) -> bool:
         """Checks if the unit is running `portUnification` configuration option.
+
         Pertinent during an upgrade between `ssl` <-> `non-ssl` encryption switch.
+
+
         Returns:
             True if the cluster is running `portUnification`. Otherwise False
         """
@@ -206,7 +209,6 @@ class ZooKeeperTLS(Object):
 
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Handler for `certificates_available` event after provider updates signed certs."""
-
         if not self.charm.container.can_connect():
             event.defer()
             return

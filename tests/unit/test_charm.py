@@ -2,6 +2,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import io
 import logging
 from pathlib import Path
 from unittest.mock import PropertyMock, patch
@@ -9,11 +10,12 @@ from unittest.mock import PropertyMock, patch
 import ops.testing
 import pytest
 import yaml
-from charm import ZooKeeperK8sCharm
-from literals import CHARM_KEY, CONTAINER, PEER
 from ops.framework import EventBase
 from ops.model import ActiveStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
+
+from charm import ZooKeeperK8sCharm
+from literals import CHARM_KEY, CONTAINER, PEER
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 logger = logging.getLogger(__name__)
@@ -65,7 +67,7 @@ def test_relation_changed_emitted_for_leader_elected(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with (patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched, ):
+    with (patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched,):
         harness.set_leader(True)
         patched.assert_called_once()
 
@@ -319,9 +321,8 @@ def test_restart_sets_password_rotated_on_unit(harness):
     ):
         harness.charm._restart(EventBase)
         assert (
-                harness.charm.cluster.relation.data[harness.charm.unit].get("password-rotated",
-                                                                            None)
-                == "true"
+            harness.charm.cluster.relation.data[harness.charm.unit].get("password-rotated", None)
+            == "true"
         )
 
 
@@ -340,8 +341,7 @@ def test_restart_sets_unified(harness):
     ):
         harness.charm._restart(EventBase)
         assert (
-                harness.charm.cluster.relation.data[harness.charm.unit].get("unified",
-                                                                            None) == "true"
+            harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None) == "true"
         )
         harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": ""})
         with (
@@ -414,12 +414,10 @@ def test_init_server_calls_necessary_methods(harness):
 
         assert harness.charm.cluster.relation.data[harness.charm.unit].get("quorum", None) == "ssl"
         assert (
-                harness.charm.cluster.relation.data[harness.charm.unit].get("unified",
-                                                                            None) == "true"
+            harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None) == "true"
         )
         assert (
-                harness.charm.cluster.relation.data[harness.charm.unit].get("state",
-                                                                            None) == "started"
+            harness.charm.cluster.relation.data[harness.charm.unit].get("state", None) == "started"
         )
 
         assert isinstance(harness.charm.unit.status, ActiveStatus)
@@ -588,11 +586,9 @@ def test_config_changed_fails_apply_relation_data_not_ready(harness):
         harness.set_leader(True)
 
     with (
-        patch("provider.ZooKeeperProvider.apply_relation_data",
-              return_value=None) as patched,
+        patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
-        patch("provider.ZooKeeperProvider.ready",
-              new_callable=PropertyMock(return_value=False)),
+        patch("provider.ZooKeeperProvider.ready", new_callable=PropertyMock(return_value=False)),
         patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
@@ -605,10 +601,8 @@ def test_config_changed_fails_apply_relation_data_not_stable(harness):
         harness.set_leader(True)
 
     with (
-        patch("provider.ZooKeeperProvider.apply_relation_data",
-              return_value=None) as patched,
-        patch("cluster.ZooKeeperCluster.stable",
-              new_callable=PropertyMock(return_value=False)),
+        patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
+        patch("cluster.ZooKeeperCluster.stable", new_callable=PropertyMock(return_value=False)),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
         patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
     ):
@@ -623,8 +617,7 @@ def test_update_quorum_updates_relation_data(harness):
         harness.set_leader(True)
 
     with (
-        patch("provider.ZooKeeperProvider.apply_relation_data",
-              return_value=None) as patched,
+        patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("provider.ZooKeeperProvider.ready", return_value=True),
         patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
@@ -721,7 +714,7 @@ def test_restart_fails_update_relation_data_if_not_ready(harness):
 def test_init_leader_is_added(harness):
     with (
         patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
-        patch("ops.model.Container.restart")
+        patch("ops.model.Container.restart"),
     ):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
