@@ -155,6 +155,7 @@ class ZooKeeperK8sCharm(CharmBase):
         if not self.cluster.stable:
             logger.debug("restart - cluster not stable - deferring")
             event.defer()
+            return
 
         if not self.container.can_connect():
             event.defer()
