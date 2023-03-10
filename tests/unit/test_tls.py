@@ -45,31 +45,66 @@ def test_all_units_unified_fails_if_not_all_units_related(harness):
     assert not harness.charm.tls.all_units_unified
 
 
-def test_certificates_created(harness):
+def test_certificates_created_defers_if_not_stable(harness):
     with harness.hooks_disabled():
         harness.set_leader(True)
 
-    harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+    with patch("ops.framework.EventBase.defer") as patched:
+        harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+
+    patched.assert_called_once()
+    assert not harness.charm.tls.enabled
+
+
+def test_certificates_created_sets_upgrading_enabled(harness):
+    with harness.hooks_disabled():
+        harness.set_leader(True)
+
+    with patch("ops.framework.EventBase.defer"), patch("cluster.ZooKeeperCluster.stable"):
+        harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+
     assert harness.charm.tls.enabled
     assert harness.charm.tls.upgrading
 
 
-def test_certificates_joined_creates_new_key(harness):
-    with patch("tls.ZooKeeperTLS._request_certificate"):
+def test_certificates_joined_defers_if_disabled(harness):
+    with (
+        patch("ops.framework.EventBase.defer") as patched,
+        patch("tls.ZooKeeperTLS._request_certificate"),
+        patch("cluster.ZooKeeperCluster.stable", return_value=True),
+    ):
         cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
         harness.add_relation_unit(cert_rel_id, "tls-certificates-operator/1")
 
-        assert harness.charm.tls.private_key
-        assert "BEGIN RSA PRIVATE KEY" in harness.charm.tls.private_key.splitlines()[0]
+    patched.assert_called_once()
+    assert not harness.charm.tls.private_key
+
+
+def test_certificates_joined_creates_private_key_if_enabled(harness):
+    with (
+        patch("tls.ZooKeeperTLS._request_certificate"),
+        patch("cluster.ZooKeeperCluster.stable", return_value=True),
+        patch("tls.ZooKeeperTLS.enabled", return_value=True),
+    ):
+        cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+        harness.add_relation_unit(cert_rel_id, "tls-certificates-operator/1")
+
+    assert harness.charm.tls.private_key
+    assert "BEGIN RSA PRIVATE KEY" in harness.charm.tls.private_key.splitlines()[0]
 
 
 def test_certificates_joined_creates_new_keystore_password(harness):
     assert not harness.charm.tls.keystore_password
-    with patch("tls.ZooKeeperTLS._request_certificate"):
+
+    with (
+        patch("tls.ZooKeeperTLS._request_certificate"),
+        patch("cluster.ZooKeeperCluster.stable", return_value=True),
+        patch("tls.ZooKeeperTLS.enabled", return_value=True),
+    ):
         cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
         harness.add_relation_unit(cert_rel_id, "tls-certificates-operator/1")
 
-        assert harness.charm.tls.keystore_password
+    assert harness.charm.tls.keystore_password
 
 
 def test_certificates_available_fails_wrong_csr(harness):
@@ -112,37 +147,6 @@ def test_certificates_available_succeeds(harness):
 
         assert harness.charm.tls.certificate
         assert harness.charm.tls.ca
-
-
-def test_certificates_available_succeeds_manual_restart(harness):
-    harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
-
-    # implicitly tests restart call
-    harness.add_relation(harness.charm.restart.name, "{CHARM_KEY}/0")
-
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}/0",
-        {"csr": "not-missing", "certificate": "cert"},
-    )
-
-    # implicitly tests these method calls
-    with patch.multiple(
-        "tls.ZooKeeperTLS",
-        set_server_key=DEFAULT,
-        set_ca=DEFAULT,
-        set_certificate=DEFAULT,
-        set_truststore=DEFAULT,
-        set_p12_keystore=DEFAULT,
-    ):
-        harness.charm.tls.certificates.on.certificate_available.emit(
-            certificate_signing_request="not-missing",
-            certificate="cert",
-            ca="ca",
-            chain=["ca", "cert"],
-        )
-
-    assert harness.charm.cluster.relation.data[harness.charm.unit].get("manual-restart", None)
 
 
 def test_certificates_broken(harness):
