@@ -11,6 +11,7 @@ import requests
 from lightkube.core.client import AsyncClient
 from lightkube.resources.core_v1 import Pod
 from pytest_operator.plugin import OpsTest
+from literals import JMX_PORT, METRICS_PROVIDER_PORT
 
 from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
 from .helpers import check_key, get_address, get_password, ping_servers, write_key
@@ -39,8 +40,8 @@ async def test_deploy_active(ops_test: OpsTest):
 
 async def test_metrics_endpoints(ops_test: OpsTest):
     unit_address = await get_address(ops_test=ops_test)
-    jmx_exporter_url = f"http://{unit_address}:9998/metrics"
-    zk_exporter_url = f"http://{unit_address}:7000/metrics"
+    jmx_exporter_url = f"http://{unit_address}:{JMX_PORT}/metrics"
+    zk_exporter_url = f"http://{unit_address}:{METRICS_PROVIDER_PORT}/metrics"
 
     jmx_resp = requests.get(jmx_exporter_url)
     zk_resp = requests.get(zk_exporter_url)
