@@ -11,6 +11,7 @@ import requests
 from lightkube.core.client import AsyncClient
 from lightkube.resources.core_v1 import Pod
 from pytest_operator.plugin import OpsTest
+
 from literals import JMX_PORT, METRICS_PROVIDER_PORT
 
 from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
