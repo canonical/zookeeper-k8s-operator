@@ -24,7 +24,7 @@ class DummyClient:
         self.syncing = syncing
         self.ready = ready
         self.SRVR = "Zookeeper version: version\nOutstanding: 0\nMode: leader"
-        self.MNTR = "zk_pending_syncs	0\nzk_peer_state	leading - broadcast"
+        self.MNTR = "zk_pending_syncs	0.0\nzk_peer_state	leading - broadcast"
 
         if self.follower:
             self.SRVR = self.SRVR.replace("leader", "follower")

@@ -34,23 +34,25 @@ def harness():
 
 
 def test_peer_units_contains_unit(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
     assert len(harness.charm.cluster.peer_units) == 2
 
 
 def test_started_units_ignores_ready_units(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"state": "ready"}
-    )
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/2", {"state": "started"}
-    )
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/3", {"state": "started"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"state": "ready"}
+        )
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/2", {"state": "started"}
+        )
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/3", {"state": "started"}
+        )
 
     assert len(harness.charm.cluster.started_units) == 2
 
@@ -66,29 +68,46 @@ def test_get_unit_from_id_succeeds(harness):
 
 
 def test_get_unit_from_id_raises(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
 
     with pytest.raises(UnitNotFoundError):
         harness.charm.cluster.get_unit_from_id(100)
 
 
 def test_unit_config_raises_for_missing_unit(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
 
     with pytest.raises(UnitNotFoundError):
         harness.charm.cluster.get_unit_from_id(100)
 
 
 def test_unit_config_succeeds_for_id(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"private-address": "treebeard"}
+        )
+
     assert harness.charm.cluster.unit_config(unit=1)
 
 
 def test_unit_config_succeeds_for_unit(harness):
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+
     assert harness.charm.cluster.unit_config(harness.charm.unit)
 
 
 def test_unit_config_has_all_keys(harness):
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+
     config = harness.charm.cluster.unit_config(0)
 
     assert set(config.keys()) == {
@@ -102,6 +121,11 @@ def test_unit_config_has_all_keys(harness):
 
 
 def test_unit_config_server_string_format(harness):
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+
     server_string = harness.charm.cluster.unit_config(0)["server_string"]
     split_string = re.split("=|:|;", server_string)
 
@@ -125,27 +149,32 @@ def test_get_updated_servers(harness):
 
 
 def test_is_unit_turn_succeeds_scaleup(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"0": "added", "1": "added", "2": "added"},
-    )
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"0": "added", "1": "added", "2": "added"},
+        )
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
+
     units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(1)
+
     assert harness.charm.cluster.is_unit_turn(units[0])
 
 
 def test_is_unit_turn_fails_scaleup(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
-    )
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
+        )
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
+
     units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(4)
 
@@ -153,15 +182,17 @@ def test_is_unit_turn_fails_scaleup(harness):
 
 
 def test_is_unit_turn_succeeds_failover(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
-    )
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
+        )
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
+
     units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(4)
 
@@ -171,15 +202,17 @@ def test_is_unit_turn_succeeds_failover(harness):
 
 
 def test_is_unit_turn_fails_failover(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
-    )
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
+        )
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/0")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/3")
+
     units = sorted(harness.charm.cluster.relation.units, key=lambda x: x.name)
     harness.set_planned_units(4)
 
@@ -187,11 +220,21 @@ def test_is_unit_turn_fails_failover(harness):
 
 
 def test_generate_units_scaleup_adds_all_servers(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}", {"0": "added", "1": "added"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/2", {"private-address": "gimli"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}", {"0": "added", "1": "added"}
+        )
 
     new_unit_string = harness.charm.cluster.unit_config(2, state="ready", role="observer")[
         "server_string"
@@ -206,29 +249,46 @@ def test_generate_units_scaleup_adds_all_servers(harness):
 
 
 def test_generate_units_scaleup_adds_correct_roles_for_added_units(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}", {"0": "added", "1": "removed"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/2", {"private-address": "gimli"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}", {"0": "added", "1": "removed"}
+        )
 
-    new_unit_string = harness.charm.cluster.unit_config(2, state="ready", role="observer")[
-        "server_string"
-    ]
-    generated_servers = harness.charm.cluster._generate_units(unit_string=new_unit_string)
+        new_unit_string = harness.charm.cluster.unit_config(2, state="ready", role="observer")[
+            "server_string"
+        ]
+        generated_servers = harness.charm.cluster._generate_units(unit_string=new_unit_string)
 
     assert len(re.findall("participant", generated_servers)) == 1
     assert len(re.findall("observer", generated_servers)) == 1
 
 
 def test_generate_units_failover(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"0": "removed", "1": "added", "2": "removed"},
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"0": "removed", "1": "added", "2": "removed"},
+        )
 
     new_unit_string = harness.charm.cluster.unit_config(0, state="ready", role="observer")[
         "server_string"
@@ -239,35 +299,52 @@ def test_generate_units_failover(harness):
 
 
 def test_startup_servers_raises_for_missing_data(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"0": "removed", "sync_password": "Mellon"},
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"0": "removed", "sync_password": "Mellon"},
+        )
 
     with pytest.raises(UnitNotFoundError):
         harness.charm.cluster.startup_servers(unit=3)
 
 
 def test_startup_servers_succeeds_init(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"sync_password": "gollum", "super_password": "precious"},
-    )
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"sync_password": "gollum", "super_password": "precious"},
+        )
+
     harness.set_planned_units(1)
     servers = harness.charm.cluster.startup_servers(unit=0)
+
     assert "observer" not in servers
 
 
 def test_startup_servers_succeeds_failover_after_init(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}",
-        {"0": "removed", "1": "added", "sync_password": "Mellon"},
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"private-address": "gandalf"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}",
+            {"0": "removed", "1": "added", "sync_password": "Mellon"},
+        )
 
     generated_servers = harness.charm.cluster.startup_servers(unit=0)
 
@@ -276,10 +353,13 @@ def test_startup_servers_succeeds_failover_after_init(harness):
 
 
 def test_all_units_related(harness):
-    assert not harness.charm.cluster.all_units_related
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.set_planned_units(2)
-    assert harness.charm.cluster.all_units_related
+    with harness.hooks_disabled():
+        assert not harness.charm.cluster.all_units_related
+
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.set_planned_units(2)
+
+        assert harness.charm.cluster.all_units_related
 
 
 def test_lowest_unit_id_none_if_not_all_related(harness):
@@ -287,8 +367,11 @@ def test_lowest_unit_id_none_if_not_all_related(harness):
 
 
 def test_lowest_unit_id(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+
     harness.set_planned_units(2)
+
     assert harness.charm.cluster.lowest_unit_id == 0
 
 
@@ -297,101 +380,119 @@ def test_stale_quorum_not_all_related(harness):
 
 
 def test_stale_quorum_unit_departed(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": "removed"}
-    )
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": "removed"}
+        )
+
     assert not harness.charm.cluster.stale_quorum
 
 
 def test_stale_quorum_new_unit(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.set_planned_units(2)
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": ""}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.set_planned_units(2)
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": ""}
+        )
 
     assert harness.charm.cluster.stale_quorum
 
 
 def test_stale_quorum_all_added(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.set_planned_units(2)
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": "added"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.set_planned_units(2)
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": "added"}
+        )
     assert not harness.charm.cluster.stale_quorum
 
 
 def test_all_rotated_fails(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
+        )
     assert not harness.charm.cluster._all_rotated()
 
 
 def test_all_rotated_succeeds(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"password-rotated": "true"}
-    )
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"password-rotated": "true"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
+        )
 
     assert harness.charm.cluster._all_rotated()
 
 
 def test_passwords_set_fails_missing_unit_passwords(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}/0",
-        {"super-password": "mellon", "sync-password": "mellon"},
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}/0",
+            {"super-password": "mellon", "sync-password": "mellon"},
+        )
+
     assert not harness.charm.cluster.passwords_set
 
 
 def test_passwords_set_fails_missing_password(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"super-password": "mellon"}
-    )
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"super-password": "mellon"}
+        )
+
     assert not harness.charm.cluster.passwords_set
 
 
 def test_passwords_set_succeeds(harness):
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id,
-        f"{CHARM_KEY}/0",
-        {"super-password": "mellon", "sync-password": "mellon"},
-    )
+    with harness.hooks_disabled():
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            f"{CHARM_KEY}/0",
+            {"super-password": "mellon", "sync-password": "mellon"},
+        )
+
     assert not harness.charm.cluster.passwords_set
 
 
 def test_all_units_quorum_fails_wrong_quorum(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
-    )
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"quorum": "non-ssl"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"quorum": "non-ssl"}
+        )
 
-    assert not harness.charm.cluster.all_units_quorum
+        assert not harness.charm.cluster.all_units_quorum
 
-    harness.update_relation_data(harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"})
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"}
+        )
 
-    assert not harness.charm.cluster.all_units_quorum
+        assert not harness.charm.cluster.all_units_quorum
 
 
 def test_all_units_quorum_succeeds(harness):
-    harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
-    harness.update_relation_data(harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"})
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
-    )
-    harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"quorum": "ssl"}
-    )
+    with harness.hooks_disabled():
+        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
+        )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"quorum": "ssl"}
+        )
 
     assert harness.charm.cluster.all_units_quorum

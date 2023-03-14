@@ -64,6 +64,7 @@ def test_relation_config_new_relation(harness):
         "password": "password",
         "chroot": "/app",
         "acl": "cdrwa",
+        "acls-added": "true",
     }
 
 
@@ -85,6 +86,7 @@ def test_relation_config_new_relation_defaults_to_database(harness):
             "password": "password",
             "chroot": "/app",
             "acl": "cdrwa",
+            "acls-added": "true",
         }
 
 
@@ -93,15 +95,17 @@ def test_relation_config_new_relation_empty_password(harness):
         harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
     )
 
-    config = harness.charm.provider.relation_config(
-        relation=harness.charm.provider.client_relations[0]
-    )
+    with patch("provider.generate_password", return_value="mellon"):
+        config = harness.charm.provider.relation_config(
+            relation=harness.charm.provider.client_relations[0]
+        )
 
     assert config == {
         "username": "relation-0",
-        "password": "",
+        "password": "mellon",
         "chroot": "/app",
         "acl": "cdrwa",
+        "acls-added": "false",
     }
 
 
@@ -112,15 +116,17 @@ def test_relation_config_new_relation_app_permissions(harness):
         {"chroot": "app", "chroot-acl": "rw"},
     )
 
-    config = harness.charm.provider.relation_config(
-        relation=harness.charm.provider.client_relations[0]
-    )
+    with patch("provider.generate_password", return_value="mellon"):
+        config = harness.charm.provider.relation_config(
+            relation=harness.charm.provider.client_relations[0]
+        )
 
     assert config == {
         "username": "relation-0",
-        "password": "",
+        "password": "mellon",
         "chroot": "/app",
         "acl": "rw",
+        "acls-added": "false",
     }
 
 
@@ -150,20 +156,23 @@ def test_relations_config_multiple_relations(harness):
         harness.charm.provider.client_relations[1].id, "new_application", {"chroot": "new_app"}
     )
 
-    relations_config = harness.charm.provider.relations_config()
+    with patch("provider.generate_password", return_value="mellon"):
+        relations_config = harness.charm.provider.relations_config()
 
     assert relations_config == {
         "0": {
             "username": "relation-0",
-            "password": "",
+            "password": "mellon",
             "chroot": "/app",
             "acl": "cdrwa",
+            "acls-added": "false",
         },
         "3": {
             "username": "relation-3",
-            "password": "",
+            "password": "mellon",
             "chroot": "/new_app",
             "acl": "cdrwa",
+            "acls-added": "false",
         },
     }
 
@@ -238,7 +247,7 @@ def test_port_updates_if_tls(harness):
         harness.update_relation_data(
             harness.charm.cluster.relation.id,
             CHARM_KEY,
-            {"quorum": "ssl"},
+            {"quorum": "ssl", "relation-0": "mellon"},
         )
         harness.charm.provider.apply_relation_data()
 
@@ -259,7 +268,7 @@ def test_port_updates_if_tls(harness):
         harness.update_relation_data(
             harness.charm.cluster.relation.id,
             CHARM_KEY,
-            {"quorum": "non-ssl"},
+            {"quorum": "non-ssl", "relation-0": "mellon"},
         )
         harness.charm.provider.apply_relation_data()
 
@@ -271,8 +280,13 @@ def test_port_updates_if_tls(harness):
         assert ssl == "disabled"
 
 
-def test_provider_relation_data_updates_port(harness):
-    with patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched:
+def test_provider_relation_data_updates_port_if_stable_and_ready(harness):
+    with (
+        patch("provider.ZooKeeperProvider.apply_relation_data", return_value=None) as patched,
+        patch("cluster.ZooKeeperCluster.stable", return_value=True),
+        patch("provider.ZooKeeperProvider.ready", return_value=True),
+        patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
+    ):
         harness.set_leader(True)
         harness.update_relation_data(
             harness.charm.cluster.relation.id,
@@ -312,8 +326,18 @@ def test_apply_relation_data(harness):
             f"{CHARM_KEY}/2",
             {"private-address": "balrog", "state": "started"},
         )
+        harness.update_relation_data(
+            harness.charm.cluster.relation.id,
+            CHARM_KEY,
+            {"relation-0": "mellon", "relation-3": "friend"},
+        )
 
-    harness.charm.provider.apply_relation_data()
+    with (
+        patch("cluster.ZooKeeperCluster.stable", return_value=True),
+        patch("provider.ZooKeeperProvider.ready", return_value=True),
+        patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
+    ):
+        harness.charm.provider.apply_relation_data()
 
     assert harness.charm.cluster.relation.data[harness.charm.app].get("relation-0", None)
     assert harness.charm.cluster.relation.data[harness.charm.app].get("relation-3", None)

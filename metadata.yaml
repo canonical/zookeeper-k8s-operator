@@ -18,7 +18,7 @@ resources:
   zookeeper-image:
     type: oci-image
     description: OCI Image for Apache ZooKeeper
-    upstream-source: dataplatformoci/zookeeper:3.6.3
+    upstream-source: dataplatformoci/zookeeper:3.6.4
 
 peers:
   cluster:
@@ -29,6 +29,10 @@ peers:
 provides:
   zookeeper:
     interface: zookeeper
+  metrics-endpoint:
+    interface: prometheus_scrape
+  grafana-dashboard:
+    interface: grafana_dashboard
 
 requires:
   certificates:

@@ -73,6 +73,11 @@ class ZooKeeperProvider(Object):
 
         # Default to empty string in case passwords not set
         password = self.app_relation.data[self.charm.app].get(username, "")
+        if password:
+            acls_added = "true"
+        else:
+            password = generate_password()
+            acls_added = "false"
 
         # Default to full permissions if not set by the app
         acl = relation.data[relation.app].get("chroot-acl", "cdrwa")
@@ -94,6 +99,7 @@ class ZooKeeperProvider(Object):
             "password": password,
             "chroot": chroot,
             "acl": acl,
+            "acls-added": acls_added,
         }
 
     def build_jaas_users(self, event: Optional[EventBase] = None) -> str:
@@ -244,13 +250,21 @@ class ZooKeeperProvider(Object):
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
+        if not self.charm.unit.is_leader():
+            return
+
         relations_config = self.relations_config(event=event)
         for relation_id, config in relations_config.items():
+            # avoid adding relation data for related apps without acls
+            if config["acls-added"] != "true":
+                logger.debug(f"{relation_id} has yet to add acls")
+                continue
+
             hosts = self.charm.cluster.active_hosts
 
             relation_data = {}
             relation_data["username"] = config["username"]
-            relation_data["password"] = config["password"] or generate_password()
+            relation_data["password"] = config["password"]
             relation_data["chroot"] = config["chroot"]
             relation_data["endpoints"] = ",".join(list(hosts))
 
@@ -265,51 +279,49 @@ class ZooKeeperProvider(Object):
                 ",".join([f"{host}:{port}" for host in hosts]) + config["chroot"]
             )
 
-            self.app_relation.data[self.charm.app].update(
-                {relation_data["username"]: relation_data["password"]}
-            )
+            logger.debug(f"setting relation data - {relation_data.items()}")
 
             self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
                 relation_data
             )
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
-        """Updates ACLs while handling `client_relation_changed`.
+        """Updates ACLs while handling `client_relation_joined` events..
 
-        Args:
-            event (optional): used for checking `RelationBrokenEvent`
+        Once credentals and ACLs are added for the event username, sets them to relation data.
+        Future `client_relation_changed` events called on non-leader units checks passwords before
+            restarting.
         """
-        # avoids failure from early relation
-        if not self.charm.cluster.quorum:
+        if not self.charm.unit.is_leader() or not self.charm.cluster.stable:
             event.defer()
             return
 
-        if self.charm.unit.is_leader():
-            try:
-                self.update_acls(event=event)
-            except (
-                MembersSyncingError,
-                MemberNotReadyError,
-                QuorumLeaderNotFoundError,
-                KazooTimeoutError,
-                UnitNotFoundError,
-            ) as e:
-                logger.warning(str(e))
-                event.defer()
-                return
+        # ACLs created before passwords set to avoid restarting before successful adding
+        try:
+            logger.debug(f"adding acls for {getattr(event.app, 'name', None)}")
+            self.update_acls(event=event)
+        except (
+            MembersSyncingError,
+            MemberNotReadyError,
+            QuorumLeaderNotFoundError,
+            KazooTimeoutError,
+            UnitNotFoundError,
+        ) as e:
+            logger.warning(str(e))
+            event.defer()
+            return
 
-            self.apply_relation_data(event=event)
-            logger.debug(f"passwords set for {event.relation}")
+        # new users won't have a password yet, one will be generated here
+        relation_config = self.relation_config(relation=event.relation)
+        if relation_config and relation_config.get("acls-added"):
+            logger.debug(f"updating passwords for {getattr(event.app, 'name', None)}")
+            # triggers relation_changed for other units to restart
+            self.app_relation.data[self.charm.app].update(
+                {relation_config["username"]: relation_config["password"]}
+            )
 
-        # don't trigger rolling restart until leader has finished updating relation data
-        for config in self.relations_config(event=event).values():
-            if config.get("chroot", None) and not config.get("password", None):
-                logger.debug("passwords not set for {event.relation}")
-                event.defer()
-                return
-
-        # All units restart after relation changed event to add new users
-        self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
+            # roll leader unit to apply password to jaas config
+            self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
     def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Removes user from ZK app data on `client_relation_broken`.
@@ -324,3 +336,28 @@ class ZooKeeperProvider(Object):
 
         # call normal updated handler
         self._on_client_relation_updated(event=event)
+
+    @property
+    def ready(self) -> bool:
+        """Check whether the cluster is ready to accept client relations.
+
+        Returns:
+            True if ready. Otherwise False
+        """
+        if not self.charm.cluster.all_units_quorum:
+            logger.debug("provider not ready - not all units quorum")
+            return False
+
+        if self.charm.tls.upgrading:
+            logger.debug("provider not ready - upgrading")
+            return False
+
+        if self.charm.tls.all_units_unified:
+            logger.debug("provider not ready - all units unified")
+            return False
+
+        if not self.charm.cluster.stable:
+            logger.debug("provider not ready - cluster not stable")
+            return False
+
+        return True
