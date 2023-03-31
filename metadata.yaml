@@ -38,3 +38,4 @@ requires:
   certificates:
     interface: tls-certificates
     limit: 1
+    optional: true
