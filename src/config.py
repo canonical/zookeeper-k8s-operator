@@ -232,7 +232,7 @@ class ZooKeeperConfig:
             ).splitlines()
         except PathError:
             logger.debug("zookeeper.properties file not found - using default dynamic path")
-            return f"dynamicConfigFile={CONF_PATH}/zookeeper-dynamic.properties"
+            return f"dynamicConfigFile={self.dynamic_filepath}"
 
         for current_property in current_properties:
             if "dynamicConfigFile" in current_property:
@@ -240,7 +240,7 @@ class ZooKeeperConfig:
 
         logger.debug("dynamicConfigFile property missing - using default dynamic path")
 
-        return f"dynamicConfigFile={CONF_PATH}/zookeeper-dynamic.properties"
+        return f"dynamicConfigFile={self.dynamic_filepath}"
 
     @property
     def static_properties(self) -> List[str]:
