@@ -103,6 +103,8 @@ class ZooKeeperK8sCharm(CharmBase):
 
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
+        self.unit.status = MaintenanceStatus("installing ZooKeeper Snap")
+
         # don't complete install until passwords set
         if not self.cluster.relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
