@@ -347,11 +347,9 @@ class ZooKeeperTLS(Object):
             )
             logger.debug(str(proc.wait_output()[1]))
         except ExecError as e:
-            expected_error_string = "alias <ca> already exists"
-            if expected_error_string in str(e.stdout):
-                logger.debug(expected_error_string)
+            # in case this reruns and fails
+            if "already exists" in str(e.stdout):
                 return
-
             logger.error(e.stdout)
             raise e
 
