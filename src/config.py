@@ -2,7 +2,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Manager for handling Kafka configuration."""
+"""Manager for handling ZooKeeper configuration."""
 
 import logging
 from typing import List
@@ -78,7 +78,7 @@ class ZooKeeperConfig:
 
     @property
     def server_jvmflags(self) -> List[str]:
-        """Builds necessary JVM config env vars for the Kafka snap."""
+        """Builds necessary JVM config env vars for the ZooKeeper service."""
         return [
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
