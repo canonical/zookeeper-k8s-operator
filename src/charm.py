@@ -192,7 +192,7 @@ class ZooKeeperK8sCharm(CharmBase):
     def init_server(self):
         """Calls startup functions for server start.
 
-        Sets myid, opts env_var, initial servers in dynamic properties,
+        Sets myid, server_jvmflgas env_var, initial servers in dynamic properties,
             default properties and jaas_config
         """
         # don't run if leader has not yet created passwords
@@ -214,11 +214,14 @@ class ZooKeeperK8sCharm(CharmBase):
 
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)
+        logger.debug(f"{servers=}")
         self.zookeeper_config.set_zookeeper_dynamic_properties(servers=servers)
 
+        logger.debug("setting properties and jaas")
         self.zookeeper_config.set_zookeeper_properties()
         self.zookeeper_config.set_jaas_config()
 
+        logger.debug("starting container service")
         self.container.add_layer(CONTAINER, self._zookeeper_layer, combine=True)
         self.container.replan()
         self.unit.status = ActiveStatus()
