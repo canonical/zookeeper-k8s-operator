@@ -13,14 +13,13 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
+from cluster import UnitNotFoundError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
+from literals import PEER, REL_NAME
 from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
 from ops.model import Relation
-
-from cluster import UnitNotFoundError
-from literals import PEER, REL_NAME
 from utils import generate_password
 
 logger = logging.getLogger(__name__)

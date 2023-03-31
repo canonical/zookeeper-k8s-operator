@@ -7,6 +7,7 @@
 import logging
 from typing import List
 
+from literals import CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, PEER, REL_NAME
 from ops.model import Relation
 from ops.pebble import PathError
 

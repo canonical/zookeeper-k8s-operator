@@ -10,12 +10,11 @@ from unittest.mock import PropertyMock, patch
 import ops.testing
 import pytest
 import yaml
+from charm import ZooKeeperK8sCharm
+from literals import CHARM_KEY, CONTAINER, PEER
 from ops.framework import EventBase
 from ops.model import ActiveStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
-
-from charm import ZooKeeperK8sCharm
-from literals import CHARM_KEY, CONTAINER, PEER
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 logger = logging.getLogger(__name__)

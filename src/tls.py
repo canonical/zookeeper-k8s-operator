@@ -17,6 +17,7 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
     generate_csr,
     generate_private_key,
 )
+from literals import PEER
 from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import Object
 from ops.model import Relation, Unit
@@ -283,7 +284,7 @@ class ZooKeeperTLS(Object):
         csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
-            sans=self._get_sans(),
+            **self._sans,
         )
         self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
 
@@ -397,7 +398,6 @@ class ZooKeeperTLS(Object):
             logger.error(e.stdout)
             raise e
 
-
     @staticmethod
     def _parse_tls_file(raw_content: str) -> str:
         """Parse TLS files from both plain text or base64 format."""
@@ -413,5 +413,8 @@ class ZooKeeperTLS(Object):
 
         return {
             "sans_ip": [f"{self.charm.app.name}-{unit_id}"],
-            "sans_dns": [f"{self.charm.app.name}-{unit_id}.{self.charm.app.name}-endpoints", socket.getfqdn()],
+            "sans_dns": [
+                f"{self.charm.app.name}-{unit_id}.{self.charm.app.name}-endpoints",
+                socket.getfqdn(),
+            ],
         }

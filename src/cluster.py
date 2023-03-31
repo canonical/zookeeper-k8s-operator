@@ -17,9 +17,8 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
-from ops.model import Relation, Unit
-
 from literals import PEER
+from ops.model import Relation, Unit
 
 logger = logging.getLogger(__name__)
 
