@@ -312,13 +312,14 @@ class ZooKeeperK8sCharm(CharmBase):
         self.add_init_leader()
 
         if (
-            self.cluster.stale_quorum  # in case of scale-up
+            self.cluster.stale_quorum  # in the case of scale-up
             or isinstance(  # to run without delay to maintain quorum on scale down
                 event,
                 (RelationDepartedEvent, LeaderElectedEvent),
             )
         ):
             updated_servers = self.cluster.update_cluster()
+            logger.debug(f"{updated_servers=}")
             # triggers a `cluster_relation_changed` to wake up following units
             self.cluster.relation.data[self.app].update(updated_servers)
 
