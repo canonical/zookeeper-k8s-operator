@@ -266,7 +266,7 @@ class ZooKeeperConfig:
         )
 
     def set_zookeeper_properties(self) -> None:
-        """Writes built zookeeper.properties file."""
+        """Writes built zoo.cfg file."""
         push(
             container=self.container,
             content="\n".join(self.zookeeper_properties),
