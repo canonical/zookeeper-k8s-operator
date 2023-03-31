@@ -168,9 +168,7 @@ class ZooKeeperProvider(Object):
         return {config.get(key, "") for config in self.relations_config(event=event).values()}
 
     def update_acls(self, event: Optional[EventBase] = None) -> None:
-        """Compares leader auth config to incoming relation config.
-
-        Applies necessary add/update/remove actions.
+        """Compares leader auth config to incoming relation config, applies add/remove actions.
 
         Args:
             event (optional): used for checking `RelationBrokenEvent`
