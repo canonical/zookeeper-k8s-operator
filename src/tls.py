@@ -256,7 +256,7 @@ class ZooKeeperTLS(Object):
         new_csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
-            sans=self._get_sans(),
+            **self._sans,
         )
 
         self.certificates.request_certificate_renewal(
