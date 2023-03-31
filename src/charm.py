@@ -95,7 +95,7 @@ class ZooKeeperK8sCharm(CharmBase):
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {"SERVER_JVMFLAGS": " ".join(self.zookeeper_config.jvmflags)},
+                    "environment": {"SERVER_JVMFLAGS": " ".join(self.zookeeper_config.server_jvmflags + self.zookeeper_config.jmx_jvmflags)},
                 }
             },
         }

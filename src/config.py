@@ -95,11 +95,6 @@ class ZooKeeperConfig:
         ]
 
     @property
-    def jvmflags(self) -> List[str]:
-        """List of all jvmflags."""
-        return self.server_jvmflags + self.jmx_jvmflags
-
-    @property
     def jaas_users(self) -> List[str]:
         """Builds the necessary user strings to add to ZK JAAS config files.
 
