@@ -48,8 +48,6 @@ ssl.quorum.clientAuth=none
 ssl.client.enable=true
 clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
-ssl.quorum.hostnameVerification=false
-ssl.hostnameVerification=false
 ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
 """
