@@ -265,7 +265,7 @@ class ZooKeeperProvider(Object):
             )
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
-        """Updates ACLs while handling `client_relation_joined` events..
+        """Updates ACLs while handling `client_relation_joined` events.
 
         Once credentals and ACLs are added for the event username, sets them to relation data.
         Future `client_relation_changed` events called on non-leader units checks passwords before
