@@ -9,7 +9,7 @@ import logging
 import os
 import re
 import socket
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
@@ -397,6 +397,7 @@ class ZooKeeperTLS(Object):
             logger.error(e.stdout)
             raise e
 
+
     @staticmethod
     def _parse_tls_file(raw_content: str) -> str:
         """Parse TLS files from both plain text or base64 format."""
@@ -405,11 +406,12 @@ class ZooKeeperTLS(Object):
 
         return base64.b64decode(raw_content).decode("utf-8")
 
-    def _get_sans(self) -> List[str]:
-        """Create a list of DNS names for the unit."""
+    @property
+    def _sans(self) -> Dict[str, List[str]]:
+        """Builds a SAN dict of DNS names and IPs for the unit."""
         unit_id = self.charm.unit.name.split("/")[1]
-        return [
-            f"{self.charm.app.name}-{unit_id}",
-            socket.getfqdn(),
-            f"{self.charm.app.name}-{unit_id}.{self.charm.app.name}-endpoints",
-        ]
+
+        return {
+            "sans_ip": [f"{self.charm.app.name}-{unit_id}"],
+            "sans_dns": [f"{self.charm.app.name}-{unit_id}.{self.charm.app.name}-endpoints", socket.getfqdn()],
+        }
