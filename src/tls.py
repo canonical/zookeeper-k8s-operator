@@ -22,7 +22,7 @@ from ops.framework import Object
 from ops.model import Relation, Unit
 from ops.pebble import ExecError
 
-from literals import PEER
+from literals import CONF_PATH, PEER
 from utils import generate_password, push
 
 logger = logging.getLogger(__name__)
@@ -297,7 +297,7 @@ class ZooKeeperTLS(Object):
         push(
             container=self.container,
             content=self.private_key,
-            path=f"{self.charm.zookeeper_config.default_config_path}/server.key",
+            path=f"{CONF_PATH}/server.key",
         )
 
     def set_ca(self) -> None:
@@ -309,7 +309,7 @@ class ZooKeeperTLS(Object):
         push(
             container=self.container,
             content=self.ca,
-            path=f"{self.charm.zookeeper_config.default_config_path}/ca.pem",
+            path=f"{CONF_PATH}/ca.pem",
         )
 
     def set_certificate(self) -> None:
@@ -321,7 +321,7 @@ class ZooKeeperTLS(Object):
         push(
             container=self.container,
             content=self.certificate,
-            path=f"{self.charm.zookeeper_config.default_config_path}/server.pem",
+            path=f"{CONF_PATH}/server.pem",
         )
 
     def set_truststore(self) -> None:
@@ -342,7 +342,7 @@ class ZooKeeperTLS(Object):
                     f"{self.keystore_password}",
                     "-noprompt",
                 ],
-                working_dir=self.charm.zookeeper_config.default_config_path,
+                working_dir=CONF_PATH,
             )
             logger.debug(str(proc.wait_output()[1]))
         except ExecError as e:
@@ -375,7 +375,7 @@ class ZooKeeperTLS(Object):
                     "-password",
                     f"pass:{self.keystore_password}",
                 ],
-                working_dir=self.charm.zookeeper_config.default_config_path,
+                working_dir=CONF_PATH,
             )
             logger.debug(str(proc.wait_output()[1]))
         except ExecError as e:
@@ -394,7 +394,7 @@ class ZooKeeperTLS(Object):
                     "*.p12",
                     "*.jks",
                 ],
-                working_dir=self.charm.zookeeper_config.default_config_path,
+                working_dir=CONF_PATH,
             )
         except ExecError as e:
             logger.error(e.stdout)
