@@ -268,10 +268,11 @@ class ZooKeeperTLS(Object):
 
     def _set_tls_private_key(self, event: ActionEvent) -> None:
         """Handler for `set_tls_private_key` action."""
-        private_key = self._parse_tls_file(event.params.get("internal-key", None))
-        self.cluster.data[self.charm.unit].update({"private-key": private_key})
-
-        self._request_certificate()
+        if private_key := event.params.get("internal-key", None):
+            self.cluster.data[self.charm.unit].update({"private-key": private_key})
+            self._request_certificate()
+        else:
+            event.fail("Could not set key - no internal-key found")
 
     def _request_certificate(self) -> None:
         """Generates and submits CSR to provider."""
