@@ -105,28 +105,6 @@ class ZooKeeperProvider(Object):
             "acls-added": acls_added,
         }
 
-    def build_jaas_users(self, event: Optional[EventBase] = None) -> str:
-        """Builds the necessary user strings to add to ZK JAAS config files.
-
-        Args:
-            event (optional): used for checking `RelationBrokenEvent`
-
-        Returns:
-            Newline delimited string of JAAS users from relation data
-        """
-        jaas_users = []
-        for relation in self.relations_config(event=event).values():
-            username = relation.get("username", None)
-            password = relation.get("password", None)
-
-            # For during restarts when passwords are unset for departed relations
-            if username and not password:
-                continue
-
-            jaas_users.append(f'user_{username}="{password}"')
-
-        return "\n".join(jaas_users)
-
     def relations_config(self, event: Optional[EventBase] = None) -> Dict[str, Dict[str, str]]:
         """Gets auth configs for all currently related applications.
 
@@ -181,7 +159,7 @@ class ZooKeeperProvider(Object):
         """Grabs a specific auth config value from all related applications.
 
         Args:
-            key: name of the key to be used
+            key: key to be retrieved
             event (optional): used for checking `RelationBrokenEvent`
 
         Returns:
