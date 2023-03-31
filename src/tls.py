@@ -328,7 +328,7 @@ class ZooKeeperTLS(Object):
     def set_truststore(self) -> None:
         """Adds CA to JKS truststore."""
         try:
-            proc = self.container.exec(
+            self.container.exec(
                 [
                     "keytool",
                     "-import",
@@ -345,7 +345,6 @@ class ZooKeeperTLS(Object):
                 ],
                 working_dir=CONF_PATH,
             )
-            logger.debug(str(proc.wait_output()[1]))
         except ExecError as e:
             # in case this reruns and fails
             if "already exists" in str(e.stdout):
