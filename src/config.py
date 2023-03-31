@@ -244,10 +244,10 @@ class ZooKeeperConfig:
 
     @property
     def static_properties(self) -> List[str]:
-        """Build the zookeeper.properties content, without dynamic options.
+        """Build the zoo.cfg content, without dynamic options.
 
         Returns:
-            List of static properties to compared to current zookeeper.properties
+            List of static properties to compared to current zoo.cfg
         """
         return self.build_static_properties(self.zookeeper_properties)
 
