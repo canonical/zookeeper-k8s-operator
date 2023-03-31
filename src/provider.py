@@ -308,6 +308,10 @@ class ZooKeeperProvider(Object):
         Args:
             event: used for passing `RelationBrokenEvent` to subequent methods
         """
+        # Don't remove anything if ZooKeeper is going down
+        if self.charm.app.planned_units == 0:
+            return
+
         if self.charm.unit.is_leader():
             username = f"relation-{event.relation.id}"
             if username in self.charm.cluster.relation.data[self.charm.app]:
