@@ -318,7 +318,7 @@ class ZooKeeperProvider(Object):
 
     @property
     def ready(self) -> bool:
-        """Check whether the cluster is ready to accept client relations.
+        """Checks whether the cluster is ready to accept client relations.
 
         Returns:
             True if ready. Otherwise False
