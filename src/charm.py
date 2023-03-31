@@ -251,6 +251,7 @@ class ZooKeeperK8sCharm(CharmBase):
         config_properties = self.zookeeper_config.static_properties
 
         properties_changed = set(server_properties) ^ set(config_properties)
+        logger.debug(f"{properties_changed=}")
 
         try:
             jaas_config = pull(
