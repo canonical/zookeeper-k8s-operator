@@ -1,4 +1,4 @@
-# Copyright 2022 Canonical Ltd.
+# Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 # Testing tools configuration
@@ -16,7 +16,7 @@ markers = ["unstable"]
 # Formatting tools configuration
 [tool.black]
 line-length = 99
-target-version = ["py38"]
+target-version = ["py310"]
 
 [tool.isort]
 profile = "black"
@@ -34,6 +34,7 @@ kazoo = ">=2.8.0"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
 cryptography = "^39.0.0"
+cosl = ">=0.0.5" # TODO: remove once PYDEPS feature in charmcraft is released
 
 [tool.poetry.group.fmt]
 optional = true
@@ -49,6 +50,7 @@ optional = true
 black = "^22.3.0"
 ruff = ">=0.0.157"
 codespell = ">=2.2.2"
+pyright = "^1.1.300"
 
 [tool.poetry.group.unit]
 optional = true
@@ -66,8 +68,11 @@ pytest = ">=7.2"
 juju = "==2.9.11"
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
-requests = ">2.25"
-lightkube = "==0.11.0"
+
+
+
+[tool.poetry.group.format.dependencies]
+pyright = "^1.1.300"
 
 [tool.ruff]
 line-length = 99
@@ -90,10 +95,17 @@ ignore = ["E501", "D107"]
 extend-exclude = ["__pycache__", "*.egg_info"]
 per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104", "E999"], "src/literals.py" = ["D101"]}
 target-version="py310"
-src = ["src", "tests"]
 
 [tool.ruff.mccabe]
 max-complexity = 10
 
-[tool.bandit]
-tests = ["B201", "B301"]
+[tool.pyright]
+include = ["src"]
+extraPaths = ["./lib"]
+pythonVersion = "3.10"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+reportIncompatibleMethodOverride = false
+reportImportCycles = false
+reportMissingModuleSource = true
+stubPath = ""
