@@ -156,10 +156,10 @@ class ZooKeeperConfig:
 
     @property
     def zookeeper_properties(self) -> List[str]:
-        """Build the zookeeper.properties content.
+        """Build the zoo.cfg content.
 
         Returns:
-            List of properties to be set to zookeeper.properties config file
+            List of properties to be set to zoo.cfg config file
         """
         properties = (
             [
