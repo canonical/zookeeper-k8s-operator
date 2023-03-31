@@ -368,9 +368,9 @@ class ZooKeeperK8sCharm(CharmBase):
         """Handle password rotation and check the status of the process.
 
         If a password rotation is happening, take the necessary steps to issue a
-            rolling restart from each unit.
+        rolling restart from each unit.
 
-        Returns:
+        Return:
             bool: True when password rotation is finished, false otherwise.
         """
         # Logic for password rotation
@@ -384,6 +384,7 @@ class ZooKeeperK8sCharm(CharmBase):
             if self.cluster.relation.data[self.unit].get("password-rotated"):
                 return False
 
+            logger.info("Acquiring lock for password rotation")
             self.on[f"{self.restart.name}"].acquire_lock.emit()
             return False
 
