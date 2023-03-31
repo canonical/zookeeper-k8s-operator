@@ -177,14 +177,10 @@ class ZooKeeperK8sCharm(CharmBase):
         if self.cluster.relation.data[self.app].get("rotate-passwords"):
             self.cluster.relation.data[self.unit]["password-rotated"] = "true"
 
-        # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
-        # in case restart was manual, also remove
         self.cluster.relation.data[self.unit].update(
             {
                 # flag to declare unit running `portUnification` during ssl<->no-ssl upgrade
                 "unified": "true" if self.tls.upgrading else "",
-                # in case restart was manual
-                "manual-restart": "",
                 # flag to declare unit restarted with new quorum encryption
                 "quorum": self.cluster.quorum,
             }
