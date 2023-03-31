@@ -68,6 +68,9 @@ class ZooKeeperProvider(Object):
         if isinstance(event, RelationBrokenEvent) and event.relation.id == relation.id:
             return None
 
+        if not relation.data or not relation.app:
+            return None
+
         # generating username
         username = f"relation-{relation.id}"
 
