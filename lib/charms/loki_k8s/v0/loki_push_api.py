@@ -449,7 +449,6 @@ import socket
 import subprocess
 import tempfile
 import typing
-import uuid
 from copy import deepcopy
 from gzip import GzipFile
 from hashlib import sha256
@@ -484,7 +483,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 15
+LIBPATCH = 18
 
 logger = logging.getLogger(__name__)
 
@@ -1241,15 +1240,20 @@ class LokiPushApiProvider(Object):
             url: An optional url value to update relation data.
             relation: An optional instance of `class:ops.model.Relation` to update.
         """
+        # if no relation is specified update all of them
         if not relation:
-            if not self._charm.model.get_relation(self._relation_name):
+            if not self._charm.model.relations.get(self._relation_name):
                 return
 
-            relation = self._charm.model.get_relation(self._relation_name)
+            relations_list = self._charm.model.relations.get(self._relation_name)
+        else:
+            relations_list = [relation]
 
         endpoint = self._endpoint(url or self._url)
 
-        relation.data[self._charm.unit].update({"endpoint": json.dumps(endpoint)})
+        for relation in relations_list:
+            relation.data[self._charm.unit].update({"endpoint": json.dumps(endpoint)})
+
         logger.debug("Saved endpoint in unit relation data")
 
     @property
@@ -1446,6 +1450,7 @@ class ConsumerBase(Object):
         relation_name: str = DEFAULT_RELATION_NAME,
         alert_rules_path: str = DEFAULT_ALERT_RULES_RELATIVE_PATH,
         recursive: bool = False,
+        skip_alert_topology_labeling: bool = False,
     ):
         super().__init__(charm, relation_name)
         self._charm = charm
@@ -1461,6 +1466,7 @@ class ConsumerBase(Object):
                 e.message,
             )
         self._alert_rules_path = alert_rules_path
+        self._skip_alert_topology_labeling = skip_alert_topology_labeling
 
         self._recursive = recursive
 
@@ -1468,7 +1474,9 @@ class ConsumerBase(Object):
         if not self._charm.unit.is_leader():
             return
 
-        alert_rules = AlertRules(self.topology)
+        alert_rules = (
+            AlertRules(None) if self._skip_alert_topology_labeling else AlertRules(self.topology)
+        )
         alert_rules.add_path(self._alert_rules_path, recursive=self._recursive)
         alert_rules_as_dict = alert_rules.as_dict()
 
@@ -1516,6 +1524,7 @@ class LokiPushApiConsumer(ConsumerBase):
         relation_name: str = DEFAULT_RELATION_NAME,
         alert_rules_path: str = DEFAULT_ALERT_RULES_RELATIVE_PATH,
         recursive: bool = True,
+        skip_alert_topology_labeling: bool = False,
     ):
         """Construct a Loki charm client.
 
@@ -1561,7 +1570,9 @@ class LokiPushApiConsumer(ConsumerBase):
         _validate_relation_by_interface_and_direction(
             charm, relation_name, RELATION_INTERFACE_NAME, RelationRole.requires
         )
-        super().__init__(charm, relation_name, alert_rules_path, recursive)
+        super().__init__(
+            charm, relation_name, alert_rules_path, recursive, skip_alert_topology_labeling
+        )
         events = self._charm.on[relation_name]
         self.framework.observe(self._charm.on.upgrade_charm, self._on_lifecycle_event)
         self.framework.observe(events.relation_joined, self._on_logging_relation_joined)
@@ -2386,11 +2397,9 @@ class CosTool:
             #         expr: up
             transformed_rules = {"groups": []}  # type: ignore
             for rule in rules["groups"]:
-                transformed = {"name": str(uuid.uuid4()), "rules": [rule]}
-                transformed_rules["groups"].append(transformed)
+                transformed_rules["groups"].append(rule)
 
             rule_path.write_text(yaml.dump(transformed_rules))
-
             args = [str(self.path), "--format", "logql", "validate", str(rule_path)]
             # noinspection PyBroadException
             try:
