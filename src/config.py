@@ -10,7 +10,16 @@ from typing import List
 from ops.model import Relation
 from ops.pebble import PathError
 
-from literals import CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, PEER, REL_NAME
+from literals import (
+    BINARIES_PATH,
+    CONF_PATH,
+    CONTAINER,
+    JMX_PORT,
+    LOGS_PATH,
+    METRICS_PROVIDER_PORT,
+    PEER,
+    REL_NAME,
+)
 from utils import pull, push
 
 logger = logging.getLogger(__name__)
@@ -52,17 +61,13 @@ class ZooKeeperConfig:
     def __init__(self, charm):
         self.charm = charm
         self.container = self.charm.unit.get_container(CONTAINER)
-        self.default_path = f"{self.charm.config['data-dir']}"
-        self.default_config_path = f"{self.charm.config['conf-dir']}"
-        self.properties_filepath = f"{self.default_config_path}/zoo.cfg"
-        self.dynamic_filepath = f"{self.default_config_path}/zookeeper-dynamic.properties"
-        self.jaas_filepath = f"{self.default_config_path}/zookeeper-jaas.cfg"
-        self.keystore_filepath = f"{self.default_config_path}/keystore.p12"
-        self.truststore_filepath = f"{self.default_config_path}/truststore.jks"
-        self.jmx_prometheus_javaagent_filepath = (
-            f"{self.default_path}/jmx_prometheus_javaagent.jar"
-        )
-        self.jmx_prometheus_config_filepath = f"{self.default_config_path}/jmx_prometheus.yaml"
+        self.properties_filepath = f"{CONF_PATH}/zoo.cfg"
+        self.dynamic_filepath = f"{CONF_PATH}/zookeeper-dynamic.properties"
+        self.jaas_filepath = f"{CONF_PATH}/zookeeper-jaas.cfg"
+        self.keystore_filepath = f"{CONF_PATH}/keystore.p12"
+        self.truststore_filepath = f"{CONF_PATH}/truststore.jks"
+        self.jmx_prometheus_javaagent_filepath = f"{BINARIES_PATH}/jmx_prometheus_javaagent.jar"
+        self.jmx_prometheus_config_filepath = f"{CONF_PATH}/jmx_prometheus.yaml"
 
     @property
     def cluster(self) -> Relation:
@@ -171,8 +176,8 @@ class ZooKeeperConfig:
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
-                f"dataDir={self.default_config_path}/data",
-                f"dataLogDir={self.default_config_path}/log",
+                f"dataDir={CONF_PATH}",
+                f"dataLogDir={LOGS_PATH}",
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
@@ -234,7 +239,7 @@ class ZooKeeperConfig:
             ).splitlines()
         except PathError:
             logger.debug("zookeeper.properties file not found - using default dynamic path")
-            return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
+            return f"dynamicConfigFile={CONF_PATH}/zookeeper-dynamic.properties"
 
         for current_property in current_properties:
             if "dynamicConfigFile" in current_property:
@@ -242,7 +247,7 @@ class ZooKeeperConfig:
 
         logger.debug("dynamicConfigFile property missing - using default dynamic path")
 
-        return f"dynamicConfigFile={self.default_config_path}/zookeeper-dynamic.properties"
+        return f"dynamicConfigFile={CONF_PATH}/zookeeper-dynamic.properties"
 
     @property
     def static_properties(self) -> List[str]:
@@ -280,11 +285,11 @@ class ZooKeeperConfig:
         push(container=self.container, content=servers, path=self.dynamic_filepath)
 
     def set_zookeeper_myid(self) -> None:
-        """Writes ZooKeeper myid file to config/data."""
+        """Writes ZooKeeper myid file to config path."""
         push(
             container=self.container,
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
-            path=f"{self.default_config_path}/data/myid",
+            path=f"{CONF_PATH}/myid",
         )
 
     @staticmethod
@@ -314,5 +319,5 @@ class ZooKeeperConfig:
         Returns:
             String of startup command and expected config filepath
         """
-        entrypoint = "/opt/zookeeper/bin/zkServer.sh"
-        return f"{entrypoint} --config {self.default_config_path} start-foreground"
+        entrypoint = "/bin/zkServer.sh"
+        return f"{entrypoint} --config {CONF_PATH} start-foreground"
