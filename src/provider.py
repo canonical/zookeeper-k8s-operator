@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class ZooKeeperProvider(Object):
-    """Handler for updating client relations to ZooKeeper."""
+    """Handler for client relations to ZooKeeper."""
 
     def __init__(self, charm) -> None:
         super().__init__(charm, "client")
