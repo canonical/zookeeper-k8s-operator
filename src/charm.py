@@ -148,6 +148,7 @@ class ZooKeeperK8sCharm(CharmBase):
         if (self.config_changed() or self.tls.upgrading) and self.cluster.started:
             self.on[f"{self.restart.name}"].acquire_lock.emit()
 
+        # ensures events aren't lost during an upgrade on single units
         if self.tls.upgrading and len(self.cluster.peer_units) == 1:
             event.defer()
 
