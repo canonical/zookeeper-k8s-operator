@@ -11,9 +11,6 @@ from typing import TYPE_CHECKING, MutableMapping, Optional
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider, Relation
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from cluster import ZooKeeperCluster
-from config import ZooKeeperConfig
-from literals import CHARM_USERS, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, PEER
 from ops.charm import (
     ActionEvent,
     CharmBase,
@@ -25,6 +22,10 @@ from ops.framework import EventBase
 from ops.main import main
 from ops.model import ActiveStatus, Container, MaintenanceStatus, WaitingStatus
 from ops.pebble import Layer, PathError
+
+from cluster import ZooKeeperCluster
+from config import ZooKeeperConfig
+from literals import CHARM_USERS, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, PEER
 from provider import ZooKeeperProvider
 from tls import ZooKeeperTLS
 from utils import generate_password, pull

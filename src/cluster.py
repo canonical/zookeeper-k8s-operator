@@ -17,8 +17,9 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
-from literals import PEER
 from ops.model import Relation, Unit
+
+from literals import PEER
 
 if TYPE_CHECKING:
     from charm import ZooKeeperK8sCharm
@@ -40,7 +41,7 @@ class ZooKeeperCluster:
 
     def __init__(
         self,
-        charm: ZooKeeperK8sCharm,
+        charm: "ZooKeeperK8sCharm",
         client_port: int = 2181,
         secure_client_port: int = 2182,
         server_port: int = 2888,

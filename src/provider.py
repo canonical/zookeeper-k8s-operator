@@ -13,13 +13,14 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from cluster import UnitNotFoundError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
-from literals import REL_NAME
 from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
 from ops.model import Relation
+
+from cluster import UnitNotFoundError
+from literals import REL_NAME
 from utils import generate_password
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ class ZooKeeperProvider(Object):
     def __init__(self, charm) -> None:
         super().__init__(charm, "client")
 
-        self.charm: ZooKeeperK8sCharm = charm
+        self.charm: "ZooKeeperK8sCharm" = charm
 
         self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated

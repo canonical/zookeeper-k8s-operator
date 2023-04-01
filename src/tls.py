@@ -40,7 +40,7 @@ class ZooKeeperTLS(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "tls")
-        self.charm: ZooKeeperK8sCharm = charm
+        self.charm: "ZooKeeperK8sCharm" = charm
         self.container = self.charm.unit.get_container("zookeeper")
         self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
 

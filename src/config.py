@@ -7,7 +7,6 @@
 import logging
 from typing import TYPE_CHECKING, List
 
-from literals import CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
 from ops.pebble import PathError
 
 from literals import (
@@ -60,7 +59,7 @@ class ZooKeeperConfig:
     """Manager for handling ZooKeeper configuration."""
 
     def __init__(self, charm):
-        self.charm: ZooKeeperK8sCharm = charm
+        self.charm: "ZooKeeperK8sCharm" = charm
         self.container = self.charm.unit.get_container(CONTAINER)
         self.properties_filepath = f"{CONF_PATH}/zoo.cfg"
         self.dynamic_filepath = f"{CONF_PATH}/zookeeper-dynamic.properties"
