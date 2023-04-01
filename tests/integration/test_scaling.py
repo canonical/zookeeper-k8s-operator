@@ -10,8 +10,9 @@ import pytest
 import requests
 from lightkube.core.client import AsyncClient
 from lightkube.resources.core_v1 import Pod
-from literals import JMX_PORT, METRICS_PROVIDER_PORT
 from pytest_operator.plugin import OpsTest
+
+from literals import JMX_PORT, METRICS_PROVIDER_PORT
 
 from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
 from .helpers import check_key, get_address, get_password, ping_servers, write_key

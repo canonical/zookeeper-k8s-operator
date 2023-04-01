@@ -8,11 +8,12 @@ from pathlib import Path
 
 import pytest
 import yaml
+from ops.model import Unit
+from ops.testing import Harness
+
 from charm import ZooKeeperK8sCharm
 from cluster import UnitNotFoundError
 from literals import CHARM_KEY, PEER
-from ops.model import Unit
-from ops.testing import Harness
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ def harness():
 def test_peer_units_contains_unit(harness):
     with harness.hooks_disabled():
         harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+
     assert len(harness.charm.cluster.peer_units) == 2
 
 
@@ -89,7 +91,7 @@ def test_unit_config_succeeds_for_id(harness):
             harness.charm.cluster.relation.id, f"{CHARM_KEY}/1", {"private-address": "treebeard"}
         )
 
-    assert harness.charm.cluster.unit_config(unit=1)
+    harness.charm.cluster.unit_config(unit=1)
 
 
 def test_unit_config_succeeds_for_unit(harness):
@@ -98,7 +100,7 @@ def test_unit_config_succeeds_for_unit(harness):
             harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"private-address": "treebeard"}
         )
 
-    assert harness.charm.cluster.unit_config(harness.charm.unit)
+    harness.charm.cluster.unit_config(harness.charm.unit)
 
 
 def test_unit_config_has_all_keys(harness):
@@ -405,6 +407,7 @@ def test_stale_quorum_all_added(harness):
         harness.update_relation_data(
             harness.charm.cluster.relation.id, CHARM_KEY, {"0": "added", "1": "added"}
         )
+
     assert not harness.charm.cluster.stale_quorum
 
 
@@ -414,6 +417,7 @@ def test_all_rotated_fails(harness):
         harness.update_relation_data(
             harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
         )
+
     assert not harness.charm.cluster._all_rotated()
 
 

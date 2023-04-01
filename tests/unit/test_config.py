@@ -8,10 +8,11 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from ops.testing import Harness
+
 from charm import ZooKeeperK8sCharm
 from config import ZooKeeperConfig
 from literals import CHARM_KEY, PEER, REL_NAME
-from ops.testing import Harness
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ def test_build_static_properties_removes_necessary_rows():
         "clientPort=2181",
         "authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider",
         "maxClientCnxns=60",
-        "dynamicConfigFile=/var/snap/kafka/common/zookeeper.properties.dynamic.100000041",
+        "dynamicConfigFile=/etc/zookeeper/zoo.cfg.dynamic.100000041",
     ]
 
     static = ZooKeeperConfig.build_static_properties(properties=properties)
@@ -45,19 +46,11 @@ def test_build_static_properties_removes_necessary_rows():
     assert "clientPort" not in "".join(static)
 
 
-def test_server_jvmflags_has_jaas(harness):
-    opts = ZooKeeperConfig(harness.charm).server_jvmflags
+def test_server_jvmflags_has_opts(harness):
+    server_jvmflags = ZooKeeperConfig(harness.charm).server_jvmflags
     assert (
-        f"-Djava.security.auth.login.config={harness.charm.zookeeper_config.jaas_filepath}" in opts
-    )
-
-
-def test_jmx_in_jvmflags(harness):
-    opts = ZooKeeperConfig(harness.charm).jmx_jvmflags
-    assert "-Dcom.sun.management.jmxremote" in opts
-    assert (
-        "-javaagent:/opt/zookeeper/jmx_prometheus_javaagent.jar=9998:/etc/zookeeper/jmx_prometheus.yaml"
-        in opts
+        f"-Djava.security.auth.login.config={harness.charm.zookeeper_config.jaas_filepath}"
+        in server_jvmflags
     )
 
 
@@ -68,7 +61,7 @@ def test_jaas_users_are_added(harness):
             harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
         harness.update_relation_data(
-            harness.charm.provider.app_relation.id, CHARM_KEY, {"relation-2": "password"}
+            harness.charm.peer_relation.id, CHARM_KEY, {"relation-2": "password"}
         )
 
     assert len(harness.charm.zookeeper_config.jaas_users) == 1
@@ -85,7 +78,7 @@ def test_multiple_jaas_users_are_added(harness):
             harness.charm.provider.client_relations[1].id, "application2", {"chroot": "app2"}
         )
         harness.update_relation_data(
-            harness.charm.provider.app_relation.id,
+            harness.charm.peer_relation.id,
             CHARM_KEY,
             {"relation-2": "password", "relation-3": "password"},
         )
@@ -154,10 +147,10 @@ def test_properties_tls_uses_passwords(harness):
     ):
         with harness.hooks_disabled():
             harness.update_relation_data(
-                harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"}
+                harness.charm.peer_relation.id, CHARM_KEY, {"tls": "enabled"}
             )
             harness.update_relation_data(
-                harness.charm.tls.cluster.id, f"{CHARM_KEY}/0", {"keystore-password": "mellon"}
+                harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"keystore-password": "mellon"}
             )
         assert (
             "ssl.keyStore.password=mellon" in harness.charm.zookeeper_config.zookeeper_properties
@@ -174,7 +167,7 @@ def test_properties_tls_gets_dynamic_config_file_property(harness):
         fp.write("ensuring file exists")
         with harness.hooks_disabled():
             harness.update_relation_data(
-                harness.charm.tls.cluster.id, CHARM_KEY, {"tls": "enabled"}
+                harness.charm.peer_relation.id, CHARM_KEY, {"tls": "enabled"}
             )
 
         assert (

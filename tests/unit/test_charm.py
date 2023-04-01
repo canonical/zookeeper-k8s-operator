@@ -7,16 +7,15 @@ import logging
 from pathlib import Path
 from unittest.mock import PropertyMock, patch
 
-import ops.testing
 import pytest
 import yaml
-from charm import ZooKeeperK8sCharm
-from literals import CHARM_KEY, CONTAINER, PEER
 from ops.framework import EventBase
 from ops.model import ActiveStatus, MaintenanceStatus, WaitingStatus
 from ops.testing import Harness
 
-ops.testing.SIMULATE_CAN_CONNECT = True
+from charm import ZooKeeperK8sCharm
+from literals import CHARM_KEY, CONTAINER, PEER
+
 logger = logging.getLogger(__name__)
 
 CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
@@ -66,7 +65,7 @@ def test_relation_changed_emitted_for_leader_elected(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with (patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched,):
+    with patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched:
         harness.set_leader(True)
         patched.assert_called_once()
 
@@ -268,7 +267,7 @@ def test_restart_restarts_snap_service_if_config_changed(harness):
         patched.assert_called_once()
 
 
-def test_restart_restarts_service_sleeps(harness):
+def test_restart_restarts_snap_service_sleeps(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -319,10 +318,11 @@ def test_restart_sets_password_rotated_on_unit(harness):
         patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
     ):
         harness.charm._restart(EventBase)
-        assert (
-            harness.charm.cluster.relation.data[harness.charm.unit].get("password-rotated", None)
-            == "true"
-        )
+
+    assert (
+        harness.charm.cluster.relation.data[harness.charm.unit].get("password-rotated", None)
+        == "true"
+    )
 
 
 def test_restart_sets_unified(harness):
@@ -342,6 +342,7 @@ def test_restart_sets_unified(harness):
         assert (
             harness.charm.cluster.relation.data[harness.charm.unit].get("unified", None) == "true"
         )
+
         harness.update_relation_data(peer_rel_id, CHARM_KEY, {"upgrading": ""})
         with (
             patch("ops.model.Container.restart"),
@@ -523,9 +524,9 @@ def test_update_quorum_adds_init_leader(harness):
 
 
 def test_update_quorum_does_not_set_ssl_quorum_until_unified(harness):
-    peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
-    harness.set_leader(True)
     with harness.hooks_disabled():
+        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.set_leader(True)
         harness.update_relation_data(peer_rel_id, CHARM_KEY, {"tls": "enabled"})
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
 
@@ -591,6 +592,7 @@ def test_config_changed_fails_apply_relation_data_not_ready(harness):
         patch("charm.ZooKeeperK8sCharm.config_changed", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
+
         patched.assert_not_called()
 
 

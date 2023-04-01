@@ -7,9 +7,10 @@ from unittest.mock import DEFAULT, patch
 
 import pytest
 import yaml
+from ops.testing import Harness
+
 from charm import ZooKeeperK8sCharm
 from literals import CERTS_REL_NAME, CHARM_KEY, CONTAINER, PEER
-from ops.testing import Harness
 
 CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
@@ -23,6 +24,7 @@ def harness():
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
     harness.set_can_connect(CONTAINER, True)
+    harness.add_network("123.123.123.123")
     harness.begin()
     return harness
 
@@ -69,7 +71,6 @@ def test_certificates_created_sets_upgrading_enabled(harness):
 def test_certificates_joined_defers_if_disabled(harness):
     with (
         patch("ops.framework.EventBase.defer") as patched,
-        patch("tls.ZooKeeperTLS._request_certificate"),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
     ):
         cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
@@ -81,7 +82,6 @@ def test_certificates_joined_defers_if_disabled(harness):
 
 def test_certificates_joined_creates_private_key_if_enabled(harness):
     with (
-        patch("tls.ZooKeeperTLS._request_certificate"),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("tls.ZooKeeperTLS.enabled", return_value=True),
     ):
@@ -96,7 +96,6 @@ def test_certificates_joined_creates_new_keystore_password(harness):
     assert not harness.charm.tls.keystore_password
 
     with (
-        patch("tls.ZooKeeperTLS._request_certificate"),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("tls.ZooKeeperTLS.enabled", return_value=True),
     ):
