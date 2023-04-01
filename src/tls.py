@@ -248,6 +248,7 @@ class ZooKeeperTLS(Object):
         if not self.private_key or not self.csr:
             logger.error("Missing unit private key and/or old csr")
             return
+
         new_csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
@@ -405,9 +406,16 @@ class ZooKeeperTLS(Object):
         """Builds a SAN dict of DNS names and IPs for the unit."""
         unit_id = self.charm.unit.name.split("/")[1]
 
+        bind_address = ""
+        if self.charm.peer_relation:
+            if binding := self.charm.model.get_binding(self.charm.peer_relation):
+                logger.info(f"{vars(binding)=}")
+                bind_address = binding.network.bind_address
+
         return {
-            "sans_ip": [f"{self.charm.app.name}-{unit_id}"],
+            "sans_ip": [str(bind_address)],
             "sans_dns": [
+                f"{self.charm.app.name}-{unit_id}",
                 f"{self.charm.app.name}-{unit_id}.{self.charm.app.name}-endpoints",
                 socket.getfqdn(),
             ],
