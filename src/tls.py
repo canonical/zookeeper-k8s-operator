@@ -144,10 +144,10 @@ class ZooKeeperTLS(Object):
         Returns:
             True if the cluster is running `portUnification`. Otherwise False
         """
-        if not self.charm.cluster.relation:
+        if not self.charm.peer_relation:
             return False
 
-        if self.charm.cluster.relation.data[unit].get("unified"):
+        if self.charm.peer_relation.data[unit].get("unified"):
             return True
 
         return False

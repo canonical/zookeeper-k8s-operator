@@ -143,7 +143,7 @@ class ZooKeeperK8sCharm(CharmBase):
         self.unit.status = MaintenanceStatus("installing ZooKeeper Snap")
 
         # don't complete install until passwords set
-        if not self.cluster.relation:
+        if not self.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
@@ -161,7 +161,7 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         # not all methods called
-        if not self.cluster.relation:
+        if not self.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 

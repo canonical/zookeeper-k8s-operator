@@ -31,7 +31,7 @@ def harness():
 
 def test_all_units_unified_succeeds(harness):
     harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"unified": "true"}
+        harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"unified": "true"}
     )
     harness.set_planned_units(1)
     assert harness.charm.tls.all_units_unified
@@ -124,7 +124,7 @@ def test_certificates_available_succeeds(harness):
     harness.add_relation(harness.charm.restart.name, "{CHARM_KEY}/0")
 
     harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"csr": "not-missing"}
+        harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"csr": "not-missing"}
     )
 
     # implicitly tests these method calls
@@ -152,7 +152,7 @@ def test_certificates_broken(harness):
         certs_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
 
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             f"{CHARM_KEY}/0",
             {"csr": "not-missing", "certificate": "cert", "ca": "exists"},
         )
@@ -181,7 +181,7 @@ def test_certificates_expiring(harness):
     key = open("tests/keys/0.key").read()
 
     harness.update_relation_data(
-        harness.charm.cluster.relation.id,
+        harness.charm.peer_relation.id,
         f"{CHARM_KEY}/0",
         {"csr": "csr", "private-key": key, "certificate": "cert"},
     )

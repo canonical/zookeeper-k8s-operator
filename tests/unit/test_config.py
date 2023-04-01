@@ -93,7 +93,7 @@ def test_tls_enabled(harness):
             return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey"),
         ):
             harness.update_relation_data(
-                harness.charm.cluster.relation.id, CHARM_KEY, {"tls": "enabled"}
+                harness.charm.peer_relation.id, CHARM_KEY, {"tls": "enabled"}
             )
             assert "ssl.clientAuth=none" in harness.charm.zookeeper_config.zookeeper_properties
 
@@ -112,12 +112,12 @@ def test_tls_upgrading(harness):
             return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey"),
         ):
             harness.update_relation_data(
-                harness.charm.cluster.relation.id, CHARM_KEY, {"upgrading": "started"}
+                harness.charm.peer_relation.id, CHARM_KEY, {"upgrading": "started"}
             )
             assert "portUnification=true" in harness.charm.zookeeper_config.zookeeper_properties
 
             harness.update_relation_data(
-                harness.charm.cluster.relation.id, CHARM_KEY, {"upgrading": ""}
+                harness.charm.peer_relation.id, CHARM_KEY, {"upgrading": ""}
             )
             assert (
                 "portUnification=true" not in harness.charm.zookeeper_config.zookeeper_properties
@@ -131,12 +131,12 @@ def test_tls_ssl_quorum(harness):
             return_value=io.StringIO("dynamicConfigFile=/gandalf/the/grey"),
         ):
             harness.update_relation_data(
-                harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "ssl"}
+                harness.charm.peer_relation.id, CHARM_KEY, {"quorum": "ssl"}
             )
             assert "sslQuorum=true" in harness.charm.zookeeper_config.zookeeper_properties
 
             harness.update_relation_data(
-                harness.charm.cluster.relation.id, CHARM_KEY, {"quorum": "non-ssl"}
+                harness.charm.peer_relation.id, CHARM_KEY, {"quorum": "non-ssl"}
             )
             assert "sslQuorum=true" not in harness.charm.zookeeper_config.zookeeper_properties
 

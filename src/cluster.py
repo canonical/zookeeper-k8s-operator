@@ -17,9 +17,7 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
-from ops.model import Relation, Unit
-
-from literals import PEER
+from ops.model import Unit
 
 if TYPE_CHECKING:
     from charm import ZooKeeperK8sCharm
@@ -54,25 +52,16 @@ class ZooKeeperCluster:
         self.election_port = election_port
 
     @property
-    def relation(self) -> Optional[Relation]:
-        """Relation property to be used by both the instance and charm.
-
-        Returns:
-            The peer relation instance
-        """
-        return self.charm.model.get_relation(PEER)
-
-    @property
     def peer_units(self) -> Set[Unit]:
         """Grabs all units in the current peer relation, including the running unit.
 
         Returns:
             Set of units in the current peer relation, including the running unit
         """
-        if not self.relation:
+        if not self.charm.peer_relation:
             return set()
 
-        return set([self.charm.unit] + list(self.relation.units))
+        return set([self.charm.unit] + list(self.charm.peer_relation.units))
 
     @property
     def all_units_related(self) -> bool:
@@ -110,12 +99,12 @@ class ZooKeeperCluster:
             Set of units with unit data "state" == "started". Shows only those units
                 currently found related to the current unit.
         """
-        if not self.relation:
+        if not self.charm.peer_relation:
             return set()
 
         started_units = set()
         for unit in self.peer_units:
-            if self.relation.data[unit].get("state", None) == "started":
+            if self.charm.peer_relation.data[unit].get("state", None) == "started":
                 started_units.add(unit)
 
         return started_units
@@ -422,12 +411,12 @@ class ZooKeeperCluster:
         Returns:
             result : bool
         """
-        if not self.relation:
+        if not self.charm.peer_relation:
             return False
 
         all_finished = True
         for unit in self.peer_units:
-            if self.relation.data[unit].get("password-rotated") is None:
+            if self.charm.peer_relation.data[unit].get("password-rotated") is None:
                 all_finished = False
                 break
         return all_finished
@@ -483,12 +472,12 @@ class ZooKeeperCluster:
             True if all units are running the quorum encryption in app data.
                 Otherwise False.
         """
-        if not self.relation:
+        if not self.charm.peer_relation:
             return False
 
         unit_quorums = set()
         for unit in self.peer_units:
-            unit_quorum = self.relation.data[unit].get("quorum", None)
+            unit_quorum = self.charm.peer_relation.data[unit].get("quorum", None)
             if unit_quorum != self.quorum:
                 logger.debug(
                     f"not all units quorum - {unit.name} has {unit_quorum}, cluster has {self.quorum}"

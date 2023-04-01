@@ -52,7 +52,7 @@ def test_relation_config_new_relation(harness):
             harness.charm.provider.client_relations[0].id, "application", {"chroot": "app"}
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id, CHARM_KEY, {"relation-0": "password"}
+            harness.charm.peer_relation.id, CHARM_KEY, {"relation-0": "password"}
         )
 
         config = harness.charm.provider.relation_config(
@@ -74,7 +74,7 @@ def test_relation_config_new_relation_defaults_to_database(harness):
             harness.charm.provider.client_relations[0].id, "application", {"database": "app"}
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id, CHARM_KEY, {"relation-0": "password"}
+            harness.charm.peer_relation.id, CHARM_KEY, {"relation-0": "password"}
         )
 
         config = harness.charm.provider.relation_config(
@@ -240,12 +240,12 @@ def test_port_updates_if_tls(harness):
 
         # checking if ssl port and ssl flag are passed
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             f"{CHARM_KEY}/0",
             {"private-address": "treebeard", "state": "started"},
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             CHARM_KEY,
             {"quorum": "ssl", "relation-0": "mellon"},
         )
@@ -261,12 +261,12 @@ def test_port_updates_if_tls(harness):
     with harness.hooks_disabled():
         # checking if normal port and non-ssl flag are passed
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             f"{CHARM_KEY}/0",
             {"private-address": "treebeard", "state": "started", "quorum": "non-ssl"},
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             CHARM_KEY,
             {"quorum": "non-ssl", "relation-0": "mellon"},
         )
@@ -289,7 +289,7 @@ def test_provider_relation_data_updates_port_if_stable_and_ready(harness):
     ):
         harness.set_leader(True)
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             CHARM_KEY,
             {"quorum": "non-ssl"},
         )
@@ -310,24 +310,24 @@ def test_apply_relation_data(harness):
             {"chroot": "new_app", "chroot-acl": "rw"},
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             f"{CHARM_KEY}/0",
             {"private-address": "treebeard", "state": "started"},
         )
-        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/1")
+        harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/1")
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             f"{CHARM_KEY}/1",
             {"private-address": "shelob", "state": "ready"},
         )
-        harness.add_relation_unit(harness.charm.cluster.relation.id, f"{CHARM_KEY}/2")
+        harness.add_relation_unit(harness.charm.peer_relation.id, f"{CHARM_KEY}/2")
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             f"{CHARM_KEY}/2",
             {"private-address": "balrog", "state": "started"},
         )
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             CHARM_KEY,
             {"relation-0": "mellon", "relation-3": "friend"},
         )
@@ -339,10 +339,10 @@ def test_apply_relation_data(harness):
     ):
         harness.charm.provider.apply_relation_data()
 
-    assert harness.charm.cluster.relation.data[harness.charm.app].get("relation-0", None)
-    assert harness.charm.cluster.relation.data[harness.charm.app].get("relation-3", None)
+    assert harness.charm.app_peer_data.get("relation-0", None)
+    assert harness.charm.app_peer_data.get("relation-3", None)
 
-    app_data = harness.charm.cluster.relation.data[harness.charm.app]
+    app_data = harness.charm.app_peer_data
     passwords = []
     usernames = []
     for relation in harness.charm.provider.client_relations:
