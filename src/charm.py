@@ -9,8 +9,8 @@ import time
 from typing import TYPE_CHECKING, MutableMapping, Optional
 
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider, Relation
-from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import (
     ActionEvent,
