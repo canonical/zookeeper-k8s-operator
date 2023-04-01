@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, MutableMapping, Optional
 
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider, Relation
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import (
     ActionEvent,
@@ -53,6 +54,12 @@ class ZooKeeperK8sCharm(CharmBase):
             jobs=[
                 {"static_configs": [{"targets": [f"*:{JMX_PORT}", f"*:{METRICS_PROVIDER_PORT}"]}]}
             ],
+        )
+        self.loki_push = LogProxyConsumer(
+            self,
+            log_files=["/var/log/zookeeper/zookeeper.log"],  # FIXME: update when rebased on merged
+            relation_name="logging",
+            container_name=CONTAINER,
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
