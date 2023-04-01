@@ -9,7 +9,7 @@ import logging
 import os
 import re
 import socket
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from charms.tls_certificates_interface.v1.tls_certificates import (
     CertificateAvailableEvent,
@@ -17,14 +17,16 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
     generate_csr,
     generate_private_key,
 )
-from literals import PEER
 from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import Object
-from ops.model import Relation, Unit
+from ops.model import Unit
 from ops.pebble import ExecError
 
 from literals import CONF_PATH, PEER
 from utils import generate_password, push
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperK8sCharm
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,7 @@ class ZooKeeperTLS(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "tls")
-        self.charm = charm
+        self.charm: ZooKeeperK8sCharm = charm
         self.container = self.charm.unit.get_container("zookeeper")
         self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
 
@@ -63,15 +65,6 @@ class ZooKeeperTLS(Object):
         )
 
     @property
-    def cluster(self) -> Relation:
-        """Relation property to be used by both the instance and charm.
-
-        Returns:
-            The peer relation instance
-        """
-        return self.charm.model.get_relation(PEER)
-
-    @property
     def private_key(self) -> Optional[str]:
         """The unit private-key set during `certificates_joined`.
 
@@ -79,7 +72,7 @@ class ZooKeeperTLS(Object):
             String of key contents
             None if key not yet generated
         """
-        return self.cluster.data[self.charm.unit].get("private-key", None)
+        return self.charm.unit_peer_data.get("private-key", None)
 
     @property
     def keystore_password(self) -> Optional[str]:
@@ -92,7 +85,7 @@ class ZooKeeperTLS(Object):
             String of password
             None if password not yet generated
         """
-        return self.cluster.data[self.charm.unit].get("keystore-password", None)
+        return self.charm.unit_peer_data.get("keystore-password", None)
 
     @property
     def csr(self) -> Optional[str]:
@@ -102,7 +95,7 @@ class ZooKeeperTLS(Object):
             String of csr contents
             None if csr not yet generated
         """
-        return self.cluster.data[self.charm.unit].get("csr", None)
+        return self.charm.unit_peer_data.get("csr", None)
 
     @property
     def certificate(self) -> Optional[str]:
@@ -112,7 +105,7 @@ class ZooKeeperTLS(Object):
             String of cert contents in PEM format
             None if cert not yet generated/signed
         """
-        return self.cluster.data[self.charm.unit].get("certificate", None)
+        return self.charm.unit_peer_data.get("certificate", None)
 
     @property
     def ca(self) -> Optional[str]:
@@ -122,7 +115,7 @@ class ZooKeeperTLS(Object):
             String of ca contents in PEM format
             None if cert not yet generated/signed
         """
-        return self.cluster.data[self.charm.unit].get("ca", None)
+        return self.charm.unit_peer_data.get("ca", None)
 
     @property
     def enabled(self) -> bool:
@@ -131,7 +124,7 @@ class ZooKeeperTLS(Object):
         Returns:
             True if SSL quorum encryption should be active. Otherwise False
         """
-        return self.cluster.data[self.charm.app].get("tls", None) == "enabled"
+        return self.charm.app_peer_data.get("tls", None) == "enabled"
 
     @property
     def upgrading(self) -> bool:
@@ -140,7 +133,7 @@ class ZooKeeperTLS(Object):
         Returns:
             True if the cluster is switching. Otherwise False
         """
-        return bool(self.cluster.data[self.charm.app].get("upgrading", None) == "started")
+        return bool(self.charm.app_peer_data.get("upgrading", None) == "started")
 
     def unit_unified(self, unit: Unit) -> bool:
         """Checks if the unit is running `portUnification` configuration option.
@@ -151,6 +144,9 @@ class ZooKeeperTLS(Object):
         Returns:
             True if the cluster is running `portUnification`. Otherwise False
         """
+        if not self.charm.cluster.relation:
+            return False
+
         if self.charm.cluster.relation.data[unit].get("unified"):
             return True
 
@@ -185,7 +181,7 @@ class ZooKeeperTLS(Object):
         # if this event fired, we don't know whether the cluster was fully running or not
         # assume it's already running, and trigger `upgrade` from non-ssl -> ssl
         # ideally trigger this before any other `certificates_*` step
-        self.cluster.data[self.charm.app].update({"tls": "enabled", "upgrading": "started"})
+        self.charm.app_peer_data.update({"tls": "enabled", "upgrading": "started"})
 
     def _on_certificates_joined(self, event: RelationJoinedEvent) -> None:
         """Handler for `certificates_relation_joined` event."""
@@ -198,13 +194,13 @@ class ZooKeeperTLS(Object):
 
         # generate unit private key if not already created by action
         if not self.private_key:
-            self.cluster.data[self.charm.unit].update(
+            self.charm.unit_peer_data.update(
                 {"private-key": generate_private_key().decode("utf-8")}
             )
 
         # generate unit keystore password if not already created by action
         if not self.keystore_password:
-            self.cluster.data[self.charm.unit].update({"keystore-password": generate_password()})
+            self.charm.unit_peer_data.update({"keystore-password": generate_password()})
 
         self._request_certificate()
 
@@ -223,9 +219,7 @@ class ZooKeeperTLS(Object):
         if self.certificate:
             self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
-        self.cluster.data[self.charm.unit].update(
-            {"certificate": event.certificate, "ca": event.ca}
-        )
+        self.charm.unit_peer_data.update({"certificate": event.certificate, "ca": event.ca})
 
         self.set_server_key()
         self.set_ca()
@@ -237,7 +231,7 @@ class ZooKeeperTLS(Object):
 
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
-        self.cluster.data[self.charm.unit].update({"csr": "", "certificate": "", "ca": ""})
+        self.charm.unit_peer_data.update({"csr": "", "certificate": "", "ca": ""})
 
         # remove all existing keystores from the unit so we don't preserve certs
         self.remove_stores()
@@ -247,7 +241,7 @@ class ZooKeeperTLS(Object):
 
         # if this event fired, trigger `upgrade` from ssl -> non-ssl
         # ideally trigger this before any other `certificates_*` step
-        self.cluster.data[self.charm.app].update({"tls": "", "upgrading": "started"})
+        self.charm.app_peer_data.update({"tls": "", "upgrading": "started"})
 
     def _on_certificate_expiring(self, _) -> None:
         """Handler for `certificate_expiring` event."""
@@ -265,12 +259,12 @@ class ZooKeeperTLS(Object):
             new_certificate_signing_request=new_csr,
         )
 
-        self.cluster.data[self.charm.unit].update({"csr": new_csr.decode("utf-8").strip()})
+        self.charm.unit_peer_data.update({"csr": new_csr.decode("utf-8").strip()})
 
     def _set_tls_private_key(self, event: ActionEvent) -> None:
         """Handler for `set_tls_private_key` action."""
         if private_key := event.params.get("internal-key", None):
-            self.cluster.data[self.charm.unit].update({"private-key": private_key})
+            self.charm.unit_peer_data.update({"private-key": private_key})
             self._request_certificate()
         else:
             event.fail("Could not set key - no internal-key found")
@@ -286,7 +280,7 @@ class ZooKeeperTLS(Object):
             subject=os.uname()[1],
             **self._sans,
         )
-        self.cluster.data[self.charm.unit].update({"csr": csr.decode("utf-8").strip()})
+        self.charm.unit_peer_data.update({"csr": csr.decode("utf-8").strip()})
 
         self.certificates.request_certificate_creation(certificate_signing_request=csr)
 

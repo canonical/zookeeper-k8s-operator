@@ -5,7 +5,7 @@
 """ZooKeeperProvider class and methods."""
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
@@ -16,11 +16,14 @@ from charms.zookeeper.v0.client import (
 from cluster import UnitNotFoundError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import ACL, make_acl
-from literals import PEER, REL_NAME
+from literals import REL_NAME
 from ops.charm import RelationBrokenEvent, RelationEvent
 from ops.framework import EventBase, Object
 from ops.model import Relation
 from utils import generate_password
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperK8sCharm
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +34,7 @@ class ZooKeeperProvider(Object):
     def __init__(self, charm) -> None:
         super().__init__(charm, "client")
 
-        self.charm = charm
+        self.charm: ZooKeeperK8sCharm = charm
 
         self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
@@ -39,11 +42,6 @@ class ZooKeeperProvider(Object):
         self.framework.observe(
             self.charm.on[REL_NAME].relation_broken, self._on_client_relation_broken
         )
-
-    @property
-    def app_relation(self) -> Relation:
-        """Gets the current ZK peer relation."""
-        return self.charm.model.get_relation(PEER)
 
     @property
     def client_relations(self) -> List[Relation]:
@@ -74,7 +72,7 @@ class ZooKeeperProvider(Object):
         username = f"relation-{relation.id}"
 
         # Default to empty string in case passwords not set
-        password = self.app_relation.data[self.charm.app].get(username, "")
+        password = self.charm.app_peer_data.get(username, "")
         if password:
             acls_added = "true"
         else:
@@ -259,9 +257,8 @@ class ZooKeeperProvider(Object):
 
             logger.debug(f"setting relation data - {relation_data.items()}")
 
-            self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
-                relation_data
-            )
+            if relation := self.charm.model.get_relation(REL_NAME, int(relation_id)):
+                relation.data[self.charm.app].update(relation_data)
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
         """Updates ACLs while handling `client_relation_joined` events.
@@ -294,7 +291,7 @@ class ZooKeeperProvider(Object):
         if relation_config and relation_config.get("acls-added"):
             logger.debug(f"updating passwords for {getattr(event.app, 'name', None)}")
             # triggers relation_changed for other units to restart
-            self.app_relation.data[self.charm.app].update(
+            self.charm.app_peer_data.update(
                 {relation_config["username"]: relation_config["password"]}
             )
 
@@ -313,8 +310,8 @@ class ZooKeeperProvider(Object):
 
         if self.charm.unit.is_leader():
             username = f"relation-{event.relation.id}"
-            if username in self.charm.cluster.relation.data[self.charm.app]:
-                del self.charm.cluster.relation.data[self.charm.app][username]
+            if username in self.charm.app_peer_data:
+                del self.charm.app_peer_data[username]
 
         # call normal updated handler
         self._on_client_relation_updated(event=event)

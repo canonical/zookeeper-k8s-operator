@@ -5,10 +5,9 @@
 """Manager for handling ZooKeeper configuration."""
 
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 
-from literals import CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, PEER, REL_NAME
-from ops.model import Relation
+from literals import CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, REL_NAME
 from ops.pebble import PathError
 
 from literals import (
@@ -22,6 +21,9 @@ from literals import (
     REL_NAME,
 )
 from utils import pull, push
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperK8sCharm
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +60,7 @@ class ZooKeeperConfig:
     """Manager for handling ZooKeeper configuration."""
 
     def __init__(self, charm):
-        self.charm = charm
+        self.charm: ZooKeeperK8sCharm = charm
         self.container = self.charm.unit.get_container(CONTAINER)
         self.properties_filepath = f"{CONF_PATH}/zoo.cfg"
         self.dynamic_filepath = f"{CONF_PATH}/zookeeper-dynamic.properties"
@@ -67,15 +69,6 @@ class ZooKeeperConfig:
         self.truststore_filepath = f"{CONF_PATH}/truststore.jks"
         self.jmx_prometheus_javaagent_filepath = f"{BINARIES_PATH}/jmx_prometheus_javaagent.jar"
         self.jmx_prometheus_config_filepath = f"{CONF_PATH}/jmx_prometheus.yaml"
-
-    @property
-    def cluster(self) -> Relation:
-        """Relation property to be used by both the instance and charm.
-
-        Returns:
-            The peer relation instance
-        """
-        return self.charm.model.get_relation(PEER)
 
     @property
     def server_jvmflags(self) -> List[str]:
@@ -110,7 +103,7 @@ class ZooKeeperConfig:
         jaas_users = []
         for relation in client_relations:
             username = f"relation-{relation.id}"
-            password = self.cluster.data[self.charm.app].get(username, None)
+            password = self.charm.app_peer_data.get(username, None)
 
             if not (username and password):
                 continue
@@ -134,8 +127,8 @@ class ZooKeeperConfig:
         Returns:
             String of JAAS config for super/user config
         """
-        sync_password = self.cluster.data[self.charm.app].get("sync-password", None)
-        super_password = self.cluster.data[self.charm.app].get("super-password", None)
+        sync_password = self.charm.app_peer_data.get("sync-password", None)
+        super_password = self.charm.app_peer_data.get("super-password", None)
         users = "\n".join(self.jaas_users) or ""
 
         return f"""
