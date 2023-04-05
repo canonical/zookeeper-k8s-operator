@@ -3,18 +3,6 @@
 # See LICENSE file for licensing details.
 
 options:
-  conf-dir:
-    description: filepath for setting the ZooKeeper conf directory
-    type: string
-    default: "/opt/zookeeper/conf"
-  data-dir:
-    description: filepath for setting the ZooKeeper dataDir option
-    type: string
-    default: "/opt/zookeeper"
-  log-dir: 
-    description: filepath for setting the ZooKeeper dataLogDir option
-    type: string
-    default: "/logs/zookeeper"
   tick-time: 
     description: length of a single tick, in milliseconds, that ZooKeeper uses as the basic time unit to regulate timeouts
     type: int

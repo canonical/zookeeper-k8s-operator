@@ -13,3 +13,8 @@ CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
 JMX_PORT = 9998
 METRICS_PROVIDER_PORT = 7000
+
+CONF_PATH = "/etc/zookeeper"
+DATA_PATH = "/var/lib/zookeeper"
+LOGS_PATH = "/var/log/zookeeper"
+BINARIES_PATH = "/opt/zookeeper"

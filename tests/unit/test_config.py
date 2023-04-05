@@ -57,7 +57,7 @@ def test_jmx_in_jvmflags(harness):
     opts = ZooKeeperConfig(harness.charm).jmx_jvmflags
     assert "-Dcom.sun.management.jmxremote" in opts
     assert (
-        "-javaagent:/opt/zookeeper/jmx_prometheus_javaagent.jar=9998:/opt/zookeeper/conf/jmx_prometheus.yaml"
+        "-javaagent:/opt/zookeeper/jmx_prometheus_javaagent.jar=9998:/etc/zookeeper/jmx_prometheus.yaml"
         in opts
     )
 
