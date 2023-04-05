@@ -22,7 +22,7 @@ from ops.framework import Object
 from ops.model import Unit
 from ops.pebble import ExecError
 
-from literals import CONF_PATH, PEER
+from literals import CONF_PATH
 from utils import generate_password, push
 
 if TYPE_CHECKING:

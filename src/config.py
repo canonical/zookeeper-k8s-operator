@@ -16,7 +16,6 @@ from literals import (
     JMX_PORT,
     LOGS_PATH,
     METRICS_PROVIDER_PORT,
-    PEER,
     REL_NAME,
 )
 from utils import pull, push
