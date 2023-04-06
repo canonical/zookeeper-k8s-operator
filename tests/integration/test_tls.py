@@ -119,7 +119,7 @@ async def test_scale_up_tls(ops_test: OpsTest):
 async def test_client_relate_maintains_quorum(ops_test: OpsTest):
     dummy_name = "app"
     app_charm = await ops_test.build_charm("tests/integration/app-charm")
-    await ops_test.model.deploy(app_charm, application_name=dummy_name, num_units=1)
+    await ops_test.model.deploy(app_charm, application_name=dummy_name, num_units=1, series=SERIES)
     await ops_test.model.wait_for_idle(
         [APP_NAME, dummy_name], status="active", timeout=1000, idle_period=30
     )
