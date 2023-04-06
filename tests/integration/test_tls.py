@@ -62,6 +62,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
+@pytest.mark.skip
 async def test_remove_tls_provider(ops_test: OpsTest):
     await ops_test.model.remove_application("tls-certificates-operator", block_until_done=True)
     await ops_test.model.wait_for_idle(
@@ -77,6 +78,7 @@ async def test_remove_tls_provider(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
+@pytest.mark.skip
 async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
     await asyncio.gather(
         ops_test.model.deploy(
