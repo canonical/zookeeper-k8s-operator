@@ -7,7 +7,7 @@
 
 import logging
 import re
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
@@ -17,9 +17,10 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.exceptions import BadArgumentsError
 from kazoo.handlers.threading import KazooTimeoutError
-from ops.model import Relation, Unit
+from ops.model import Unit
 
-from literals import PEER
+if TYPE_CHECKING:
+    from charm import ZooKeeperK8sCharm
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class ZooKeeperCluster:
 
     def __init__(
         self,
-        charm,
+        charm: "ZooKeeperK8sCharm",
         client_port: int = 2181,
         secure_client_port: int = 2182,
         server_port: int = 2888,
@@ -51,22 +52,16 @@ class ZooKeeperCluster:
         self.election_port = election_port
 
     @property
-    def relation(self) -> Relation:
-        """Relation property to be used by both the instance and charm.
-
-        Returns:
-            The peer relation instance
-        """
-        return self.charm.model.get_relation(PEER)
-
-    @property
     def peer_units(self) -> Set[Unit]:
         """Grabs all units in the current peer relation, including the running unit.
 
         Returns:
             Set of units in the current peer relation, including the running unit
         """
-        return set([self.charm.unit] + list(self.relation.units))
+        if not self.charm.peer_relation:
+            return set()
+
+        return set([self.charm.unit] + list(self.charm.peer_relation.units))
 
     @property
     def all_units_related(self) -> bool:
@@ -104,9 +99,12 @@ class ZooKeeperCluster:
             Set of units with unit data "state" == "started". Shows only those units
                 currently found related to the current unit.
         """
+        if not self.charm.peer_relation:
+            return set()
+
         started_units = set()
         for unit in self.peer_units:
-            if self.relation.data[unit].get("state", None) == "started":
+            if self.charm.peer_relation.data[unit].get("state", None) == "started":
                 started_units.add(unit)
 
         return started_units
@@ -138,7 +136,7 @@ class ZooKeeperCluster:
         """
         for unit in self.peer_units:
             unit_id = self.get_unit_id(unit)
-            if self.relation.data[self.charm.app].get(str(unit_id), None) != "added":
+            if self.charm.app_peer_data.get(str(unit_id), None) != "added":
                 logger.debug(f"Unit {unit.name} needs adding")
                 return False
 
@@ -349,7 +347,7 @@ class ZooKeeperCluster:
 
         for peer_id in range(self.lowest_unit_id, unit_id):
             # missing relation data unit ids means that they are not yet added to quorum
-            if not self.relation.data[self.charm.app].get(str(peer_id), None):
+            if not self.charm.app_peer_data.get(str(peer_id), None):
                 return False
 
         return True
@@ -357,7 +355,7 @@ class ZooKeeperCluster:
     def _is_init_leader(self, unit_id: int) -> bool:
         """Checks if the passed unit should be the first unit to start."""
         # if lowest_unit_id, and it exists in the relation data already, it's a restart, fail
-        if int(unit_id) == self.lowest_unit_id and not self.relation.data[self.charm.app].get(
+        if int(unit_id) == self.lowest_unit_id and not self.charm.app_peer_data.get(
             str(self.lowest_unit_id), None
         ):
             return True
@@ -367,7 +365,7 @@ class ZooKeeperCluster:
     def _generate_units(self, unit_string: str) -> str:
         """Gets valid start-up server strings for current ZK quorum units found in the app data."""
         servers = ""
-        for unit_id, state in self.relation.data[self.charm.app].items():
+        for unit_id, state in self.charm.app_peer_data.items():
             if state == "added":
                 try:
                     server_string = self.unit_config(unit=int(unit_id))["server_string"]
@@ -413,9 +411,12 @@ class ZooKeeperCluster:
         Returns:
             result : bool
         """
+        if not self.charm.peer_relation:
+            return False
+
         all_finished = True
         for unit in self.peer_units:
-            if self.relation.data[unit].get("password-rotated") is None:
+            if self.charm.peer_relation.data[unit].get("password-rotated") is None:
                 all_finished = False
                 break
         return all_finished
@@ -427,8 +428,8 @@ class ZooKeeperCluster:
         Returns:
             Tuple of super_password, sync_password
         """
-        super_password = str(self.relation.data[self.charm.app].get("super-password", ""))
-        sync_password = str(self.relation.data[self.charm.app].get("sync-password", ""))
+        super_password = str(self.charm.app_peer_data.get("super-password", ""))
+        sync_password = str(self.charm.app_peer_data.get("sync-password", ""))
 
         return super_password, sync_password
 
@@ -452,7 +453,7 @@ class ZooKeeperCluster:
         Returns:
             True if the unit has started. Otherwise False
         """
-        return self.relation.data[self.charm.unit].get("state", None) == "started"
+        return self.charm.unit_peer_data.get("state", None) == "started"
 
     @property
     def quorum(self) -> str:
@@ -461,7 +462,7 @@ class ZooKeeperCluster:
         Returns:
             String of either `ssl` or `non-ssl`. Defaults `non-ssl`.
         """
-        return self.relation.data[self.charm.app].get("quorum", "default - non-ssl")
+        return self.charm.app_peer_data.get("quorum", "default - non-ssl")
 
     @property
     def all_units_quorum(self) -> bool:
@@ -471,9 +472,12 @@ class ZooKeeperCluster:
             True if all units are running the quorum encryption in app data.
                 Otherwise False.
         """
+        if not self.charm.peer_relation:
+            return False
+
         unit_quorums = set()
         for unit in self.peer_units:
-            unit_quorum = self.relation.data[unit].get("quorum", None)
+            unit_quorum = self.charm.peer_relation.data[unit].get("quorum", None)
             if unit_quorum != self.quorum:
                 logger.debug(
                     f"not all units quorum - {unit.name} has {unit_quorum}, cluster has {self.quorum}"

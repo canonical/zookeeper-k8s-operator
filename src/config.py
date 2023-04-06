@@ -2,12 +2,11 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Manager for handling Kafka configuration."""
+"""Manager for handling ZooKeeper configuration."""
 
 import logging
-from typing import List
+from typing import TYPE_CHECKING, List
 
-from ops.model import Relation
 from ops.pebble import PathError
 
 from literals import (
@@ -17,10 +16,12 @@ from literals import (
     JMX_PORT,
     LOGS_PATH,
     METRICS_PROVIDER_PORT,
-    PEER,
     REL_NAME,
 )
 from utils import pull, push
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperK8sCharm
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ autopurge.snapRetainCount=3
 autopurge.purgeInterval=0
 reconfigEnabled=true
 standaloneEnabled=false
-4lw.commands.whitelist=mntr,srvr
+4lw.commands.whitelist=mntr,srvr,stat
 DigestAuthenticationProvider.digestAlg=SHA3-256
 quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
@@ -48,8 +49,6 @@ ssl.quorum.clientAuth=none
 ssl.client.enable=true
 clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
-ssl.quorum.hostnameVerification=false
-ssl.hostnameVerification=false
 ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
 """
@@ -59,7 +58,7 @@ class ZooKeeperConfig:
     """Manager for handling ZooKeeper configuration."""
 
     def __init__(self, charm):
-        self.charm = charm
+        self.charm: "ZooKeeperK8sCharm" = charm
         self.container = self.charm.unit.get_container(CONTAINER)
         self.properties_filepath = f"{CONF_PATH}/zoo.cfg"
         self.dynamic_filepath = f"{CONF_PATH}/zookeeper-dynamic.properties"
@@ -70,17 +69,8 @@ class ZooKeeperConfig:
         self.jmx_prometheus_config_filepath = f"{CONF_PATH}/jmx_prometheus.yaml"
 
     @property
-    def cluster(self) -> Relation:
-        """Relation property to be used by both the instance and charm.
-
-        Returns:
-            The peer relation instance
-        """
-        return self.charm.model.get_relation(PEER)
-
-    @property
     def server_jvmflags(self) -> List[str]:
-        """Builds necessary JVM config env vars for the Kafka snap."""
+        """Builds necessary JVM config env vars for the ZooKeeper service."""
         return [
             "-Dzookeeper.requireClientAuthScheme=sasl",
             "-Dzookeeper.superUser=super",
@@ -97,11 +87,6 @@ class ZooKeeperConfig:
         ]
 
     @property
-    def jvmflags(self) -> List[str]:
-        """List of all jvmflags."""
-        return self.server_jvmflags + self.jmx_jvmflags
-
-    @property
     def jaas_users(self) -> List[str]:
         """Builds the necessary user strings to add to ZK JAAS config files.
 
@@ -116,7 +101,7 @@ class ZooKeeperConfig:
         jaas_users = []
         for relation in client_relations:
             username = f"relation-{relation.id}"
-            password = self.cluster.data[self.charm.app].get(username, None)
+            password = self.charm.app_peer_data.get(username, None)
 
             if not (username and password):
                 continue
@@ -140,8 +125,8 @@ class ZooKeeperConfig:
         Returns:
             String of JAAS config for super/user config
         """
-        sync_password = self.cluster.data[self.charm.app].get("sync-password", None)
-        super_password = self.cluster.data[self.charm.app].get("super-password", None)
+        sync_password = self.charm.app_peer_data.get("sync-password", None)
+        super_password = self.charm.app_peer_data.get("super-password", None)
         users = "\n".join(self.jaas_users) or ""
 
         return f"""
@@ -163,10 +148,10 @@ class ZooKeeperConfig:
 
     @property
     def zookeeper_properties(self) -> List[str]:
-        """Build the zookeeper.properties content.
+        """Build the zoo.cfg content.
 
         Returns:
-            List of properties to be set to zookeeper.properties config file
+            List of properties to be set to zoo.cfg config file
         """
         properties = (
             [
@@ -239,7 +224,7 @@ class ZooKeeperConfig:
             ).splitlines()
         except PathError:
             logger.debug("zookeeper.properties file not found - using default dynamic path")
-            return f"dynamicConfigFile={CONF_PATH}/zookeeper-dynamic.properties"
+            return f"dynamicConfigFile={self.dynamic_filepath}"
 
         for current_property in current_properties:
             if "dynamicConfigFile" in current_property:
@@ -247,14 +232,14 @@ class ZooKeeperConfig:
 
         logger.debug("dynamicConfigFile property missing - using default dynamic path")
 
-        return f"dynamicConfigFile={CONF_PATH}/zookeeper-dynamic.properties"
+        return f"dynamicConfigFile={self.dynamic_filepath}"
 
     @property
     def static_properties(self) -> List[str]:
-        """Build the zookeeper.properties content, without dynamic options.
+        """Build the zoo.cfg content, without dynamic options.
 
         Returns:
-            List of static properties to compared to current zookeeper.properties
+            List of static properties to compared to current zoo.cfg
         """
         return self.build_static_properties(self.zookeeper_properties)
 
@@ -273,7 +258,7 @@ class ZooKeeperConfig:
         )
 
     def set_zookeeper_properties(self) -> None:
-        """Writes built zookeeper.properties file."""
+        """Writes built zoo.cfg file."""
         push(
             container=self.container,
             content="\n".join(self.zookeeper_properties),

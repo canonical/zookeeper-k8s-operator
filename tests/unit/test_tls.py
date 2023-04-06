@@ -24,13 +24,14 @@ def harness():
     harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
     harness.set_can_connect(CONTAINER, True)
+    harness.add_network("123.123.123.123")
     harness.begin()
     return harness
 
 
 def test_all_units_unified_succeeds(harness):
     harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"unified": "true"}
+        harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"unified": "true"}
     )
     harness.set_planned_units(1)
     assert harness.charm.tls.all_units_unified
@@ -70,7 +71,6 @@ def test_certificates_created_sets_upgrading_enabled(harness):
 def test_certificates_joined_defers_if_disabled(harness):
     with (
         patch("ops.framework.EventBase.defer") as patched,
-        patch("tls.ZooKeeperTLS._request_certificate"),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
     ):
         cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
@@ -82,7 +82,6 @@ def test_certificates_joined_defers_if_disabled(harness):
 
 def test_certificates_joined_creates_private_key_if_enabled(harness):
     with (
-        patch("tls.ZooKeeperTLS._request_certificate"),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("tls.ZooKeeperTLS.enabled", return_value=True),
     ):
@@ -97,7 +96,6 @@ def test_certificates_joined_creates_new_keystore_password(harness):
     assert not harness.charm.tls.keystore_password
 
     with (
-        patch("tls.ZooKeeperTLS._request_certificate"),
         patch("cluster.ZooKeeperCluster.stable", return_value=True),
         patch("tls.ZooKeeperTLS.enabled", return_value=True),
     ):
@@ -126,7 +124,7 @@ def test_certificates_available_succeeds(harness):
     harness.add_relation(harness.charm.restart.name, "{CHARM_KEY}/0")
 
     harness.update_relation_data(
-        harness.charm.cluster.relation.id, f"{CHARM_KEY}/0", {"csr": "not-missing"}
+        harness.charm.peer_relation.id, f"{CHARM_KEY}/0", {"csr": "not-missing"}
     )
 
     # implicitly tests these method calls
@@ -154,7 +152,7 @@ def test_certificates_broken(harness):
         certs_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
 
         harness.update_relation_data(
-            harness.charm.cluster.relation.id,
+            harness.charm.peer_relation.id,
             f"{CHARM_KEY}/0",
             {"csr": "not-missing", "certificate": "cert", "ca": "exists"},
         )
@@ -183,7 +181,7 @@ def test_certificates_expiring(harness):
     key = open("tests/keys/0.key").read()
 
     harness.update_relation_data(
-        harness.charm.cluster.relation.id,
+        harness.charm.peer_relation.id,
         f"{CHARM_KEY}/0",
         {"csr": "csr", "private-key": key, "certificate": "cert"},
     )

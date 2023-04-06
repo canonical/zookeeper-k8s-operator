@@ -1,0 +1,7 @@
+alert: ZookeeperOutstandingRequests
+expr: outstanding_requests > 10
+for: 10m
+labels:
+  severity: high
+annotations:
+  summary: "Zookeeper receives more requests than it can process."

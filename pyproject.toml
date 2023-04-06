@@ -1,4 +1,4 @@
-# Copyright 2022 Canonical Ltd.
+# Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 # Testing tools configuration
@@ -11,12 +11,13 @@ show_missing = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 log_cli_level = "INFO"
+asyncio_mode = "auto"
 markers = ["unstable"]
 
 # Formatting tools configuration
 [tool.black]
 line-length = 99
-target-version = ["py38"]
+target-version = ["py310"]
 
 [tool.isort]
 profile = "black"
@@ -31,9 +32,15 @@ authors = [""]
 python = ">=3.8"
 ops = ">=2.0.0"
 kazoo = ">=2.8.0"
+
+# The cosl dep could be removed from here once PYDEPS is released:
+# https://github.com/canonical/charmcraft/pull/1003
+cosl = ">= 0.0.5"
+
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
 cryptography = "^39.0.0"
+jsonschema = "^4.17.3"
 
 [tool.poetry.group.fmt]
 optional = true
@@ -41,6 +48,7 @@ optional = true
 [tool.poetry.group.fmt.dependencies]
 black = "^22.3.0"
 ruff = ">=0.0.157"
+pyright = "^1.1.300"
 
 [tool.poetry.group.lint]
 optional = true
@@ -49,6 +57,7 @@ optional = true
 black = "^22.3.0"
 ruff = ">=0.0.157"
 codespell = ">=2.2.2"
+pyright = "^1.1.301"
 
 [tool.poetry.group.unit]
 optional = true
@@ -56,18 +65,22 @@ optional = true
 [tool.poetry.group.unit.dependencies]
 pytest = ">=7.2"
 coverage = {extras = ["toml"], version = ">7.0"}
-jsonschema = ">=4.10"
 
 [tool.poetry.group.integration]
 optional = true
 
 [tool.poetry.group.integration.dependencies]
 pytest = ">=7.2"
-juju = "==2.9.11"
+juju = "<3.1"  # The latest python-libjuju that supports both juju 2.9 and 3.0
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
 requests = ">2.25"
 lightkube = "==0.11.0"
+kazoo = ">=2.8"
+
+
+[tool.poetry.group.format.dependencies]
+pyright = "^1.1.301"
 
 [tool.ruff]
 line-length = 99
@@ -95,5 +108,13 @@ src = ["src", "tests"]
 [tool.ruff.mccabe]
 max-complexity = 10
 
-[tool.bandit]
-tests = ["B201", "B301"]
+[tool.pyright]
+include = ["src"]
+extraPaths = ["./lib"]
+pythonVersion = "3.10"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+reportIncompatibleMethodOverride = false
+reportImportCycles = false
+reportMissingModuleSource = true
+stubPath = ""

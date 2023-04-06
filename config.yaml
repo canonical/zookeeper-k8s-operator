@@ -3,15 +3,15 @@
 # See LICENSE file for licensing details.
 
 options:
-  tick-time: 
-    description: length of a single tick, in milliseconds, that ZooKeeper uses as the basic time unit to regulate timeouts
-    type: int
-    default: 2000
-  init-limit: 
-    description: timeouts ZooKeeper uses to limit the length of time the ZooKeeper servers in quorum have to connect to a leader
+  init-limit:
+    description: "Amount of time, in ticks, to allow followers to connect and sync to a leader."
     type: int
     default: 5
-  sync-limit: 
-    description: maximum number of ticks for the followers to wait to synchronize with the leader before the followers time out
+  sync-limit:
+    description: "Amount of time, in ticks, to allow followers to sync with ZooKeeper."
     type: int
     default: 2
+  tick-time:
+    description: "the length of a single tick, which is the basic time unit used by ZooKeeper, as measured in milliseconds."
+    type: int
+    default: 2000

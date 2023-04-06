@@ -1,0 +1,7 @@
+alert: ZookeeperHighLatency
+expr: avg_latency > 500
+for: 15m
+labels:
+  severity: warning
+annotations:
+  summary: "Average amount of time it takes for the server to respond to each client request (since the server was started)."

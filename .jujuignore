@@ -1,3 +1,10 @@
-/venv
-*.py[cod]
+venv/
+build/
 *.charm
+.tox/
+.coverage
+__pycache__/
+*.py[cod]
+.vscode
+.idea
+.python-version

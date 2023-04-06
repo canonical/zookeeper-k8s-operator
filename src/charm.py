@@ -6,8 +6,10 @@
 
 import logging
 import time
+from typing import TYPE_CHECKING, MutableMapping, Optional
 
-from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
+from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider, Relation
+from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops.charm import (
@@ -24,10 +26,13 @@ from ops.pebble import Layer, PathError
 
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_USERS, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT
+from literals import CHARM_USERS, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, PEER
 from provider import ZooKeeperProvider
 from tls import ZooKeeperTLS
 from utils import generate_password, pull
+
+if TYPE_CHECKING:
+    from ops.pebble import LayerDict
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +55,15 @@ class ZooKeeperK8sCharm(CharmBase):
                 {"static_configs": [{"targets": [f"*:{JMX_PORT}", f"*:{METRICS_PROVIDER_PORT}"]}]}
             ],
         )
+        self.loki_push = LogProxyConsumer(
+            self,
+            log_files=["/var/log/zookeeper/zookeeper.log"],  # FIXME: update when rebased on merged
+            relation_name="logging",
+            container_name=CONTAINER,
+        )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
+        self.framework.observe(getattr(self.on, "start"), self._restart)
         self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
@@ -79,6 +91,27 @@ class ZooKeeperK8sCharm(CharmBase):
         self.framework.observe(getattr(self.on, "set_password_action"), self._set_password_action)
 
     @property
+    def peer_relation(self) -> Optional[Relation]:
+        """The cluster peer relation."""
+        return self.model.get_relation(PEER)
+
+    @property
+    def app_peer_data(self) -> MutableMapping[str, str]:
+        """Application peer relation data object."""
+        if not self.peer_relation:
+            return {}
+
+        return self.peer_relation.data[self.app]
+
+    @property
+    def unit_peer_data(self) -> MutableMapping[str, str]:
+        """Unit peer relation data object."""
+        if not self.peer_relation:
+            return {}
+
+        return self.peer_relation.data[self.unit]
+
+    @property
     def container(self) -> Container:
         """Grabs the current ZooKeeper container."""
         return self.unit.get_container(CONTAINER)
@@ -86,7 +119,7 @@ class ZooKeeperK8sCharm(CharmBase):
     @property
     def _zookeeper_layer(self) -> Layer:
         """Returns a Pebble configuration layer for ZooKeeper."""
-        layer_config = {
+        layer_config: "LayerDict" = {
             "summary": "zookeeper layer",
             "description": "Pebble config layer for zookeeper",
             "services": {
@@ -95,7 +128,12 @@ class ZooKeeperK8sCharm(CharmBase):
                     "summary": "zookeeper",
                     "command": self.zookeeper_config.zookeeper_command,
                     "startup": "enabled",
-                    "environment": {"SERVER_JVMFLAGS": " ".join(self.zookeeper_config.jvmflags)},
+                    "environment": {
+                        "SERVER_JVMFLAGS": " ".join(
+                            self.zookeeper_config.server_jvmflags
+                            + self.zookeeper_config.jmx_jvmflags
+                        )
+                    },
                 }
             },
         }
@@ -103,8 +141,10 @@ class ZooKeeperK8sCharm(CharmBase):
 
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
+        self.unit.status = MaintenanceStatus("installing ZooKeeper Snap")
+
         # don't complete install until passwords set
-        if not self.cluster.relation:
+        if not self.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
@@ -113,7 +153,7 @@ class ZooKeeperK8sCharm(CharmBase):
 
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
-            self.cluster.relation.data[self.app].update({"quorum": "default - non-ssl"})
+            self.app_peer_data.update({"quorum": "default - non-ssl"})
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
@@ -122,7 +162,7 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         # not all methods called
-        if not self.cluster.relation:
+        if not self.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             return
 
@@ -146,6 +186,7 @@ class ZooKeeperK8sCharm(CharmBase):
         if (self.config_changed() or self.tls.upgrading) and self.cluster.started:
             self.on[f"{self.restart.name}"].acquire_lock.emit()
 
+        # ensures events aren't lost during an upgrade on single units
         if self.tls.upgrading and len(self.cluster.peer_units) == 1:
             event.defer()
 
@@ -171,17 +212,13 @@ class ZooKeeperK8sCharm(CharmBase):
         self.unit.status = ActiveStatus()
 
         # Indicate that unit has completed restart on password rotation
-        if self.cluster.relation.data[self.app].get("rotate-passwords"):
-            self.cluster.relation.data[self.unit]["password-rotated"] = "true"
+        if self.app_peer_data.get("rotate-passwords"):
+            self.unit_peer_data["password-rotated"] = "true"
 
-        # flag to update that this unit is running `portUnification` during ssl<->no-ssl upgrade
-        # in case restart was manual, also remove
-        self.cluster.relation.data[self.unit].update(
+        self.unit_peer_data.update(
             {
                 # flag to declare unit running `portUnification` during ssl<->no-ssl upgrade
                 "unified": "true" if self.tls.upgrading else "",
-                # in case restart was manual
-                "manual-restart": "",
                 # flag to declare unit restarted with new quorum encryption
                 "quorum": self.cluster.quorum,
             }
@@ -193,7 +230,7 @@ class ZooKeeperK8sCharm(CharmBase):
     def init_server(self):
         """Calls startup functions for server start.
 
-        Sets myid, opts env_var, initial servers in dynamic properties,
+        Sets myid, server_jvmflgas env_var, initial servers in dynamic properties,
             default properties and jaas_config
         """
         # don't run if leader has not yet created passwords
@@ -215,11 +252,14 @@ class ZooKeeperK8sCharm(CharmBase):
 
         # servers properties needs to be written to dynamic config
         servers = self.cluster.startup_servers(unit=self.unit)
+        logger.debug(f"{servers=}")
         self.zookeeper_config.set_zookeeper_dynamic_properties(servers=servers)
 
+        logger.debug("setting properties and jaas")
         self.zookeeper_config.set_zookeeper_properties()
         self.zookeeper_config.set_jaas_config()
 
+        logger.debug("starting container service")
         self.container.add_layer(CONTAINER, self._zookeeper_layer, combine=True)
         self.container.replan()
         self.unit.status = ActiveStatus()
@@ -228,7 +268,7 @@ class ZooKeeperK8sCharm(CharmBase):
         logger.info(f"Server.{self.cluster.get_unit_id(self.unit)} started")
 
         # added here in case a `restart` was missed
-        self.cluster.relation.data[self.unit].update(
+        self.unit_peer_data.update(
             {
                 "state": "started",
                 "unified": "true" if self.tls.upgrading else "",
@@ -249,6 +289,7 @@ class ZooKeeperK8sCharm(CharmBase):
         config_properties = self.zookeeper_config.static_properties
 
         properties_changed = set(server_properties) ^ set(config_properties)
+        logger.debug(f"{properties_changed=}")
 
         try:
             jaas_config = pull(
@@ -294,8 +335,8 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         if not self.cluster.passwords_set:
-            self.cluster.relation.data[self.app].update({"sync-password": generate_password()})
-            self.cluster.relation.data[self.app].update({"super-password": generate_password()})
+            self.app_peer_data.update({"sync-password": generate_password()})
+            self.app_peer_data.update({"super-password": generate_password()})
 
     def update_quorum(self, event: EventBase) -> None:
         """Updates the server quorum members for all currently started units in the relation.
@@ -309,15 +350,16 @@ class ZooKeeperK8sCharm(CharmBase):
         self.add_init_leader()
 
         if (
-            self.cluster.stale_quorum  # in case of scale-up
+            self.cluster.stale_quorum  # in the case of scale-up
             or isinstance(  # to run without delay to maintain quorum on scale down
                 event,
                 (RelationDepartedEvent, LeaderElectedEvent),
             )
         ):
             updated_servers = self.cluster.update_cluster()
+            logger.debug(f"{updated_servers=}")
             # triggers a `cluster_relation_changed` to wake up following units
-            self.cluster.relation.data[self.app].update(updated_servers)
+            self.app_peer_data.update(updated_servers)
 
         # default startup without ssl relation
         logger.debug("updating quorum - checking cluster stability")
@@ -330,14 +372,14 @@ class ZooKeeperK8sCharm(CharmBase):
             logger.debug("all units unified")
             if self.tls.enabled:
                 logger.debug("tls enabled - switching to ssl")
-                self.cluster.relation.data[self.app].update({"quorum": "ssl"})
+                self.app_peer_data.update({"quorum": "ssl"})
             else:
                 logger.debug("tls disabled - switching to non-ssl")
-                self.cluster.relation.data[self.app].update({"quorum": "non-ssl"})
+                self.app_peer_data.update({"quorum": "non-ssl"})
 
             if self.cluster.all_units_quorum:
                 logger.debug("all units running desired encryption - removing upgrading")
-                self.cluster.relation.data[self.app].update({"upgrading": ""})
+                self.app_peer_data.update({"upgrading": ""})
                 logger.info(f"ZooKeeper cluster switching to {self.cluster.quorum} quorum")
 
         if self.provider.ready:
@@ -351,42 +393,41 @@ class ZooKeeperK8sCharm(CharmBase):
         # units need to exist in the app data to be iterated through for next_turn
         for unit in self.cluster.started_units:
             unit_id = self.cluster.get_unit_id(unit)
-            current_value = self.cluster.relation.data[self.app].get(str(unit_id), None)
+            current_value = self.app_peer_data.get(str(unit_id), None)
 
             # sets to "added" for init quorum leader, if not already exists
             # may already exist if during the case of a failover of the first unit
             if unit_id == self.cluster.lowest_unit_id:
-                self.cluster.relation.data[self.app].update(
-                    {str(unit_id): current_value or "added"}
-                )
+                self.app_peer_data.update({str(unit_id): current_value or "added"})
 
     def rotate_passwords(self) -> bool:
         """Handle password rotation and check the status of the process.
 
         If a password rotation is happening, take the necessary steps to issue a
-            rolling restart from each unit.
+        rolling restart from each unit.
 
-        Returns:
+        Return:
             bool: True when password rotation is finished, false otherwise.
         """
         # Logic for password rotation
-        if self.cluster.relation.data[self.app].get("rotate-passwords"):
+        if self.app_peer_data.get("rotate-passwords"):
             # All units have rotated the password, we can remove the global flag
             if self.unit.is_leader() and self.cluster._all_rotated():
-                self.cluster.relation.data[self.app]["rotate-passwords"] = ""
+                self.app_peer_data["rotate-passwords"] = ""
                 return False
 
             # Own unit finished rotation, no need to issue a new lock
-            if self.cluster.relation.data[self.unit].get("password-rotated"):
+            if self.unit_peer_data.get("password-rotated"):
                 return False
 
+            logger.info("Acquiring lock for password rotation")
             self.on[f"{self.restart.name}"].acquire_lock.emit()
             return False
 
         else:
             # After removal of global flag, each unit can reset its state so more
             # password rotations can happen
-            self.cluster.relation.data[self.unit]["password-rotated"] = ""
+            self.unit_peer_data["password-rotated"] = ""
             return True
 
     def _get_super_password_action(self, event: ActionEvent) -> None:
@@ -424,10 +465,10 @@ class ZooKeeperK8sCharm(CharmBase):
             return
 
         # Store those passwords on application databag
-        self.cluster.relation.data[self.app].update({f"{username}-password": new_password})
+        self.app_peer_data.update({f"{username}-password": new_password})
 
         # Add password flag
-        self.cluster.relation.data[self.app]["rotate-passwords"] = "true"
+        self.app_peer_data["rotate-passwords"] = "true"
         event.set_results({f"{username}-password": new_password})
 
 

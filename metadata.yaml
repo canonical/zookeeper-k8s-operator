@@ -38,3 +38,7 @@ requires:
   certificates:
     interface: tls-certificates
     limit: 1
+    optional: true
+  logging:
+    interface: loki_push_api
+    optional: true

@@ -6,8 +6,7 @@ get-super-password:
     administrator access to the cluster. Used mainly by the Kafka Charmed Operator.
 
 get-sync-password:
-  description: Returns the Zookeeper sync user password. This user is only for internal quorum
-    handling between the servers.
+  description: Returns the Zookeeper sync user password. This user is only for internal quorum handling.
 
 set-password:
   description: Change the system user's password, which is used by the charm.

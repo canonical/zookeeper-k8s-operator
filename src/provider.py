@@ -5,7 +5,7 @@
 """ZooKeeperProvider class and methods."""
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
@@ -20,19 +20,22 @@ from ops.framework import EventBase, Object
 from ops.model import Relation
 
 from cluster import UnitNotFoundError
-from literals import PEER, REL_NAME
+from literals import REL_NAME
 from utils import generate_password
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperK8sCharm
 
 logger = logging.getLogger(__name__)
 
 
 class ZooKeeperProvider(Object):
-    """Handler for updating client relations to ZooKeeper."""
+    """Handler for client relations to ZooKeeper."""
 
     def __init__(self, charm) -> None:
         super().__init__(charm, "client")
 
-        self.charm = charm
+        self.charm: "ZooKeeperK8sCharm" = charm
 
         self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
@@ -40,11 +43,6 @@ class ZooKeeperProvider(Object):
         self.framework.observe(
             self.charm.on[REL_NAME].relation_broken, self._on_client_relation_broken
         )
-
-    @property
-    def app_relation(self) -> Relation:
-        """Gets the current ZK peer relation."""
-        return self.charm.model.get_relation(PEER)
 
     @property
     def client_relations(self) -> List[Relation]:
@@ -68,11 +66,14 @@ class ZooKeeperProvider(Object):
         if isinstance(event, RelationBrokenEvent) and event.relation.id == relation.id:
             return None
 
+        if not relation.data or not relation.app:
+            return None
+
         # generating username
         username = f"relation-{relation.id}"
 
         # Default to empty string in case passwords not set
-        password = self.app_relation.data[self.charm.app].get(username, "")
+        password = self.charm.app_peer_data.get(username, "")
         if password:
             acls_added = "true"
         else:
@@ -101,28 +102,6 @@ class ZooKeeperProvider(Object):
             "acl": acl,
             "acls-added": acls_added,
         }
-
-    def build_jaas_users(self, event: Optional[EventBase] = None) -> str:
-        """Builds the necessary user strings to add to ZK JAAS config files.
-
-        Args:
-            event (optional): used for checking `RelationBrokenEvent`
-
-        Returns:
-            Newline delimited string of JAAS users from relation data
-        """
-        jaas_users = []
-        for relation in self.relations_config(event=event).values():
-            username = relation.get("username", None)
-            password = relation.get("password", None)
-
-            # For during restarts when passwords are unset for departed relations
-            if username and not password:
-                continue
-
-            jaas_users.append(f'user_{username}="{password}"')
-
-        return "\n".join(jaas_users)
 
     def relations_config(self, event: Optional[EventBase] = None) -> Dict[str, Dict[str, str]]:
         """Gets auth configs for all currently related applications.
@@ -178,7 +157,7 @@ class ZooKeeperProvider(Object):
         """Grabs a specific auth config value from all related applications.
 
         Args:
-            key: name of the key to be used
+            key: key to be retrieved
             event (optional): used for checking `RelationBrokenEvent`
 
         Returns:
@@ -187,9 +166,7 @@ class ZooKeeperProvider(Object):
         return {config.get(key, "") for config in self.relations_config(event=event).values()}
 
     def update_acls(self, event: Optional[EventBase] = None) -> None:
-        """Compares leader auth config to incoming relation config.
-
-        Applies necessary add/update/remove actions.
+        """Compares leader auth config to incoming relation config, applies add/remove actions.
 
         Args:
             event (optional): used for checking `RelationBrokenEvent`
@@ -281,12 +258,11 @@ class ZooKeeperProvider(Object):
 
             logger.debug(f"setting relation data - {relation_data.items()}")
 
-            self.charm.model.get_relation(REL_NAME, int(relation_id)).data[self.charm.app].update(
-                relation_data
-            )
+            if relation := self.charm.model.get_relation(REL_NAME, int(relation_id)):
+                relation.data[self.charm.app].update(relation_data)
 
     def _on_client_relation_updated(self, event: RelationEvent) -> None:
-        """Updates ACLs while handling `client_relation_joined` events..
+        """Updates ACLs while handling `client_relation_joined` events.
 
         Once credentals and ACLs are added for the event username, sets them to relation data.
         Future `client_relation_changed` events called on non-leader units checks passwords before
@@ -316,7 +292,7 @@ class ZooKeeperProvider(Object):
         if relation_config and relation_config.get("acls-added"):
             logger.debug(f"updating passwords for {getattr(event.app, 'name', None)}")
             # triggers relation_changed for other units to restart
-            self.app_relation.data[self.charm.app].update(
+            self.charm.app_peer_data.update(
                 {relation_config["username"]: relation_config["password"]}
             )
 
@@ -329,17 +305,21 @@ class ZooKeeperProvider(Object):
         Args:
             event: used for passing `RelationBrokenEvent` to subequent methods
         """
+        # Don't remove anything if ZooKeeper is going down
+        if self.charm.app.planned_units == 0:
+            return
+
         if self.charm.unit.is_leader():
             username = f"relation-{event.relation.id}"
-            if username in self.charm.cluster.relation.data[self.charm.app]:
-                del self.charm.cluster.relation.data[self.charm.app][username]
+            if username in self.charm.app_peer_data:
+                del self.charm.app_peer_data[username]
 
         # call normal updated handler
         self._on_client_relation_updated(event=event)
 
     @property
     def ready(self) -> bool:
-        """Check whether the cluster is ready to accept client relations.
+        """Checks whether the cluster is ready to accept client relations.
 
         Returns:
             True if ready. Otherwise False
