@@ -206,10 +206,6 @@ class ZooKeeperTLS(Object):
 
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Handler for `certificates_available` event after provider updates signed certs."""
-        if not self.charm.container.can_connect():
-            event.defer()
-            return
-
         # avoid setting tls files and restarting
         if event.certificate_signing_request != self.csr:
             logger.error("Can't use certificate, found unknown CSR")
@@ -340,7 +336,7 @@ class ZooKeeperTLS(Object):
                     "-noprompt",
                 ],
                 working_dir=CONF_PATH,
-            )
+            ).wait_output()
         except ExecError as e:
             # in case this reruns and fails
             if "already exists" in str(e.stdout):
@@ -370,7 +366,7 @@ class ZooKeeperTLS(Object):
                     f"pass:{self.keystore_password}",
                 ],
                 working_dir=CONF_PATH,
-            )
+            ).wait_output()
         except ExecError as e:
             logger.error(str(e.stdout))
             raise e

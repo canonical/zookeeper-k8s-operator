@@ -63,7 +63,6 @@ class ZooKeeperK8sCharm(CharmBase):
         )
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
-        self.framework.observe(getattr(self.on, "start"), self._restart)
         self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
@@ -195,10 +194,6 @@ class ZooKeeperK8sCharm(CharmBase):
         # this can cause issues if ran before `init_server()`
         if not self.cluster.stable:
             logger.debug("restart - cluster not stable - deferring")
-            event.defer()
-            return
-
-        if not self.container.can_connect():
             event.defer()
             return
 
