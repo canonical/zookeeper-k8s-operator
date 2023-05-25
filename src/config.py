@@ -274,7 +274,7 @@ class ZooKeeperConfig:
         push(
             container=self.container,
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
-            path=f"{CONF_PATH}/myid",
+            path=f"{DATA_PATH}/myid",
         )
 
     @staticmethod
