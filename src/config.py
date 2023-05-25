@@ -13,6 +13,7 @@ from literals import (
     BINARIES_PATH,
     CONF_PATH,
     CONTAINER,
+    DATA_PATH,
     JMX_PORT,
     LOGS_PATH,
     METRICS_PROVIDER_PORT,
@@ -161,8 +162,7 @@ class ZooKeeperConfig:
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
-                f"dataDir={CONF_PATH}",
-                f"dataLogDir={LOGS_PATH}",
+                f"dataDir={DATA_PATH}",
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
