@@ -15,7 +15,6 @@ from literals import (
     CONTAINER,
     DATA_PATH,
     JMX_PORT,
-    LOGS_PATH,
     METRICS_PROVIDER_PORT,
     REL_NAME,
 )
