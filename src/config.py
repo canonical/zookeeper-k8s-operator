@@ -13,8 +13,10 @@ from literals import (
     BINARIES_PATH,
     CONF_PATH,
     CONTAINER,
+    DATA_DIR,
+    DATA_PATH,
+    DATALOG_DIR,
     JMX_PORT,
-    LOGS_PATH,
     METRICS_PROVIDER_PORT,
     REL_NAME,
 )
@@ -161,8 +163,8 @@ class ZooKeeperConfig:
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
-                f"dataDir={CONF_PATH}",
-                f"dataLogDir={LOGS_PATH}",
+                f"dataDir={DATA_PATH}/{DATA_DIR}",
+                f"dataLogDir={DATA_PATH}/{DATALOG_DIR}",
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
@@ -274,7 +276,7 @@ class ZooKeeperConfig:
         push(
             container=self.container,
             content=f"{int(self.charm.unit.name.split('/')[1]) + 1}",
-            path=f"{CONF_PATH}/myid",
+            path=f"{DATA_PATH}/{DATA_DIR}/myid",
         )
 
     @staticmethod

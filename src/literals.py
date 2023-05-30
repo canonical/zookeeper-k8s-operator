@@ -18,3 +18,6 @@ CONF_PATH = "/etc/zookeeper"
 DATA_PATH = "/var/lib/zookeeper"
 LOGS_PATH = "/var/log/zookeeper"
 BINARIES_PATH = "/opt/zookeeper"
+
+DATA_DIR = "data"
+DATALOG_DIR = "data-log"
