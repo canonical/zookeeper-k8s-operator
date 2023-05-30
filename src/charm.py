@@ -26,7 +26,16 @@ from ops.pebble import Layer, PathError
 
 from cluster import ZooKeeperCluster
 from config import ZooKeeperConfig
-from literals import CHARM_USERS, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT, PEER
+from literals import (
+    CHARM_USERS,
+    CONTAINER,
+    DATA_DIR,
+    DATA_PATH,
+    DATALOG_DIR,
+    JMX_PORT,
+    METRICS_PROVIDER_PORT,
+    PEER,
+)
 from provider import ZooKeeperProvider
 from tls import ZooKeeperTLS
 from utils import generate_password, pull
@@ -159,6 +168,9 @@ class ZooKeeperK8sCharm(CharmBase):
         if not self.container.can_connect():
             event.defer()
             return
+
+        self.container.make_dir(f"{DATA_PATH}/{DATA_DIR}", make_parents=True)
+        self.container.make_dir(f"{DATA_PATH}/{DATALOG_DIR}", make_parents=True)
 
         # not all methods called
         if not self.peer_relation:
