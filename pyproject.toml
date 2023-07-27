@@ -41,6 +41,8 @@ tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
 cryptography = "^39.0.0"
 jsonschema = "^4.17.3"
+pydantic ="^1.10.7"
+pyyaml = "^6.0.1"
 
 [tool.poetry.group.fmt]
 optional = true

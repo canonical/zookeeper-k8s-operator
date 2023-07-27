@@ -248,7 +248,8 @@ class ZooKeeperTLS(Object):
         new_csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
-            **self._sans,
+            sans_ip=self._sans["sans_ip"],
+            sans_dns=self._sans["sans_dns"],
         )
 
         self.certificates.request_certificate_renewal(
@@ -275,7 +276,8 @@ class ZooKeeperTLS(Object):
         csr = generate_csr(
             private_key=self.private_key.encode("utf-8"),
             subject=os.uname()[1],
-            **self._sans,
+            sans_ip=self._sans["sans_ip"],
+            sans_dns=self._sans["sans_dns"],
         )
         self.charm.unit_peer_data.update({"csr": csr.decode("utf-8").strip()})
 
