@@ -21,3 +21,6 @@ BINARIES_PATH = "/opt/zookeeper"
 
 DATA_DIR = "data"
 DATALOG_DIR = "data-log"
+
+METRICS_RULES_DIR = "./src/alert_rules/prometheus"
+LOGS_RULES_DIR = "./src/alert_rules/loki"

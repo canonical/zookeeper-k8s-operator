@@ -9039,7 +9039,7 @@
     ]
   },
   "timezone": "",
-  "title": "ZooKeeper Metrics",
+  "title": "ZooKeeper by Prometheus",
   "uid": "SDE76m7Zzz",
   "version": 342
 }
