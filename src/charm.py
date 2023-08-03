@@ -33,10 +33,10 @@ from literals import (
     DATA_PATH,
     DATALOG_DIR,
     JMX_PORT,
+    LOGS_RULES_DIR,
     METRICS_PROVIDER_PORT,
-    PEER,
     METRICS_RULES_DIR,
-    LOGS_RULES_DIR
+    PEER,
 )
 from provider import ZooKeeperProvider
 from tls import ZooKeeperTLS
