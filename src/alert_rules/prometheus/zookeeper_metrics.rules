@@ -10,7 +10,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: Prometheus target missing (instance {{ $labels.instance }})
+      summary: "Prometheus target missing (instance {{ $labels.instance }})"
       description: "ZooKeeper target has disappeared. An exporter might be crashed.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
 
   - alert: JvmMemory Filling Up
@@ -19,7 +19,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: JVM memory filling up (instance {{ $labels.instance }})
+      summary: "JVM memory filling up (instance {{ $labels.instance }})"
       description: "JVM memory is filling up (> 80%)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
 
   - alert: Zookeeper Threads Dead Locked
@@ -27,7 +27,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Zookeeper JVM threads Deadlock occurred."
+      summary: "Zookeeper JVM threads Deadlock occurred in instance {{ $labels.instance }}."
       description: |-
         JVM Thread Deadlock means a situation where two or more JVM threads are blocked forever, waiting for each other.
         Deadlock occurs when multiple threads need the same locks but obtain them in different order.
@@ -44,8 +44,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} create too many znodes"
-      description: "{{ $labels.instance }} of job {{$labels.job}} create too many znodes: [{{ $value }}]."
+      summary: "Instance {{ $labels.instance }} has too many znodes"
+      description: "{{ $labels.instance }} of job {{$labels.job}} has too many znodes: [{{ $value }}]."
 
   - alert: Too Many Connections
     expr: num_alive_connections{juju_charm!=".*"} > 100
@@ -53,8 +53,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} create too many connections"
-      description: "{{ $labels.instance }} of job {{$labels.job}} create too many connections: [{{ $value }}]."
+      summary: "Instance {{ $labels.instance }} has too many connections"
+      description: "{{ $labels.instance }} of job {{$labels.job}} has too many connections: [{{ $value }}]."
 
   - alert: Znode Total Occupied Memory Too Big
     expr: approximate_data_size{juju_charm!=".*"} /1024 /1024 > 1 * 1024 # more than 1024 MB(1 GB)
@@ -62,7 +62,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} znode total occupied memory is too big"
+      summary: "The size of znode data on instance {{ $labels.instance }} is too big"
       description: "{{ $labels.instance }} of job {{$labels.job}} znode total occupied memory is too big: [{{ $value }}] MB."
 
   - alert: Too Many Watch
@@ -71,8 +71,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} set too many watch"
-      description: "{{ $labels.instance }} of job {{$labels.job}} set too many watch: [{{ $value }}]."
+      summary: "Instance {{ $labels.instance }} has set too many watch"
+      description: "{{ $labels.instance }} of job {{$labels.job}} has set too many watch: [{{ $value }}]."
 
   - alert: Leader Election In Progress
     expr: increase(election_time_count{juju_charm!=".*"}[5m]) > 0
@@ -80,8 +80,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} a leader election happens"
-      description: "{{ $labels.instance }} of job {{$labels.job}} a leader election happens: [{{ $value }}]."
+      summary: "Instance {{ $labels.instance }} has a leader election in progress"
+      description: "{{ $labels.instance }} of job {{$labels.job}} has a leader election in progress: [{{ $value }}]."
 
   - alert: Too Long fsync Time
     expr: rate(fsynctime_sum{juju_charm!=".*"}[2m]) > 100
@@ -98,8 +98,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} take snapshot time is too long"
-      description: "{{ $labels.instance }} of job {{$labels.job}} take snapshot time is too long: [{{ $value }}]."
+      summary: "Instance {{ $labels.instance }} takes too long for creating snapshots"
+      description: "{{ $labels.instance }} of job {{$labels.job}} takes too long for creating snapshots: [{{ $value }}]."
 
   - alert: Zookeeper Too Many File Descriptors
     expr: (open_file_descriptor_count{juju_charm!=".*"} / max_file_descriptor_count{juju_charm!=".*"})  > 0.7
@@ -107,7 +107,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Number of file descriptors used over the limit."
+      summary: "Instance {{ $labels.instance }} has too many open file descriptors."
 
   - alert: Zookeeper Outstanding Requests
     expr: outstanding_requests{juju_charm!=".*"} > 10
@@ -115,7 +115,7 @@ groups:
     labels:
       severity: high
     annotations:
-      summary: "Zookeeper receives more requests than it can process."
+      summary: "Instance {{ $labels.instance }} is receiving more requests than it can process."
       description: "Zookeeper is processing more requests that it can process. Too many applications are possibly being connected to Zookeeper."
 
   - alert: Zookeeper High Latency
@@ -124,8 +124,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Average amount of time it takes for the server to respond to each client request (since the server was started)."
-      description: "Very High Latency can be connected to sloppy performance of the hardware underlying Zookeeper or due to Zookeeper handling too many requests."
+      summary: "Instance {{ $labels.instance }} is taking too long for responding to each client request (since the server was started)."
+      description: "The average amount of time Zookeeper takes for the server to respond to each client is too high. Very High Latency can be connected to sloppy performance of the hardware underlying Zookeeper or due to Zookeeper handling too many requests."
 
   - alert: Zookeeper Pending Syncs
     expr: pending_syncs{juju_charm!=".*"} > 10
@@ -133,7 +133,8 @@ groups:
     labels:
       severity: high
     annotations:
-      summary: "Possible Zookeeper master pending syncs with followers."
+      summary: "Instance {{ $labels.instance }} has too many pending syncs."
+      description: "Zookeeper master pending too many syncs with followers is signalling that followers cannot keep up with updates on the master. This can create unstable situation and sloppy performances."
 
   - alert: Zookeeper Pending Sessions
     expr: pending_session_queue_size{juju_charm!=".*"} > 10
@@ -141,7 +142,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Possible Zookeeper pending sessions."
+      summary: "Instance {{ $labels.instance }} has too many pending sessions."
+      description: "Zookeeper has too many pending sessions and cannot keep up with client requests. This may be due to a overloaded cluster and/or sloppy performances."
 
   - alert: Zookeeper Outstanding TLS Handshakes
     expr: outstanding_tls_handshake{juju_charm!=".*"} > 0
@@ -149,7 +151,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Zookeeper receives more TLS handshake than it can process."
+      summary: "Instance {{ $labels.instance }} receives more TLS handshake than it can process."
+      description: "Zookeeper has too many pending TLS handshake and cannot keep up with client requests. This may be due to a overloaded cluster and/or sloppy performances."
 
   - alert: Zookeeper Connection Rejected
     expr: increase(connection_rejected{juju_charm!=".*"}[2m]) > 0
@@ -157,18 +160,20 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Zookeeper reject connection."
+      summary: "Instance {{ $labels.instance }} has rejected {{ $value }} connection(s) to clients"
 
   - alert: Zookeeper High Ephemeral Nodes
     expr: ephemerals_count{juju_charm!=".*"} > 100
     labels:
       severity: warning
     annotations:
-      summary: "Zookeeper have too high ephemeral znodes count."
+      summary: "Instance {{ $labels.instance }} has too many more ephemeral znodes."
+      description: "Zookeeper has too many ephemeral znodes count. Uses should reduce the usage of Zookeeper by deploying other Zookeeper cluster and spread the applications load on them."
 
   - alert: Zookeeper Unrecoverable Errors
     expr: increase(unrecoverable_error_count{juju_charm!=".*"}[2m]) > 0
     labels:
       severity: high
     annotations:
-      summary: "Zookeeper have unhandled Exception"
+      summary: "Instance {{ $labels.instance }} has recorded {{ $value }} unhandled exception(s)"
+      description: "Zookeeper has raised some unhandled exception. The service may be down, please check the details of the exception from the Zookeeper logs."
