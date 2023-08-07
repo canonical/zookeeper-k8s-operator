@@ -56,7 +56,7 @@ groups:
       summary: "Instance {{ $labels.instance }} create too many connections"
       description: "{{ $labels.instance }} of job {{$labels.job}} create too many connections: [{{ $value }}]."
 
-  - alert: Znode Total Cccupied Memory Too Big
+  - alert: Znode Total Occupied Memory Too Big
     expr: approximate_data_size{juju_charm!=".*"} /1024 /1024 > 1 * 1024 # more than 1024 MB(1 GB)
     for: 1m
     labels:
