@@ -151,8 +151,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} receives more TLS handshake than it can process."
-      description: "Zookeeper has too many pending TLS handshake and cannot keep up with client requests. This may be due to a overloaded cluster and/or sloppy performances."
+      summary: "Instance {{ $labels.instance }} receiving more TLS handshake than it can process."
+      description: "Zookeeper has too many pending TLS handshakes and cannot keep up with client requests. This may be due to a overloaded cluster and/or sloppy performances."
 
   - alert: Zookeeper Connection Rejected
     expr: increase(connection_rejected{juju_charm!=".*"}[2m]) > 0
@@ -167,8 +167,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Instance {{ $labels.instance }} has too many more ephemeral znodes."
-      description: "Zookeeper has too many ephemeral znodes count. Uses should reduce the usage of Zookeeper by deploying other Zookeeper cluster and spread the applications load on them."
+      summary: "Instance {{ $labels.instance }} has too many ephemeral znodes."
+      description: "Zookeeper has too many ephemeral znodes count. The usage of Zookeeper should be reduced by deploying other Zookeeper clusters and spreading the applications load homogeneously over them."
 
   - alert: Zookeeper Unrecoverable Errors
     expr: increase(unrecoverable_error_count{juju_charm!=".*"}[2m]) > 0
