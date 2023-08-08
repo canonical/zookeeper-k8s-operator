@@ -33,7 +33,9 @@ from literals import (
     DATA_PATH,
     DATALOG_DIR,
     JMX_PORT,
+    LOGS_RULES_DIR,
     METRICS_PROVIDER_PORT,
+    METRICS_RULES_DIR,
     PEER,
 )
 from provider import ZooKeeperProvider
@@ -60,6 +62,7 @@ class ZooKeeperK8sCharm(CharmBase):
         self.metrics_endpoint = MetricsEndpointProvider(
             self,
             refresh_event=self.on.start,
+            alert_rules_path=METRICS_RULES_DIR,
             jobs=[
                 {"static_configs": [{"targets": [f"*:{JMX_PORT}", f"*:{METRICS_PROVIDER_PORT}"]}]}
             ],
@@ -67,6 +70,7 @@ class ZooKeeperK8sCharm(CharmBase):
         self.loki_push = LogProxyConsumer(
             self,
             log_files=["/var/log/zookeeper/zookeeper.log"],  # FIXME: update when rebased on merged
+            alert_rules_path=LOGS_RULES_DIR,
             relation_name="logging",
             container_name=CONTAINER,
         )

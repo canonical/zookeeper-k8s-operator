@@ -1,7 +1,0 @@
-alert: ZookeeperHighFileDescriptors
-expr: (open_file_descriptor_count / max_file_descriptor_count)  > 0.7
-for: 10m
-labels:
-  severity: warning
-annotations:
-  summary: "Number of file descriptors used over the limit."
