@@ -14,7 +14,7 @@ APP_NAME = METADATA["name"]
 ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
 SERIES = "jammy"
 TLS_OPERATOR_SERIES = "jammy"
-USERNAME=""
+USERNAME="super"
 
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 
@@ -80,7 +80,7 @@ def get_hosts_from_status(
         List of ZooKeeper server addresses and ports
     """
     ips = subprocess.check_output(
-        f"JUJU_MODEL={ops_test.model_full_name} juju status {app_name} --format json | jq '.. .\"public-address\"? // empty' | xargs | tr -d '\"'",
+        f"JUJU_MODEL={ops_test.model_full_name} juju status {app_name} --format json | jq '.applications | .\"{app_name}\" | .units | .. .address? // empty' | xargs | tr -d '\"'",
         shell=True,
         universal_newlines=True,
     ).split()
@@ -103,7 +103,7 @@ def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> 
     """
     return ",".join(
         [
-            f"{unit.public_address}:{str(port)}"
+            f"{unit.get_public_address()}:{str(port)}"
             for unit in ops_test.model.applications[app_name].units
         ]
     )
@@ -126,7 +126,7 @@ def get_unit_host(
         String of ZooKeeper server address and port
     """
     return [
-        f"{unit.public_address}:{str(port)}"
+        f"{unit.get_public_address()}:{str(port)}"
         for unit in ops_test.model.applications[app_name].units
         if unit.name == unit_name
     ][0]
@@ -147,7 +147,7 @@ def get_unit_name_from_host(ops_test: OpsTest, host: str, app_name: str = APP_NA
     return [
         unit.name
         for unit in ops_test.model.applications[app_name].units
-        if unit.public_address == host.split(":")[0]
+        if unit.get_public_address() == host.split(":")[0]
     ][0]
 
 
