@@ -14,7 +14,7 @@ APP_NAME = METADATA["name"]
 ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
 SERIES = "jammy"
 TLS_OPERATOR_SERIES = "jammy"
-USERNAME="super"
+USERNAME = "super"
 
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 
@@ -62,30 +62,29 @@ def srvr(host: str) -> dict:
     return result
 
 
-def get_hosts_from_status(
-    ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181
-) -> list[str]:
-    """Manually calls `juju status` and grabs the host addresses from there for a given application.
-
-    Needed as after an ip change (e.g network cut test), OpsTest does not recognise the new address.
+def get_unit_address_map(ops_test: OpsTest, app_name: str = APP_NAME) -> dict[str, str]:
+    """Returns map on unit name and host.
 
     Args:
         ops_test: OpsTest
         app_name: the Juju application to get hosts from
             Defaults to `zookeeper`
-        port: the desired ZooKeeper port.
-            Defaults to `2181`
 
     Returns:
-        List of ZooKeeper server addresses and ports
+        Dict of key unit name, value unit address
     """
     ips = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju status {app_name} --format json | jq '.applications | .\"{app_name}\" | .units | .. .address? // empty' | xargs | tr -d '\"'",
         shell=True,
         universal_newlines=True,
     ).split()
+    hosts = subprocess.check_output(
+        f'JUJU_MODEL={ops_test.model_full_name} juju status {app_name} --format json | jq \'.applications | ."{app_name}" | .units | keys | join(" ")\' | tr -d \'"\'',
+        shell=True,
+        universal_newlines=True,
+    ).split()
 
-    return [f"{ip}:{port}" for ip in ips]
+    return {hosts[i]: ips[i] for i in range(len(ips))}
 
 
 def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> str:
@@ -99,14 +98,9 @@ def get_hosts(ops_test: OpsTest, app_name: str = APP_NAME, port: int = 2181) -> 
             Defaults to `2181`
 
     Returns:
-        Comma-delimited string of ZooKeeper server addresses and ports
+        List of ZooKeeper server addresses and ports
     """
-    return ",".join(
-        [
-            f"{unit.get_public_address()}:{str(port)}"
-            for unit in ops_test.model.applications[app_name].units
-        ]
-    )
+    return ",".join(f"{host}:{port}" for host in get_unit_address_map(ops_test, app_name).values())
 
 
 def get_unit_host(
@@ -125,11 +119,7 @@ def get_unit_host(
     Returns:
         String of ZooKeeper server address and port
     """
-    return [
-        f"{unit.get_public_address()}:{str(port)}"
-        for unit in ops_test.model.applications[app_name].units
-        if unit.name == unit_name
-    ][0]
+    return f"{get_unit_address_map(ops_test, app_name)[unit_name]}:{port}"
 
 
 def get_unit_name_from_host(ops_test: OpsTest, host: str, app_name: str = APP_NAME) -> str:
@@ -144,11 +134,11 @@ def get_unit_name_from_host(ops_test: OpsTest, host: str, app_name: str = APP_NA
     Returns:
         String of unit name
     """
-    return [
-        unit.name
-        for unit in ops_test.model.applications[app_name].units
-        if unit.get_public_address() == host.split(":")[0]
-    ][0]
+    for unit, address in get_unit_address_map(ops_test, app_name).items():
+        if address == host.split(":")[0]:
+            return unit
+
+    raise KeyError(f"{host} not found")
 
 
 def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> str:
@@ -175,88 +165,6 @@ def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> 
     return ""
 
 
-async def get_unit_machine_name(ops_test: OpsTest, unit_name: str) -> str:
-    """Gets current LXD machine name for a given unit name.
-
-    Args:
-        ops_test: OpsTest
-        unit_name: the Juju unit name to get from
-
-    Returns:
-        String of LXD machine name
-            e.g juju-123456-0
-    """
-    _, raw_hostname, _ = await ops_test.juju("ssh", unit_name, "hostname")
-    return raw_hostname.strip()
-
-
-def cut_unit_network(machine_name: str) -> None:
-    """Cuts network access for a given LXD container.
-
-    Args:
-        machine_name: the LXD machine name to cut network for
-            e.g `juju-123456-0`
-    """
-    cut_network_command = f"lxc config device add {machine_name} eth0 none"
-    subprocess.check_call(cut_network_command.split())
-
-
-def restore_unit_network(machine_name: str) -> None:
-    """Restores network access for a given LXD container.
-
-    Args:
-        machine_name: the LXD machine name to restore network for
-            e.g `juju-123456-0`
-    """
-    restore_network_command = f"lxc config device remove {machine_name} eth0"
-    subprocess.check_call(restore_network_command.split())
-
-
-def get_storage_id(ops_test, unit_name: str) -> str:
-    """Gets the current Juju storage ID for a given unit name.
-
-    Args:
-        ops_test: OpsTest
-        unit_name: the Juju unit name to get storage ID of
-
-    Returns:
-        String of Juju storage ID
-    """
-    proc = subprocess.check_output(
-        f"JUJU_MODEL={ops_test.model_full_name} juju storage --format yaml",
-        stderr=subprocess.PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    response = yaml.safe_load(proc)
-    storages = response["storage"]
-
-    for storage_id, storage in storages.items():
-        if unit_name in storage["attachments"]["units"]:
-            return storage_id
-
-    raise Exception(f"storage id not found for {unit_name}")
-
-
-async def reuse_storage(ops_test, unit_storage_id: str, app_name: str = APP_NAME) -> None:
-    """Removes and adds back a unit, reusing it's storage.
-
-    Args:
-        ops_test: OpsTest
-        unit_storage_id: the Juju storage id to be re-used
-        app_name: the Juju application ZooKeeper belongs to
-            Defaults to `zookeeper`
-    """
-    logger.info("Adding new unit with old unit's storage...")
-    subprocess.check_output(
-        f"JUJU_MODEL={ops_test.model_full_name} juju add-unit {app_name} --attach-storage={unit_storage_id}",
-        stderr=subprocess.PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    await wait_idle(ops_test, apps=[app_name])
-
-
 def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
     """Gets current `super-password` for a given ZooKeeper application.
 
@@ -268,6 +176,7 @@ def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
     Returns:
         String of password for the `super` user
     """
+    password = ""
     for unit in ops_test.model.applications[app_name].units:
         show_unit = subprocess.check_output(
             f"JUJU_MODEL={ops_test.model_full_name} juju show-unit {unit.name}",
@@ -278,18 +187,25 @@ def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
         response = yaml.safe_load(show_unit)
         relations_info = response[f"{unit.name}"]["relation-info"]
 
-        password = None
         for info in relations_info:
             if info["endpoint"] == "cluster":
                 password = info["application-data"]["super-password"]
-                return password
+                break
 
-        if not password:
-            raise Exception("no relations found")
+        break
+
+    if not password:
+        raise Exception("no relations found")
+
+    return password
 
 
 async def send_control_signal(
-    ops_test: OpsTest, unit_name: str, signal: str, app_name: str = APP_NAME, container_name: str = "zookeeper",
+    ops_test: OpsTest,
+    unit_name: str,
+    signal: str,
+    app_name: str = APP_NAME,
+    container_name: str = "zookeeper",
 ) -> None:
     """Issues given job control signals to a ZooKeeper process on a given Juju unit.
 
@@ -299,14 +215,15 @@ async def send_control_signal(
         signal: the signal to issue
             e.g `SIGKILL`, `SIGSTOP`, `SIGCONT` etc
         app_name: the ZooKeeper Juju application
+        container_name: the container to run command on
+            Defaults to 'zookeeper'
     """
     if len(ops_test.model.applications[app_name].units) < 3:
         await ops_test.model.applications[app_name].add_unit(count=1)
         await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
 
-    cmd = f"ssh --container {container_name} {unit_name} pkill --signal {signal} -f {PROCESS}"
+    cmd = f"ssh --container {container_name} {unit_name} pkill -{signal} -f {PROCESS}"
     return_code, _, _ = await ops_test.juju(*cmd.split())
 
     if return_code != 0:
         raise Exception(f"Expected kill command {cmd} to succeed instead it failed: {return_code}")
-
