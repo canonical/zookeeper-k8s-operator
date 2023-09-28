@@ -45,8 +45,16 @@ async def test_kill_db_process(ops_test: OpsTest, request):
         parent=parent, hosts=hosts, username=helpers.USERNAME, password=password
     )
 
+    logger.info("Getting leader pid...")
+    current_pid = await helpers.get_pid(ops_test, leader_name)
+
     logger.info("Killing leader process...")
     await helpers.send_control_signal(ops_test=ops_test, unit_name=leader_name, signal="SIGKILL")
+    await asyncio.sleep(CLIENT_TIMEOUT)  # waiting for process to restore
+
+    logger.info("Checking leader pid changed...")
+    new_pid = await helpers.get_pid(ops_test, leader_name)
+    assert new_pid != current_pid  # validates process actually stopped
 
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(
@@ -109,6 +117,8 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
     logger.info("Stopping leader process...")
     await helpers.send_control_signal(ops_test=ops_test, unit_name=leader_name, signal="SIGSTOP")
     await asyncio.sleep(CLIENT_TIMEOUT * 3)  # to give time for re-election
+
+    assert await helpers.process_stopped(ops_test, leader_name)
 
     logger.info("Checking writes are increasing...")
     writes = cw.count_znodes(

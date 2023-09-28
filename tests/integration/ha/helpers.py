@@ -222,8 +222,63 @@ async def send_control_signal(
         await ops_test.model.applications[app_name].add_unit(count=1)
         await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
 
-    cmd = f"ssh --container {container_name} {unit_name} pkill -{signal} -f {PROCESS}"
-    return_code, _, _ = await ops_test.juju(*cmd.split())
+    subprocess.check_output(
+        f"microk8s.kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model_full_name.split(':')[1]} -- pkill --signal {signal} -f {PROCESS}",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
 
-    if return_code != 0:
-        raise Exception(f"Expected kill command {cmd} to succeed instead it failed: {return_code}")
+
+async def get_pid(
+    ops_test: OpsTest,
+    unit_name: str,
+    process: str = PROCESS,
+    container_name: str = "zookeeper",
+) -> str:
+    """Gets current PID for active process.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit running the ZooKeeper process
+        process: process name to search for
+            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
+        app_name: the ZooKeeper Juju application
+        container_name: the container to run command on
+            Defaults to 'zookeeper'
+    """
+    pid = subprocess.check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container {container_name} {unit_name} 'pgrep -f {process} | head -n 1'",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    return pid
+
+
+async def process_stopped(
+    ops_test: OpsTest,
+    unit_name: str,
+    process: str = PROCESS,
+    container_name: str = "zookeeper",
+) -> bool:
+    """Checks if process is stopped.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit running the ZooKeeper process
+        process: process name to search for
+            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
+        app_name: the ZooKeeper Juju application
+        container_name: the container to run command on
+            Defaults to 'zookeeper'
+    """
+    proc = subprocess.check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container {container_name} {unit_name} 'ps -aux | grep {process}'",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    return "Tl" in proc.split()[7]
