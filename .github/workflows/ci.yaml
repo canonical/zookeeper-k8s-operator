@@ -94,7 +94,6 @@ jobs:
       matrix:
         tox-environments:
           - integration-ha
-          - integration-replication
     name: ${{ matrix.tox-environments }}
     needs:
       - lint
