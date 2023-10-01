@@ -383,7 +383,7 @@ def isolate_instance_from_cluster(ops_test: OpsTest, unit_name: str) -> None:
     """
     with tempfile.NamedTemporaryFile() as temp_file:
         with open(
-            "tests/integration/ha/manifests/chaos_network_loss.yml", "r"
+            "tests/integration/ha/manifests/chaos_network_loss.yaml", "r"
         ) as chaos_network_loss_file:
             template = string.Template(chaos_network_loss_file.read())
             chaos_network_loss = template.substitute(
