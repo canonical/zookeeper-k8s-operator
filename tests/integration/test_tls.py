@@ -34,7 +34,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
         ops_test.model.deploy(
             "tls-certificates-operator",
             application_name="tls-certificates-operator",
-            channel="edge",
+            channel="stable",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
             series=TLS_OPERATOR_SERIES,
@@ -84,7 +84,7 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
         ops_test.model.deploy(
             "tls-certificates-operator",
             application_name="tls-certificates-operator",
-            channel="edge",
+            channel="stable",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
         ),
