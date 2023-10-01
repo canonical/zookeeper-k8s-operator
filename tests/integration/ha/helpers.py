@@ -4,12 +4,15 @@ import re
 import string
 import subprocess
 import tempfile
+from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
+import kubernetes as kubernetes
 import yaml
 from kazoo.client import KazooClient
 from pytest_operator.plugin import OpsTest
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import retry, retry_if_not_result, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -409,3 +412,100 @@ def remove_instance_isolation(ops_test: OpsTest) -> None:
         shell=True,
         env=env,
     )
+
+
+def modify_pebble_restart_delay(
+    ops_test: OpsTest,
+    policy: Literal["extend", "restore"],
+    app_name: str = APP_NAME,
+    container_name: str = CONTAINER,
+    service_name: str = SERVICE,
+) -> None:
+    f"""Modify the pebble restart delay of the underlying process.
+
+    Args:
+        ops_test: OpsTest
+        policy: the pebble restart delay policy to apply
+            Either 'extend' or 'restore'
+        app_name: the ZooKeeper Juju application
+        container_name: the container to run command on
+            Defaults to '{container_name}'
+        service_name: the service running in the container
+            Defaults to '{service_name}'
+    """
+    now = datetime.now().isoformat()
+    pebble_patch_path = f"/tmp/pebble_plan_{now}.yaml"
+
+    for unit in ops_test.model.applications[app_name].units:
+        logger.info(
+            f"Copying extend_pebble_restart_delay manifest to {unit.name} {container_name} container..."
+        )
+        subprocess.check_output(
+            f"kubectl cp tests/integration/ha/manifests/{policy}_pebble_restart_delay.yaml {unit.name.replace('/', '-')}:{pebble_patch_path} -c {container_name} -n {ops_test.model.info.name}",
+            stderr=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+
+        logger.info(f"Adding {policy} policy to {container_name} pebble plan...")
+        subprocess.check_output(
+            f"kubectl exec {unit.name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- /charm/bin/pebble add --combine {service_name} {pebble_patch_path}",
+            stderr=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+
+        logger.info(f"Replanning {service_name} service...")
+        subprocess.check_output(
+            f"kubectl exec {unit.name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- /charm/bin/pebble replan",
+            stderr=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+
+
+@retry(
+    wait=wait_fixed(5),
+    stop=stop_after_attempt(10),
+    retry_error_callback=(lambda state: state.outcome.result()),  # type: ignore
+    retry=retry_if_not_result(lambda result: True if result else False),
+)
+def all_db_processes_down(
+    ops_test: OpsTest,
+    app_name: str = APP_NAME,
+    container_name: str = CONTAINER,
+    process: str = PROCESS,
+) -> bool:
+    f"""Verifies that all units of the charm do not have the DB process running.
+
+    Args:
+        ops_test: OpsTest
+        process: process name to search for
+            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
+        app_name: the ZooKeeper Juju application
+        container_name: the container to run command on
+            Defaults to '{container_name}'
+        process: process name to search for
+            Defaults to '{process}'
+
+    Returns:
+        True if all processes are down. Otherwise False
+    """
+    for unit in ops_test.model.applications[app_name].units:
+        try:
+            result = subprocess.check_output(
+                f"kubectl exec {unit.name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- pgrep -f {process}",
+                stderr=subprocess.PIPE,
+                shell=True,
+                universal_newlines=True,
+            )
+
+            if result:
+                logger.info(f"{unit.name} service is still up...")
+                return False
+
+        except subprocess.CalledProcessError:
+            logger.info(f"{unit.name} service is down successfully...")
+            continue
+
+    return True
