@@ -223,7 +223,7 @@ async def send_control_signal(
         await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
 
     subprocess.check_output(
-        f"microk8s.kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model_full_name.split(':')[1]} -- pkill --signal {signal} -f {PROCESS}",
+        f"kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model_full_name.split(':')[1]} -- pkill --signal {signal} -f {PROCESS}",
         stderr=subprocess.PIPE,
         shell=True,
         universal_newlines=True,
