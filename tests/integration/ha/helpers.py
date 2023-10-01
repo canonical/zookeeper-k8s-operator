@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 import yaml
+from kazoo.client import KazooClient
 from pytest_operator.plugin import OpsTest
 from tenacity import retry, stop_after_attempt, wait_fixed
 
@@ -282,3 +283,52 @@ async def process_stopped(
     )
 
     return "Tl" in proc.split()[7]
+
+
+def write_key(host: str, password: str, username: str = USERNAME) -> None:
+    """Write value 'hobbits' to '/legolas' zNode.
+
+    Args:
+        host: host to connect to
+        username: user for ZooKeeper
+            Defaults to 'super'
+        password: password of the user
+    """
+    kc = KazooClient(
+        hosts=host,
+        sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
+    )
+    kc.start()
+    kc.create_async("/legolas", b"hobbits")
+    kc.stop()
+    kc.close()
+
+
+def check_key(host: str, password: str, username: str = USERNAME) -> None:
+    """Asserts value 'hobbits' read successfully at '/legolas' zNode.
+
+    Args:
+        host: host to connect to
+        username: user for ZooKeeper
+            Defaults to 'super'
+        password: password of the user
+
+    Raises:
+        KeyError if expected value not found
+    """
+    kc = KazooClient(
+        hosts=host,
+        sasl_options={"mechanism": "DIGEST-MD5", "username": username, "password": password},
+    )
+    kc.start()
+    assert kc.exists_async("/legolas")
+    value, _ = kc.get_async("/legolas") or None, None
+
+    stored_value = ""
+    if value:
+        stored_value = value.get()
+    if stored_value:
+        assert stored_value[0] == b"hobbits"
+        return
+
+    raise KeyError
