@@ -19,7 +19,8 @@ ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
 SERIES = "jammy"
 TLS_OPERATOR_SERIES = "jammy"
 USERNAME = "super"
-
+CONTAINER = "zookeeper"
+SERVICE = CONTAINER
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 
 
@@ -208,24 +209,18 @@ async def send_control_signal(
     ops_test: OpsTest,
     unit_name: str,
     signal: str,
-    app_name: str = APP_NAME,
-    container_name: str = "zookeeper",
+    container_name: str = CONTAINER,
 ) -> None:
-    """Issues given job control signals to a ZooKeeper process on a given Juju unit.
+    f"""Issues given job control signals to a ZooKeeper process on a given Juju unit.
 
     Args:
         ops_test: OpsTest
         unit_name: the Juju unit running the ZooKeeper process
         signal: the signal to issue
             e.g `SIGKILL`, `SIGSTOP`, `SIGCONT` etc
-        app_name: the ZooKeeper Juju application
         container_name: the container to run command on
-            Defaults to 'zookeeper'
+            Defaults to '{container_name}'
     """
-    if len(ops_test.model.applications[app_name].units) < 3:
-        await ops_test.model.applications[app_name].add_unit(count=1)
-        await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
-
     subprocess.check_output(
         f"kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model_full_name.split(':')[1]} -- pkill --signal {signal} -f {PROCESS}",
         stderr=subprocess.PIPE,
@@ -238,18 +233,17 @@ async def get_pid(
     ops_test: OpsTest,
     unit_name: str,
     process: str = PROCESS,
-    container_name: str = "zookeeper",
+    container_name: str = CONTAINER,
 ) -> str:
-    """Gets current PID for active process.
+    f"""Gets current PID for active process.
 
     Args:
         ops_test: OpsTest
         unit_name: the Juju unit running the ZooKeeper process
         process: process name to search for
-            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
-        app_name: the ZooKeeper Juju application
+            Defaults to '{process}'
         container_name: the container to run command on
-            Defaults to 'zookeeper'
+            Defaults to '{container_name}'
     """
     pid = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container {container_name} {unit_name} 'pgrep -f {process} | head -n 1'",
@@ -265,18 +259,17 @@ async def process_stopped(
     ops_test: OpsTest,
     unit_name: str,
     process: str = PROCESS,
-    container_name: str = "zookeeper",
+    container_name: str = CONTAINER,
 ) -> bool:
-    """Checks if process is stopped.
+    f"""Checks if process is stopped.
 
     Args:
         ops_test: OpsTest
         unit_name: the Juju unit running the ZooKeeper process
         process: process name to search for
-            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
-        app_name: the ZooKeeper Juju application
+            Defaults to '{process}'
         container_name: the container to run command on
-            Defaults to 'zookeeper'
+            Defaults to '{container_name}'
     """
     proc = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container {container_name} {unit_name} 'ps -aux | grep {process}'",
