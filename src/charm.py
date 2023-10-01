@@ -131,6 +131,7 @@ class ZooKeeperK8sCharm(CharmBase):
     @property
     def _zookeeper_layer(self) -> Layer:
         """Returns a Pebble configuration layer for ZooKeeper."""
+        unit_host = self.cluster.unit_config(unit=self.unit)["host"]
         layer_config: "LayerDict" = {
             "summary": "zookeeper layer",
             "description": "Pebble config layer for zookeeper",
@@ -146,6 +147,13 @@ class ZooKeeperK8sCharm(CharmBase):
                             + self.zookeeper_config.jmx_jvmflags
                         )
                     },
+                },
+            },
+            "checks": {
+                CONTAINER: {
+                    "override": "replace",
+                    "level": "alive",
+                    "exec": {"command": f"echo ruok | nc {unit_host} {self.cluster.client_port}"},
                 }
             },
         }
