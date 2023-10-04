@@ -489,5 +489,3 @@ async def test_network_cut_without_ip_change(ops_test: OpsTest, request, chaos_m
     )
     assert last_write == last_write_leader
     assert total_writes == total_writes_leader
-
-
