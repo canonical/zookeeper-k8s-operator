@@ -225,7 +225,7 @@ async def send_control_signal(
             Defaults to '{container_name}'
     """
     subprocess.check_output(
-        f"kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model_full_name.split(':')[1]} -- pkill --signal {signal} -f {PROCESS}",
+        f"kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- pkill --signal {signal} -f {PROCESS}",
         stderr=subprocess.PIPE,
         shell=True,
         universal_newlines=True,
