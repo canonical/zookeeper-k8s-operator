@@ -6,10 +6,13 @@ import asyncio
 import logging
 
 import pytest
+import requests
 from pytest_operator.plugin import OpsTest
 
+from literals import JMX_PORT, METRICS_PROVIDER_PORT
+
 from . import SERIES, ZOOKEEPER_IMAGE
-from .helpers import check_jaas_config, ping_servers
+from .helpers import check_jaas_config, get_address, ping_servers
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +57,18 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
         assert len(jaas_config) == 3
 
 
+async def test_metrics_endpoints(ops_test: OpsTest):
+    unit_address = await get_address(ops_test=ops_test)
+    jmx_exporter_url = f"http://{unit_address}:{JMX_PORT}/metrics"
+    zk_exporter_url = f"http://{unit_address}:{METRICS_PROVIDER_PORT}/metrics"
+
+    jmx_resp = requests.get(jmx_exporter_url)
+    zk_resp = requests.get(zk_exporter_url)
+
+    assert jmx_resp.ok
+    assert zk_resp.ok
+
+
 @pytest.mark.abort_on_fail
 async def test_deploy_multiple_charms_relate_active(ops_test: OpsTest):
     app_charm = await ops_test.build_charm("tests/integration/app-charm")
@@ -63,7 +78,7 @@ async def test_deploy_multiple_charms_relate_active(ops_test: OpsTest):
         application_name=DUMMY_NAME_2,
         num_units=1,
         series=SERIES,
-    ),
+    )
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_2])
     await ops_test.model.add_relation(APP_NAME, DUMMY_NAME_2)
     await ops_test.model.wait_for_idle(apps=[APP_NAME, DUMMY_NAME_2])
