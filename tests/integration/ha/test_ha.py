@@ -23,6 +23,7 @@ async def test_deploy_active(ops_test: OpsTest):
     )
     await helpers.wait_idle(ops_test)
 
+
 @pytest.mark.abort_on_fail
 async def test_pod_reschedule(ops_test: OpsTest, request):
     """Forcefully reschedules ZooKeeper pod."""

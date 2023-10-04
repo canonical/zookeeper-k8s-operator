@@ -510,6 +510,7 @@ def all_db_processes_down(
 
     return True
 
+
 async def delete_pod(ops_test, unit_name: str) -> None:
     """Deletes K8s pod associated with a provided unit name.
 
