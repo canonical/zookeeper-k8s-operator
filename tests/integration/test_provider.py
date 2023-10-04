@@ -11,12 +11,11 @@ from pytest_operator.plugin import OpsTest
 
 from literals import JMX_PORT, METRICS_PROVIDER_PORT
 
-from . import SERIES, ZOOKEEPER_IMAGE
+from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
 from .helpers import check_jaas_config, get_address, ping_servers
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "zookeeper"
 DUMMY_NAME_1 = "app"
 DUMMY_NAME_2 = "appii"
 
@@ -57,6 +56,7 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest):
         assert len(jaas_config) == 3
 
 
+@pytest.mark.abort_on_fail
 async def test_metrics_endpoints(ops_test: OpsTest):
     unit_address = await get_address(ops_test=ops_test)
     jmx_exporter_url = f"http://{unit_address}:{JMX_PORT}/metrics"
