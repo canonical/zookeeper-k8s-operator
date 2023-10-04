@@ -18,6 +18,7 @@ from ops.charm import (
     InstallEvent,
     LeaderElectedEvent,
     RelationDepartedEvent,
+    UpgradeCharmEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
@@ -77,6 +78,7 @@ class ZooKeeperK8sCharm(CharmBase):
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
+        self.framework.observe(getattr(self.on, "upgrade_charm"), self._on_upgrade_charm)
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
         )
@@ -174,6 +176,11 @@ class ZooKeeperK8sCharm(CharmBase):
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
             self.app_peer_data.update({"quorum": "default - non-ssl"})
+
+    def _on_upgrade_charm(self, _: UpgradeCharmEvent) -> None:
+        """Handler for the `upgrade-charm` event."""
+        # FIXME: Will need updating when adding in-place upgrade support
+        self.init_server()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
