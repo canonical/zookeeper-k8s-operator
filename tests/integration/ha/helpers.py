@@ -4,12 +4,15 @@ import re
 import string
 import subprocess
 import tempfile
+from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
+import kubernetes as kubernetes
 import yaml
 from kazoo.client import KazooClient
 from pytest_operator.plugin import OpsTest
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import retry, retry_if_not_result, stop_after_attempt, wait_fixed
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +22,8 @@ ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
 SERIES = "jammy"
 TLS_OPERATOR_SERIES = "jammy"
 USERNAME = "super"
-
+CONTAINER = "zookeeper"
+SERVICE = CONTAINER
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
 
 
@@ -208,24 +212,18 @@ async def send_control_signal(
     ops_test: OpsTest,
     unit_name: str,
     signal: str,
-    app_name: str = APP_NAME,
-    container_name: str = "zookeeper",
+    container_name: str = CONTAINER,
 ) -> None:
-    """Issues given job control signals to a ZooKeeper process on a given Juju unit.
+    f"""Issues given job control signals to a ZooKeeper process on a given Juju unit.
 
     Args:
         ops_test: OpsTest
         unit_name: the Juju unit running the ZooKeeper process
         signal: the signal to issue
             e.g `SIGKILL`, `SIGSTOP`, `SIGCONT` etc
-        app_name: the ZooKeeper Juju application
         container_name: the container to run command on
-            Defaults to 'zookeeper'
+            Defaults to '{container_name}'
     """
-    if len(ops_test.model.applications[app_name].units) < 3:
-        await ops_test.model.applications[app_name].add_unit(count=1)
-        await ops_test.model.wait_for_idle(apps=[app_name], status="active", timeout=1000)
-
     subprocess.check_output(
         f"kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model_full_name.split(':')[1]} -- pkill --signal {signal} -f {PROCESS}",
         stderr=subprocess.PIPE,
@@ -238,18 +236,17 @@ async def get_pid(
     ops_test: OpsTest,
     unit_name: str,
     process: str = PROCESS,
-    container_name: str = "zookeeper",
+    container_name: str = CONTAINER,
 ) -> str:
-    """Gets current PID for active process.
+    f"""Gets current PID for active process.
 
     Args:
         ops_test: OpsTest
         unit_name: the Juju unit running the ZooKeeper process
         process: process name to search for
-            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
-        app_name: the ZooKeeper Juju application
+            Defaults to '{process}'
         container_name: the container to run command on
-            Defaults to 'zookeeper'
+            Defaults to '{container_name}'
     """
     pid = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container {container_name} {unit_name} 'pgrep -f {process} | head -n 1'",
@@ -265,18 +262,17 @@ async def process_stopped(
     ops_test: OpsTest,
     unit_name: str,
     process: str = PROCESS,
-    container_name: str = "zookeeper",
+    container_name: str = CONTAINER,
 ) -> bool:
-    """Checks if process is stopped.
+    f"""Checks if process is stopped.
 
     Args:
         ops_test: OpsTest
         unit_name: the Juju unit running the ZooKeeper process
         process: process name to search for
-            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
-        app_name: the ZooKeeper Juju application
+            Defaults to '{process}'
         container_name: the container to run command on
-            Defaults to 'zookeeper'
+            Defaults to '{container_name}'
     """
     proc = subprocess.check_output(
         f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container {container_name} {unit_name} 'ps -aux | grep {process}'",
@@ -416,3 +412,100 @@ def remove_instance_isolation(ops_test: OpsTest) -> None:
         shell=True,
         env=env,
     )
+
+
+def modify_pebble_restart_delay(
+    ops_test: OpsTest,
+    policy: Literal["extend", "restore"],
+    app_name: str = APP_NAME,
+    container_name: str = CONTAINER,
+    service_name: str = SERVICE,
+) -> None:
+    f"""Modify the pebble restart delay of the underlying process.
+
+    Args:
+        ops_test: OpsTest
+        policy: the pebble restart delay policy to apply
+            Either 'extend' or 'restore'
+        app_name: the ZooKeeper Juju application
+        container_name: the container to run command on
+            Defaults to '{container_name}'
+        service_name: the service running in the container
+            Defaults to '{service_name}'
+    """
+    now = datetime.now().isoformat()
+    pebble_patch_path = f"/tmp/pebble_plan_{now}.yaml"
+
+    for unit in ops_test.model.applications[app_name].units:
+        logger.info(
+            f"Copying extend_pebble_restart_delay manifest to {unit.name} {container_name} container..."
+        )
+        subprocess.check_output(
+            f"kubectl cp tests/integration/ha/manifests/{policy}_pebble_restart_delay.yaml {unit.name.replace('/', '-')}:{pebble_patch_path} -c {container_name} -n {ops_test.model.info.name}",
+            stderr=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+
+        logger.info(f"Adding {policy} policy to {container_name} pebble plan...")
+        subprocess.check_output(
+            f"kubectl exec {unit.name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- /charm/bin/pebble add --combine {service_name} {pebble_patch_path}",
+            stderr=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+
+        logger.info(f"Replanning {service_name} service...")
+        subprocess.check_output(
+            f"kubectl exec {unit.name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- /charm/bin/pebble replan",
+            stderr=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+
+
+@retry(
+    wait=wait_fixed(5),
+    stop=stop_after_attempt(10),
+    retry_error_callback=(lambda state: state.outcome.result()),  # type: ignore
+    retry=retry_if_not_result(lambda result: True if result else False),
+)
+def all_db_processes_down(
+    ops_test: OpsTest,
+    app_name: str = APP_NAME,
+    container_name: str = CONTAINER,
+    process: str = PROCESS,
+) -> bool:
+    f"""Verifies that all units of the charm do not have the DB process running.
+
+    Args:
+        ops_test: OpsTest
+        process: process name to search for
+            Defaults to 'org.apache.zookeeper.server.quorum.QuorumPeerMain'
+        app_name: the ZooKeeper Juju application
+        container_name: the container to run command on
+            Defaults to '{container_name}'
+        process: process name to search for
+            Defaults to '{process}'
+
+    Returns:
+        True if all processes are down. Otherwise False
+    """
+    for unit in ops_test.model.applications[app_name].units:
+        try:
+            result = subprocess.check_output(
+                f"kubectl exec {unit.name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- pgrep -f {process}",
+                stderr=subprocess.PIPE,
+                shell=True,
+                universal_newlines=True,
+            )
+
+            if result:
+                logger.info(f"{unit.name} service is still up...")
+                return False
+
+        except subprocess.CalledProcessError:
+            logger.info(f"{unit.name} service is down successfully...")
+            continue
+
+    return True
