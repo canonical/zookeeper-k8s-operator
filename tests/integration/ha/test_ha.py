@@ -30,6 +30,7 @@ async def test_pod_reschedule(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
+    logger.info(f"{leader_name=},{leader_host=}")
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
@@ -96,6 +97,7 @@ async def test_kill_db_process(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
+    logger.info(f"{leader_name=},{leader_host=}")
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
@@ -165,6 +167,7 @@ async def test_restart_db_process(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
+    logger.info(f"{leader_name=},{leader_host=}")
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
@@ -226,6 +229,7 @@ async def test_freeze_db_process(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
+    logger.info(f"{leader_name=},{leader_host=}")
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
@@ -362,6 +366,7 @@ async def test_full_cluster_crash(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
+    logger.info(f"{leader_name=},{leader_host=}")
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
@@ -429,6 +434,7 @@ async def test_full_cluster_restart(ops_test: OpsTest, request):
     hosts = helpers.get_hosts(ops_test)
     leader_name = helpers.get_leader_name(ops_test, hosts)
     leader_host = helpers.get_unit_host(ops_test, leader_name)
+    logger.info(f"{leader_name=},{leader_host=}")
     password = helpers.get_super_password(ops_test)
     parent = request.node.name
     non_leader_hosts = ",".join([host for host in hosts.split(",") if host != leader_host])
