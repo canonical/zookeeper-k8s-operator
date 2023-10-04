@@ -18,7 +18,6 @@ from ops.charm import (
     InstallEvent,
     LeaderElectedEvent,
     RelationDepartedEvent,
-    UpgradeCharmEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
@@ -78,7 +77,11 @@ class ZooKeeperK8sCharm(CharmBase):
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
-        self.framework.observe(getattr(self.on, "upgrade_charm"), self._on_upgrade_charm)
+        self.framework.observe(getattr(self.on, "upgrade_charm"), self._on_zookeeper_pebble_ready)
+        self.framework.observe(getattr(self.on, "start"), self._on_zookeeper_pebble_ready)
+        self.framework.observe(
+            getattr(self.on, "zookeeper_pebble_ready"), self._on_zookeeper_pebble_ready
+        )
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
         )
@@ -177,8 +180,8 @@ class ZooKeeperK8sCharm(CharmBase):
         if self.unit.is_leader():
             self.app_peer_data.update({"quorum": "default - non-ssl"})
 
-    def _on_upgrade_charm(self, _: UpgradeCharmEvent) -> None:
-        """Handler for the `upgrade-charm` event."""
+    def _on_zookeeper_pebble_ready(self, _: EventBase) -> None:
+        """Handler for the `upgrade-charm`, `zookeeper-pebble-ready` and `start` events."""
         # FIXME: Will need updating when adding in-place upgrade support
         self.init_server()
 
