@@ -450,6 +450,9 @@ async def test_full_cluster_restart(ops_test: OpsTest, request):
         parent=parent, hosts=hosts, username=helpers.USERNAME, password=password
     )
 
+    logger.info("SLEEPING")
+    await asyncio.sleep(100000)
+
     # kill all units "simultaneously"
     await asyncio.gather(
         *[
