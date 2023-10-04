@@ -509,3 +509,19 @@ def all_db_processes_down(
             continue
 
     return True
+
+async def delete_pod(ops_test, unit_name: str) -> None:
+    """Deletes K8s pod associated with a provided unit name.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit to kill pod of
+    """
+    subprocess.check_output(
+        f"kubectl delete pod {unit_name.replace('/', '-')} -n {ops_test.model.info.name}",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    await wait_idle(ops_test)
