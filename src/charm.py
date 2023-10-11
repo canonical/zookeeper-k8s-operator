@@ -77,6 +77,11 @@ class ZooKeeperK8sCharm(CharmBase):
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
         self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
+        self.framework.observe(getattr(self.on, "upgrade_charm"), self._on_zookeeper_pebble_ready)
+        self.framework.observe(getattr(self.on, "start"), self._on_zookeeper_pebble_ready)
+        self.framework.observe(
+            getattr(self.on, "zookeeper_pebble_ready"), self._on_zookeeper_pebble_ready
+        )
         self.framework.observe(
             getattr(self.on, "leader_elected"), self._on_cluster_relation_changed
         )
@@ -131,6 +136,7 @@ class ZooKeeperK8sCharm(CharmBase):
     @property
     def _zookeeper_layer(self) -> Layer:
         """Returns a Pebble configuration layer for ZooKeeper."""
+        unit_host = self.cluster.unit_config(unit=self.unit)["host"]
         layer_config: "LayerDict" = {
             "summary": "zookeeper layer",
             "description": "Pebble config layer for zookeeper",
@@ -146,6 +152,13 @@ class ZooKeeperK8sCharm(CharmBase):
                             + self.zookeeper_config.jmx_jvmflags
                         )
                     },
+                },
+            },
+            "checks": {
+                CONTAINER: {
+                    "override": "replace",
+                    "level": "alive",
+                    "exec": {"command": f"echo ruok | nc {unit_host} {self.cluster.client_port}"},
                 }
             },
         }
@@ -166,6 +179,11 @@ class ZooKeeperK8sCharm(CharmBase):
         # give the leader a default quorum during cluster initialisation
         if self.unit.is_leader():
             self.app_peer_data.update({"quorum": "default - non-ssl"})
+
+    def _on_zookeeper_pebble_ready(self, _: EventBase) -> None:
+        """Handler for the `upgrade-charm`, `zookeeper-pebble-ready` and `start` events."""
+        # FIXME: Will need updating when adding in-place upgrade support
+        self.init_server()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
