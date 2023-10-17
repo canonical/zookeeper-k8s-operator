@@ -524,3 +524,34 @@ async def delete_pod(ops_test, unit_name: str) -> None:
     )
 
     await wait_idle(ops_test)
+
+
+def get_transaction_logs_and_snapshots(
+    ops_test, unit_name: str, container_name: str = CONTAINER
+) -> dict[str, list[str]]:
+    """Gets the most recent transaction log and snapshot files.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit to get timestamps from
+        container_name: the container to run command on
+            Defaults to '{container_name}'
+
+    Returns:
+        Dict of keys "transactions", "snapshots" and value of list of filenames
+    """
+    transaction_files = subprocess.check_output(
+        f"kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- ls -1 /var/lib/zookeeper/data-log/version-2",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    ).splitlines()
+
+    snapshot_files = subprocess.check_output(
+        f"kubectl exec {unit_name.replace('/', '-')} -c {container_name} -n {ops_test.model.info.name} -- ls -1 /var/lib/zookeeper/data/version-2",
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+    ).splitlines()
+
+    return {"transactions": transaction_files, "snapshots": snapshot_files}

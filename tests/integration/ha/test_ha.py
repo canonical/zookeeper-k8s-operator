@@ -25,6 +25,90 @@ async def test_deploy_active(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
+async def test_scale_down_up_data(ops_test: OpsTest, request):
+    """Tests unit scale-down + up returns with data."""
+    hosts = helpers.get_hosts(ops_test)
+    password = helpers.get_super_password(ops_test)
+    parent = request.node.name
+    current_scale = len(hosts.split(","))
+    scaling_unit_name = sorted(
+        [unit.name for unit in ops_test.model.applications[helpers.APP_NAME].units]
+    )[-1]
+
+    logger.info("Starting continuous_writes...")
+    cw.start_continuous_writes(
+        parent=parent, hosts=hosts, username=helpers.USERNAME, password=password
+    )
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # letting client set up and start writing
+
+    logger.info("Checking writes are running at all...")
+    assert cw.count_znodes(
+        parent=parent, hosts=hosts, username=helpers.USERNAME, password=password
+    )
+
+    logger.info("Getting transaction and snapshot files...")
+    current_files = helpers.get_transaction_logs_and_snapshots(
+        ops_test, unit_name=scaling_unit_name
+    )
+
+    logger.info(f"Scaling down to {current_scale - 1} units...")
+    await ops_test.model.applications[helpers.APP_NAME].scale(current_scale - 1)
+    await helpers.wait_idle(ops_test, units=current_scale - 1)
+
+    surviving_hosts = helpers.get_hosts(ops_test)
+
+    logger.info("Checking writes are increasing...")
+    writes = cw.count_znodes(
+        parent=parent, hosts=surviving_hosts, username=helpers.USERNAME, password=password
+    )
+    await asyncio.sleep(CLIENT_TIMEOUT * 3)  # increasing writes
+    new_writes = cw.count_znodes(
+        parent=parent, hosts=surviving_hosts, username=helpers.USERNAME, password=password
+    )
+    assert new_writes > writes, "writes not continuing to ZK"
+
+    logger.info(f"Scaling back up to {current_scale} units...")
+    await ops_test.model.applications[helpers.APP_NAME].scale(current_scale)
+    await helpers.wait_idle(ops_test, units=current_scale)
+
+    logger.info("Counting writes on surviving units...")
+    last_write = cw.get_last_znode(
+        parent=parent, hosts=surviving_hosts, username=helpers.USERNAME, password=password
+    )
+    total_writes = cw.count_znodes(
+        parent=parent, hosts=surviving_hosts, username=helpers.USERNAME, password=password
+    )
+    assert last_write == total_writes
+
+    new_host = max(set(helpers.get_hosts(ops_test).split(",")) - set(surviving_hosts.split(",")))
+
+    logger.info("Checking new unit caught up...")
+    last_write_new = cw.get_last_znode(
+        parent=parent, hosts=new_host, username=helpers.USERNAME, password=password
+    )
+    total_writes_new = cw.count_znodes(
+        parent=parent, hosts=new_host, username=helpers.USERNAME, password=password
+    )
+    assert last_write == last_write_new
+    assert total_writes == total_writes_new
+
+    logger.info("Stopping continuous_writes...")
+    cw.stop_continuous_writes()
+
+    logger.info("Getting new transaction and snapshot files...")
+    new_files = helpers.get_transaction_logs_and_snapshots(ops_test, unit_name=scaling_unit_name)
+
+    # zookeeper rolls snapshots + txn logs when a unit re-joins, meaning we can't check log timestamps
+    # checking file existence ensures re-use, as new files will have a different file suffix
+    # if storage wasn't re-used, there would be no files with the original suffix
+    for txn_log in current_files["transactions"]:
+        assert txn_log in new_files["transactions"], "storage not re-used, missing txn logs"
+
+    for snapshot in current_files["snapshots"]:
+        assert snapshot in new_files["snapshots"], "storage not re-used, missing snapshots"
+
+
+@pytest.mark.abort_on_fail
 async def test_pod_reschedule(ops_test: OpsTest, request):
     """Forcefully reschedules ZooKeeper pod."""
     hosts = helpers.get_hosts(ops_test)
