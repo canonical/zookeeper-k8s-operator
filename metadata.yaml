@@ -13,6 +13,9 @@ maintainers:
 containers:
   zookeeper:
     resource: zookeeper-image
+    mounts:
+      - storage: zookeeper
+        location: /var/lib/zookeeper
 
 resources:
   zookeeper-image:
@@ -44,7 +47,7 @@ requires:
     optional: true
 
 storage:
-  data:
+  zookeeper:
     type: filesystem
     description: Directories where snapshot and transaction data is stored
     minimum-size: 10G
