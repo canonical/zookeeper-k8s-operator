@@ -71,6 +71,9 @@ async def test_scale_down_up_data(ops_test: OpsTest, request):
     await ops_test.model.applications[helpers.APP_NAME].scale(current_scale)
     await helpers.wait_idle(ops_test, units=current_scale)
 
+    logger.info("Stopping continuous_writes...")
+    cw.stop_continuous_writes()
+
     logger.info("Counting writes on surviving units...")
     last_write = cw.get_last_znode(
         parent=parent, hosts=surviving_hosts, username=helpers.USERNAME, password=password
@@ -80,9 +83,8 @@ async def test_scale_down_up_data(ops_test: OpsTest, request):
     )
     assert last_write == total_writes
 
-    new_host = max(set(helpers.get_hosts(ops_test).split(",")) - set(surviving_hosts.split(",")))
-
     logger.info("Checking new unit caught up...")
+    new_host = max(set(helpers.get_hosts(ops_test).split(",")) - set(surviving_hosts.split(",")))
     last_write_new = cw.get_last_znode(
         parent=parent, hosts=new_host, username=helpers.USERNAME, password=password
     )
@@ -91,9 +93,6 @@ async def test_scale_down_up_data(ops_test: OpsTest, request):
     )
     assert last_write == last_write_new
     assert total_writes == total_writes_new
-
-    logger.info("Stopping continuous_writes...")
-    cw.stop_continuous_writes()
 
     logger.info("Getting new transaction and snapshot files...")
     new_files = helpers.get_transaction_logs_and_snapshots(ops_test, unit_name=scaling_unit_name)
