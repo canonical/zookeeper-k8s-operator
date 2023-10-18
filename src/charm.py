@@ -17,11 +17,12 @@ from ops.charm import (
     CharmBase,
     InstallEvent,
     LeaderElectedEvent,
+    PebbleReadyEvent,
     RelationDepartedEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus, Container, MaintenanceStatus, WaitingStatus
+from ops.model import ActiveStatus, Container, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Layer, PathError
 
 from cluster import ZooKeeperCluster
@@ -180,9 +181,27 @@ class ZooKeeperK8sCharm(CharmBase):
         if self.unit.is_leader():
             self.app_peer_data.update({"quorum": "default - non-ssl"})
 
-    def _on_zookeeper_pebble_ready(self, _: EventBase) -> None:
-        """Handler for the `upgrade-charm`, `zookeeper-pebble-ready` and `start` events."""
+    def _on_zookeeper_pebble_ready(self, event: PebbleReadyEvent) -> None:
+        """Handler for the `upgrade-charm`, `zookeeper-pebble-ready` and `start` events.
+
+        Handles case where workload has shut down due to failing `ruok` 4lw command and
+        needs to be restarted.
+        """
         # FIXME: Will need updating when adding in-place upgrade support
+
+        # ensure pebble-ready only fires after normal peer-relation-driven server init
+        if not self.container.can_connect() or not self.cluster.started:
+            event.defer()
+            return
+
+        try:
+            if self.container.get_service(CONTAINER).is_running():
+                return  # nothing to do, service is up and running, don't replan
+
+        except ModelError:
+            logger.info(f"{CONTAINER} workload service not running, re-initialising...")
+
+        # re-initialise + replan pebble layer if no service, or service not running
         self.init_server()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
