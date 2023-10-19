@@ -17,7 +17,6 @@ from ops.charm import (
     CharmBase,
     InstallEvent,
     LeaderElectedEvent,
-    PebbleReadyEvent,
     RelationDepartedEvent,
 )
 from ops.framework import EventBase
@@ -181,7 +180,7 @@ class ZooKeeperK8sCharm(CharmBase):
         if self.unit.is_leader():
             self.app_peer_data.update({"quorum": "default - non-ssl"})
 
-    def _on_zookeeper_pebble_ready(self, event: PebbleReadyEvent) -> None:
+    def _on_zookeeper_pebble_ready(self, event: EventBase) -> None:
         """Handler for the `upgrade-charm`, `zookeeper-pebble-ready` and `start` events.
 
         Handles case where workload has shut down due to failing `ruok` 4lw command and
