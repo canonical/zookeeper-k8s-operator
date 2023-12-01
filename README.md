@@ -1,6 +1,6 @@
 # Charmed ZooKeeper K8s Operator
 
-[![CharmHub Badge](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper)
+[![CharmHub Badge](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper-k8s)
 [![Release](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/release.yaml/badge.svg)](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/release.yaml)
 [![Tests](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml?query=branch%3Amain)
 
