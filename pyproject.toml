@@ -76,6 +76,9 @@ pytest-operator = ">0.20"
 requests = ">2.25"
 lightkube = "==0.11.0"
 kazoo = ">=2.8"
+pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_cache"}
+# To be enabled if we are using groups on integration tests
+# pytest-operator-groups = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_groups"}
 
 
 [tool.poetry.group.format.dependencies]
