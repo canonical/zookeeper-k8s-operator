@@ -52,10 +52,12 @@ class TLSManager:
 
     def set_truststore(self) -> None:
         """Creates the unit Java Truststore and adds the unit CA."""
+        keytool_cmd = "charmed-zookeeper.keytool" if self.substrate == "vm" else "keytool"
+
         try:
             self.workload.exec(
                 command=[
-                    "charmed-zookeeper.keytool",
+                    keytool_cmd,
                     "-import",
                     "-v",
                     "-alias",
