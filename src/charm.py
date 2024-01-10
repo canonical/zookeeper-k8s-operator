@@ -43,7 +43,7 @@ from workload import ZKWorkload
 logger = logging.getLogger(__name__)
 
 
-class ZooKeeperK8sCharm(CharmBase):
+class ZooKeeperCharm(CharmBase):
     """Charmed Operator for ZooKeeper K8s."""
 
     def __init__(self, *args):
@@ -345,4 +345,4 @@ class ZooKeeperK8sCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    main(ZooKeeperK8sCharm)
+    main(ZooKeeperCharm)

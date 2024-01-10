@@ -12,7 +12,7 @@ from ops.framework import Object
 from literals import CHARM_USERS
 
 if TYPE_CHECKING:
-    from charm import ZooKeeperK8sCharm
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class PasswordActionEvents(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "password_events")
-        self.charm: "ZooKeeperK8sCharm" = charm
+        self.charm: "ZooKeeperCharm" = charm
 
         self.framework.observe(
             getattr(self.charm.on, "get_super_password_action"), self._get_super_password_action

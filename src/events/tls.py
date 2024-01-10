@@ -18,7 +18,7 @@ from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import EventBase, Object
 
 if TYPE_CHECKING:
-    from charm import ZooKeeperK8sCharm
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class TLSEvents(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "tls")
-        self.charm: "ZooKeeperK8sCharm" = charm
+        self.charm: "ZooKeeperCharm" = charm
         self.certificates = TLSCertificatesRequiresV1(self.charm, "certificates")
 
         self.framework.observe(

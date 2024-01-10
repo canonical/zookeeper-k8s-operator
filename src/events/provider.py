@@ -18,7 +18,7 @@ from ops.framework import Object
 from literals import REL_NAME
 
 if TYPE_CHECKING:
-    from charm import ZooKeeperK8sCharm
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class ProviderEvents(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "provider")
-        self.charm: "ZooKeeperK8sCharm" = charm
+        self.charm: "ZooKeeperCharm" = charm
 
         self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated

@@ -13,7 +13,7 @@ from ops.framework import EventBase
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
 from ops.testing import Harness
 
-from charm import ZooKeeperK8sCharm
+from charm import ZooKeeperCharm
 from core.models import ZKClient
 from literals import CHARM_KEY, CONTAINER, PEER, REL_NAME, SUBSTRATE
 
@@ -26,7 +26,7 @@ METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 
 @pytest.fixture
 def harness():
-    harness = Harness(ZooKeeperK8sCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
+    harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
 
     if SUBSTRATE == "k8s":
         harness.set_can_connect(CONTAINER, True)
@@ -110,7 +110,7 @@ def test_relation_changed_updates_ip_hostname_fqdn(harness):
             return_value={"ip": "gandalf-the-white"},
         ),
         patch("managers.config.ConfigManager.config_changed", return_value=False),
-        patch("charm.ZooKeeperK8sCharm.update_quorum"),
+        patch("charm.ZooKeeperCharm.update_quorum"),
     ):
         harness.charm.on.cluster_relation_changed.emit(harness.charm.state.peer_relation)
 
@@ -122,7 +122,7 @@ def test_relation_changed_emitted_for_leader_elected(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with (patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched):
+    with (patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched):
         harness.set_leader(True)
         patched.assert_called_once()
 
@@ -132,7 +132,7 @@ def test_relation_changed_emitted_for_config_changed(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched:
+    with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
         harness.charm.on.config_changed.emit()
         patched.assert_called_once()
 
@@ -142,7 +142,7 @@ def test_relation_changed_emitted_for_relation_changed(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched:
+    with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
         harness.charm.on.cluster_relation_changed.emit(harness.charm.state.peer_relation)
         patched.assert_called_once()
 
@@ -152,7 +152,7 @@ def test_relation_changed_emitted_for_relation_joined(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched:
+    with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
         harness.charm.on.cluster_relation_joined.emit(harness.charm.state.peer_relation)
         patched.assert_called_once()
 
@@ -162,7 +162,7 @@ def test_relation_changed_emitted_for_relation_departed(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with patch("charm.ZooKeeperK8sCharm._on_cluster_relation_changed") as patched:
+    with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
         harness.charm.on.cluster_relation_departed.emit(harness.charm.state.peer_relation)
         patched.assert_called_once()
 
@@ -174,7 +174,7 @@ def test_relation_changed_starts_units(harness):
         harness.set_planned_units(1)
 
     with (
-        patch("charm.ZooKeeperK8sCharm.init_server") as patched,
+        patch("charm.ZooKeeperCharm.init_server") as patched,
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
@@ -191,7 +191,7 @@ def test_relation_changed_does_not_start_units_again(harness):
     harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
     with (
-        patch("charm.ZooKeeperK8sCharm.init_server") as patched,
+        patch("charm.ZooKeeperCharm.init_server") as patched,
         patch("managers.config.ConfigManager.config_changed"),
     ):
         harness.charm.on.config_changed.emit()
@@ -214,7 +214,7 @@ def test_relation_changed_updates_quorum(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
     with (
-        patch("charm.ZooKeeperK8sCharm.update_quorum") as patched,
+        patch("charm.ZooKeeperCharm.update_quorum") as patched,
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
@@ -509,7 +509,7 @@ def test_update_quorum_updates_cluster_for_leader_elected(harness):
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
-        patch("charm.ZooKeeperK8sCharm.init_server"),
+        patch("charm.ZooKeeperCharm.init_server"),
     ):
         harness.set_leader(True)
         patched_update_cluster.assert_called()
@@ -530,7 +530,7 @@ def test_update_quorum_adds_init_leader(harness):
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
-        patch("charm.ZooKeeperK8sCharm.init_server"),
+        patch("charm.ZooKeeperCharm.init_server"),
         patch("managers.quorum.QuorumManager.update_cluster"),
     ):
         harness.set_leader(True)
@@ -589,7 +589,7 @@ def test_config_changed_applies_relation_data(harness):
         harness.set_leader(True)
 
     with (
-        patch("charm.ZooKeeperK8sCharm.update_client_data", return_value=None) as patched,
+        patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
         patch("core.cluster.ClusterState.stable", return_value=True),
         patch("core.cluster.ClusterState.ready", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
@@ -623,7 +623,7 @@ def test_config_changed_fails_apply_relation_data_not_stable(harness):
         harness.set_leader(True)
 
     with (
-        patch("charm.ZooKeeperK8sCharm.update_client_data", return_value=None) as patched,
+        patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=False),
         patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
@@ -639,7 +639,7 @@ def test_update_quorum_updates_relation_data(harness):
         harness.set_leader(True)
 
     with (
-        patch("charm.ZooKeeperK8sCharm.update_client_data", return_value=None) as patched,
+        patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
         patch("core.cluster.ClusterState.stable", return_value=True),
         patch("core.cluster.ClusterState.ready", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
@@ -655,7 +655,7 @@ def test_update_quorum_fails_update_relation_data_if_not_stable(harness):
         harness.set_leader(True)
 
     with (
-        patch("charm.ZooKeeperK8sCharm.update_client_data", return_value=None) as patched,
+        patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock(return_value=False)),
         patch("core.cluster.ClusterState.ready", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
@@ -687,7 +687,7 @@ def test_restart_updates_relation_data(harness):
         harness.set_leader(True)
 
     with (
-        patch("charm.ZooKeeperK8sCharm.update_client_data", return_value=None) as patched,
+        patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
         patch("core.cluster.ClusterState.stable", return_value=True),
         patch("core.cluster.ClusterState.ready", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
@@ -703,7 +703,7 @@ def test_restart_defers_if_not_stable(harness):
         harness.set_leader(True)
 
     with (
-        patch("charm.ZooKeeperK8sCharm.update_client_data", return_value=None) as patched_apply,
+        patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched_apply,
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock(return_value=False)),
         patch("core.cluster.ClusterState.ready", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),

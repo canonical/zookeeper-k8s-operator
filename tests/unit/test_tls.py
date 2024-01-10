@@ -9,7 +9,7 @@ import pytest
 import yaml
 from ops.testing import Harness
 
-from charm import ZooKeeperK8sCharm
+from charm import ZooKeeperCharm
 from literals import CERTS_REL_NAME, CHARM_KEY, PEER
 
 CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
@@ -19,7 +19,7 @@ METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 
 @pytest.fixture
 def harness():
-    harness = Harness(ZooKeeperK8sCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
+    harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
     harness.add_relation(PEER, CHARM_KEY)
     harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
     harness.begin()
