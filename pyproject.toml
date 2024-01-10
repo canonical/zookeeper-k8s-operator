@@ -29,37 +29,32 @@ description = "zookeeper-k8s-operator"
 authors = []
 
 [tool.poetry.dependencies]
-python = ">=3.8"
-ops = ">=2.0.0"
+python = "^3.10"
+ops = "^2.4.1"
 kazoo = ">=2.8.0"
-
-# The cosl dep could be removed from here once PYDEPS is released:
-# https://github.com/canonical/charmcraft/pull/1003
-cosl = ">= 0.0.5"
-
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
 cryptography = "^39.0.0"
-jsonschema = "^4.17.3"
-pydantic ="^1.10.7"
+cosl = ">=0.0.5"
+pydantic = "^1.10.7"
 pyyaml = "^6.0.1"
+poetry-plugin-export = ">=1.6"
 
 [tool.poetry.group.fmt]
 optional = true
 
 [tool.poetry.group.fmt.dependencies]
 black = "^22.3.0"
-ruff = ">=0.0.157"
-pyright = "^1.1.300"
+ruff = ">=0.1"
 
 [tool.poetry.group.lint]
 optional = true
 
 [tool.poetry.group.lint.dependencies]
 black = "^22.3.0"
-ruff = ">=0.0.157"
+ruff = ">=0.1"
 codespell = ">=2.2.2"
-pyright = "^1.1.301"
+pyright = "^1.1.318"
 
 [tool.poetry.group.unit]
 optional = true

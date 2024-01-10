@@ -4,23 +4,27 @@
 
 """Collection of global literals for the ZooKeeper K8s charm."""
 
+SUBSTRATE = "k8s"
+CHARM_KEY = "zookeeper-k8s"
+
 PEER = "cluster"
 REL_NAME = "zookeeper"
-STATE = "state"
-CHARM_KEY = "zookeeper-k8s"
 CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"
+CLIENT_PORT = 2181
+SECURE_CLIENT_PORT = 2182
+SERVER_PORT = 2888
+ELECTION_PORT = 3888
 JMX_PORT = 9998
 METRICS_PROVIDER_PORT = 7000
 
-CONF_PATH = "/etc/zookeeper"
-DATA_PATH = "/var/lib/zookeeper"
-LOGS_PATH = "/var/log/zookeeper"
-BINARIES_PATH = "/opt/zookeeper"
-
-DATA_DIR = "data"
-DATALOG_DIR = "data-log"
+PATHS = {
+    "CONF": "/etc/zookeeper",
+    "DATA": "/var/lib/zookeeper",
+    "LOGS": "/var/log/zookeeper",
+    "BIN": "/opt/zookeeper",
+}
 
 METRICS_RULES_DIR = "./src/alert_rules/prometheus"
 LOGS_RULES_DIR = "./src/alert_rules/loki"

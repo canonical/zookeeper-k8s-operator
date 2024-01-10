@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 import yaml
+from cluster import UnitNotFoundError
 from ops.model import Unit
 from ops.testing import Harness
 
 from charm import ZooKeeperK8sCharm
-from cluster import UnitNotFoundError
 from literals import CHARM_KEY, PEER
 
 logger = logging.getLogger(__name__)
