@@ -143,11 +143,13 @@ class WorkloadBase(ABC):
         """Runs a command on the workload substrate."""
         ...
 
+    @property
     @abstractmethod
     def alive(self) -> bool:
         """Checks that the workload is alive."""
         ...
 
+    @property
     @abstractmethod
     def healthy(self) -> bool:
         """Checks that the workload is healthy."""

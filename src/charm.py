@@ -19,7 +19,7 @@ from ops.charm import (
 )
 from ops.framework import EventBase
 from ops.main import main
-from ops.model import ActiveStatus, MaintenanceStatus, ModelError, WaitingStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 
 from core.cluster import ClusterState
 from events.password_actions import PasswordActionEvents
@@ -133,7 +133,7 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
-        if not self.workload.alive():
+        if not self.workload.alive:
             event.defer()
             return
 
@@ -199,6 +199,12 @@ class ZooKeeperCharm(CharmBase):
         # without, other units might restart before this unit rejoins, losing quorum
         time.sleep(5)
 
+        if not self.workload.healthy:
+            msg = "ZooKeeper service failed to start"
+            logger.error(msg)
+            self.unit.status = BlockedStatus(msg)
+            return
+
         self.unit.status = ActiveStatus()
 
         self.state.unit_server.update(
@@ -256,6 +262,13 @@ class ZooKeeperCharm(CharmBase):
 
         logger.debug("starting ZooKeeper service")
         self.workload.start(layer=self.config_manager.layer)
+
+        if not self.workload.healthy:
+            msg = "ZooKeeper service failed to start"
+            logger.error(msg)
+            self.unit.status = BlockedStatus(msg)
+            return
+
         self.unit.status = ActiveStatus()
 
         # unit flags itself as 'started' so it can be retrieved by the leader

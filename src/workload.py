@@ -57,10 +57,12 @@ class ZKWorkload(WorkloadBase):
     def exec(self, command: list[str], working_dir: str | None = None) -> str:
         return str(self.container.exec(command, working_dir=working_dir).wait_output())
 
+    @property
     @override
     def alive(self) -> bool:
         return self.container.can_connect()
 
+    @property
     @override
     def healthy(self) -> bool:
         return self.container.get_service(self.container.name).is_running()
