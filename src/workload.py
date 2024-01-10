@@ -67,6 +67,10 @@ class ZKWorkload(WorkloadBase):
 
     # --- ZK Specific ---
 
+    def install(self) -> None:
+        """Loads the ZooKeeper snap from LP, returning a StatusBase for the Charm to set."""
+        raise NotImplementedError
+
     def generate_password(self) -> str:
         """Creates randomized string for use as app passwords.
 
