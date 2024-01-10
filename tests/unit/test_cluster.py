@@ -140,12 +140,7 @@ def test_next_server_succeeds_failover(harness):
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
             f"{CHARM_KEY}",
-            {
-                "0": "removed",
-                "1": "added",
-                "sync_password": "gollum",
-                "super_password": "precious",
-            },
+            {"0": "added", "1": "added", "2": "added", "3": "added"},
         )
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")
@@ -160,7 +155,7 @@ def test_next_server_fails_failover(harness):
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
             f"{CHARM_KEY}",
-            {"0": "added", "1": "added", "sync_password": "gollum", "super_password": "precious"},
+            {"0": "added", "1": "added", "2": "added", "3": "added"},
         )
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
         harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")

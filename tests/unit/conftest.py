@@ -31,6 +31,11 @@ def patched_pebble_restart(mocker):
 
 
 @pytest.fixture(autouse=True)
+def patched_healthy(mocker):
+    mocker.patch("workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True)
+
+
+@pytest.fixture(autouse=True)
 def patched_etc_hosts_environment():
     with (
         patch("managers.config.ConfigManager.set_etc_hosts"),
