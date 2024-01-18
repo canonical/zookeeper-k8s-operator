@@ -849,6 +849,10 @@ def test_update_relation_data(harness):
             substrate=SUBSTRATE,
             component=relation.app,
             local_app=harness.charm.app,
+            password=relation.data[harness.charm.app].get("password", ""),
+            endpoints=relation.data[harness.charm.app].get("endpoints", ""),
+            uris=relation.data[harness.charm.app].get("uris", ""),
+            tls=relation.data[harness.charm.app].get("tls", ""),
         )
 
         assert client.username, (
@@ -862,15 +866,20 @@ def test_update_relation_data(harness):
         assert len(client.endpoints.split(",")) == 3
         assert len(client.uris.split(",")) == 3, client.uris
 
-        # checking ips are used
-        for ip in ["treebeard", "shelob", "balrog"]:
-            assert ip in client.endpoints
-            assert ip in client.uris
+        if SUBSTRATE == "vm":
+            # checking ips are used
+            for ip in ["treebeard", "shelob", "balrog"]:
+                assert ip in client.endpoints
+                assert ip in client.uris
 
-        # checking private-address or hostnames are NOT used
-        for hostname_address in ["glamdring", "narsil", "anduril", "sam", "frodo", "merry"]:
-            assert hostname_address not in client.endpoints
-            assert hostname_address not in client.uris
+            # checking private-address or hostnames are NOT used
+            for hostname_address in ["glamdring", "narsil", "anduril", "sam", "frodo", "merry"]:
+                assert hostname_address not in client.endpoints
+                assert hostname_address not in client.uris
+
+        if SUBSTRATE == "k8s":
+            assert "endpoints" in client.endpoints
+            assert "endpoints" in client.uris
 
         for uri in client.uris.split(","):
             # checking client_port in uri

@@ -80,25 +80,17 @@ class ZKClient(StateBase):
     @property
     def password(self) -> str:
         """The generated password for the client application."""
-        return self._password or getattr(self.relation, "data")[self._local_app].get(
-            "password", ""
-        )
+        return self._password
 
     @property
     def endpoints(self) -> str:
         """The ZooKeeper connection endpoints for the client application to connect with."""
-        return self._endpoints or getattr(self.relation, "data")[self._local_app].get(
-            "endpoints", ""
-        )
+        return self._endpoints
 
     @property
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
-        return (
-            self._uris + self.chroot
-            if self._uris
-            else getattr(self.relation, "data")[self._local_app].get("uris", "")
-        )
+        return self._uris + self.chroot if self._uris else ""
 
     @property
     def tls(self) -> str:
@@ -107,7 +99,7 @@ class ZKClient(StateBase):
         Returns:
             String of either 'enabled' or 'disabled'
         """
-        return self._tls or self.relation_data.get("tls", "")
+        return self._tls
 
     @property
     def chroot_acl(self) -> str:
