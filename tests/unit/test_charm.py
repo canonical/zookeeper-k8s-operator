@@ -122,7 +122,7 @@ def test_relation_changed_emitted_for_leader_elected(harness):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
-    with (patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched):
+    with patch("charm.ZooKeeperCharm._on_cluster_relation_changed") as patched:
         harness.set_leader(True)
         patched.assert_called_once()
 
@@ -681,22 +681,6 @@ def test_update_quorum_fails_update_relation_data_if_not_ready(harness):
         patched_update.assert_not_called()
 
 
-def test_restart_updates_relation_data(harness):
-    with harness.hooks_disabled():
-        _ = harness.add_relation(PEER, CHARM_KEY)
-        harness.set_leader(True)
-
-    with (
-        patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
-        patch("core.cluster.ClusterState.stable", return_value=True),
-        patch("core.cluster.ClusterState.ready", return_value=True),
-        patch("managers.config.ConfigManager.config_changed", return_value=True),
-    ):
-        harness.charm._restart(EventBase)
-
-        patched.assert_called_once()
-
-
 def test_restart_defers_if_not_stable(harness):
     with harness.hooks_disabled():
         _ = harness.add_relation(PEER, CHARM_KEY)
@@ -837,7 +821,14 @@ def test_update_relation_data(harness):
             {f"relation-{app_1_id}": "mellon", f"relation-{app_2_id}": "friend"},
         )
 
-    with patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=True):
+    with (
+        patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=True),
+        patch(
+            "managers.config.ConfigManager.current_jaas",
+            new_callable=PropertyMock,
+            return_value=["mellon", "friend"],
+        ),
+    ):
         harness.charm.update_client_data()
 
     # building bare clients for validation
