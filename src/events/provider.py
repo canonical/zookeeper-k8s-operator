@@ -78,9 +78,6 @@ class ProviderEvents(Object):
                 {client.username: client.password or self.charm.workload.generate_password()}
             )
 
-        # roll leader unit to apply password to jaas config
-        self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
-
     def _on_client_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Removes user from ZK app data on `client_relation_broken`.
 

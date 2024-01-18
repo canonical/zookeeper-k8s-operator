@@ -218,8 +218,6 @@ class ZooKeeperCharm(CharmBase):
             }
         )
 
-        self.update_client_data()
-
     # --- CONVENIENCE METHODS ---
 
     def init_server(self):
