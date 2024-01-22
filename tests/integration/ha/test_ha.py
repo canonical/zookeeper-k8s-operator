@@ -98,7 +98,7 @@ async def test_scale_down_up_data(ops_test: OpsTest, request):
     new_files = helpers.get_transaction_logs_and_snapshots(ops_test, unit_name=scaling_unit_name)
 
     # zookeeper rolls snapshots + txn logs when a unit re-joins, meaning we can't check log timestamps
-    # checking file existence ensures re-use, as new files will have a different file suffix
+    # checking file existence ensures reuse, as new files will have a different file suffix
     # if storage wasn't re-used, there would be no files with the original suffix
     for txn_log in current_files["transactions"]:
         assert txn_log in new_files["transactions"], "storage not re-used, missing txn logs"

@@ -23,7 +23,7 @@ class DummyClient:
         self.follower = follower
         self.syncing = syncing
         self.ready = ready
-        self.SRVR = "Zookeeper version: version\nOutstanding: 0\nMode: leader"
+        self.SRVR = "Zookeeper version: 1.2.3--hash Build\nOutstanding: 0\nMode: leader"
         self.MNTR = "zk_pending_syncs	0.0\nzk_peer_state	leading - broadcast"
 
         if self.follower:
@@ -214,3 +214,14 @@ def test_remove_members_runs_on_leader(_):
             )
             in calls
         )
+
+
+@patch.object(DummyClient, "reconfig")
+def test_get_version(_):
+    with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
+        zk = ZooKeeperManager(hosts=["server"], username="", password="")
+        zk.leader = "leader"
+
+        version = zk.get_version()
+
+    assert version == "1.2.3"

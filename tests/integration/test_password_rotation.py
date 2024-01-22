@@ -31,7 +31,7 @@ async def test_deploy_active(ops_test: OpsTest):
         num_units=3,
         resources={"zookeeper-image": ZOOKEEPER_IMAGE},
         series=SERIES,
-    ),
+    )
     async with ops_test.fast_forward():
         await ops_test.model.block_until(
             lambda: len(ops_test.model.applications[APP_NAME].units) == 3

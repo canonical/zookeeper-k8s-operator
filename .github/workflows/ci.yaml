@@ -13,6 +13,7 @@ on:
   # Triggered on push to branch "main" by .github/workflows/release.yaml
   workflow_call:
 
+
 jobs:
   lint:
     name: Lint
@@ -42,16 +43,18 @@ jobs:
 
   build:
     name: Build charms
-    uses: canonical/data-platform-workflows/.github/workflows/build_charms_with_cache.yaml@v2
+    uses: canonical/data-platform-workflows/.github/workflows/build_charms_with_cache.yaml@v7
 
   integration-test:
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         tox-environments:
           - integration-password-rotation
           - integration-provider
           - integration-tls
+          - integration-replication
     name: ${{ matrix.tox-environments }}
     needs:
       - lint
@@ -90,19 +93,18 @@ jobs:
         env:
           CI_PACKED_CHARMS: ${{ needs.build.outputs.charms }}
 
-  integration-ha:
+  integration-test-ha:
     strategy:
       fail-fast: false
       matrix:
         tox-environments:
           - integration-ha
-          # - integration-replication
     name: ${{ matrix.tox-environments }}
     needs:
       - lint
       - unit-test
       - build
-      # - integration-test
+      - integration-test
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -132,6 +134,6 @@ jobs:
             echo "mark_expression=not unstable" >> $GITHUB_OUTPUT
           fi
       - name: Run integration tests
-        run: tox run -e ${{ matrix.tox-environments }} -- -m '${{ steps.select-tests.outputs.mark_expression }}'
+        run: tox run -e ${{ matrix.tox-environments }} -- -m '${{ steps.select-tests.outputs.mark_expression }}' --keep-models
         env:
           CI_PACKED_CHARMS: ${{ needs.build.outputs.charms }}

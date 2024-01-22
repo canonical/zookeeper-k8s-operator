@@ -24,8 +24,8 @@ def continous_writes(parent: str, hosts: str, username: str, password: str):
             client.start()
             client.create(f"{parent}/{count}", acl=[], makepath=True)
             logger.info(f"Wrote {parent}/{count}...")
-            time.sleep(1)
             count += 1
+            time.sleep(1)
             client.stop()
             client.close()
 
