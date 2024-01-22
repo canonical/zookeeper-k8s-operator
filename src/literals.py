@@ -19,6 +19,15 @@ ELECTION_PORT = 3888
 JMX_PORT = 9998
 METRICS_PROVIDER_PORT = 7000
 
+DEPENDENCIES = {
+    "service": {
+        "dependencies": {},
+        "name": "zookeeper",
+        "upgrade_supported": "^3.5",
+        "version": "3.8.2",
+    },
+}
+
 PATHS = {
     "CONF": "/etc/zookeeper",
     "DATA": "/var/lib/zookeeper",

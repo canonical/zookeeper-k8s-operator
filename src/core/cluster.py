@@ -117,7 +117,7 @@ class ClusterState(Object):
         Returns:
             List of unit addresses
         """
-        return [server.host for server in self.servers]
+        return [server.host if self.substrate == "k8s" else server.ip for server in self.servers]
 
     @property
     def started_servers(self) -> Set[ZKServer]:

@@ -152,3 +152,37 @@ async def get_address(ops_test: OpsTest, app_name=APP_NAME, unit_num=0) -> str:
     status = await ops_test.model.get_status()  # noqa: F821
     address = status["applications"][app_name]["units"][f"{app_name}/{unit_num}"]["address"]
     return address
+
+
+def _get_show_unit_json(model_full_name: str, unit: str) -> Dict:
+    """Retrieve the show-unit result in json format."""
+    show_unit_res = check_output(
+        f"JUJU_MODEL={model_full_name} juju show-unit {unit} --format json",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    try:
+        show_unit_res_dict = json.loads(show_unit_res)
+        return show_unit_res_dict
+    except json.JSONDecodeError:
+        raise ValueError
+
+
+async def correct_version_running(ops_test: OpsTest, expected_version: str) -> bool:
+    for unit in ops_test.model.applications[APP_NAME].units:
+        host = unit.public_address
+        if expected_version not in srvr(host)["Zookeeper version"]:
+            return False
+
+    return True
+
+
+def get_relation_data(model_full_name: str, unit: str, endpoint: str):
+    show_unit = _get_show_unit_json(model_full_name=model_full_name, unit=unit)
+    d_relations = show_unit[unit]["relation-info"]
+    for relation in d_relations:
+        if relation["endpoint"] == endpoint:
+            return relation["application-data"]
+    raise Exception("No relation found!")
