@@ -58,8 +58,13 @@ class StatusLevel:
 class Status(Enum):
     ACTIVE = StatusLevel(ActiveStatus(), "DEBUG")
     NO_PEER_RELATION = StatusLevel(MaintenanceStatus("no peer relation yet"), "DEBUG")
-    SNAP_NOT_INSTALLED = StatusLevel(BlockedStatus("unable to install zookeeper snap"), "ERROR")
-    SNAP_NOT_RUNNING = StatusLevel(BlockedStatus("zookeeper snap service not running"), "WARNING")
+    SERVICE_NOT_INSTALLED = StatusLevel(
+        BlockedStatus("unable to install zookeeper service"), "ERROR"
+    )
+    SERVICE_NOT_RUNNING = StatusLevel(BlockedStatus("zookeeper service not running"), "ERROR")
+    CONTAINER_NOT_CONNECTED = StatusLevel(
+        MaintenanceStatus("zookeeper container not ready"), "DEBUG"
+    )
     NO_PASSWORDS = StatusLevel(
         WaitingStatus("waiting for leader to create internal user credentials"), "DEBUG"
     )

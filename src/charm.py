@@ -149,6 +149,7 @@ class ZooKeeperCharm(CharmBase):
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
         if not self.workload.alive:
+            self._set_status(Status.CONTAINER_NOT_CONNECTED)
             event.defer()
             return
 
@@ -199,6 +200,7 @@ class ZooKeeperCharm(CharmBase):
 
         # ensure pebble-ready only fires after normal peer-relation-driven server init
         if not self.workload.alive or not self.state.unit_server.started:
+            self._set_status(Status.CONTAINER_NOT_CONNECTED)
             event.defer()
             return
 
@@ -224,6 +226,10 @@ class ZooKeeperCharm(CharmBase):
         # gives time for server to rejoin quorum, as command exits too fast
         # without, other units might restart before this unit rejoins, losing quorum
         time.sleep(5)
+
+        if not self.workload.alive:
+            self._set_status(Status.CONTAINER_NOT_CONNECTED)
+            return
 
         if not self.workload.healthy:
             self._set_status(Status.SERVICE_UNHEALTHY)
@@ -284,6 +290,10 @@ class ZooKeeperCharm(CharmBase):
 
         logger.debug("starting ZooKeeper service")
         self.workload.start(layer=self.config_manager.layer)
+
+        if not self.workload.alive:
+            self._set_status(Status.CONTAINER_NOT_CONNECTED)
+            return
 
         if not self.workload.healthy:
             self._set_status(Status.SERVICE_UNHEALTHY)
