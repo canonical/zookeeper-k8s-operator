@@ -17,6 +17,8 @@ from charms.tls_certificates_interface.v1.tls_certificates import (
 from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import EventBase, Object
 
+from literals import Status
+
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
 
@@ -56,7 +58,7 @@ class TLSEvents(Object):
         if not self.charm.unit.is_leader():
             return
 
-        if not self.charm.state.stable:
+        if not self.charm.state.stable == Status.ACTIVE:
             logger.debug("certificates relation created - quorum not stable - deferring")
             event.defer()
             return

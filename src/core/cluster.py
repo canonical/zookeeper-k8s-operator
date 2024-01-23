@@ -10,7 +10,7 @@ from ops.framework import Framework, Object
 from ops.model import Relation
 
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
-from literals import CLIENT_PORT, PEER, REL_NAME, SECURE_CLIENT_PORT
+from literals import CLIENT_PORT, PEER, REL_NAME, SECURE_CLIENT_PORT, Status
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +284,17 @@ class ClusterState(Object):
     # --- HEALTH ---
 
     @property
+    def all_installed(self) -> Status:
+        """Gets appropriate Status if all units have finished installing."""
+        if not self.all_units_related:
+            return Status.NOT_ALL_RELATED
+
+        if not self.all_units_declaring_ip:
+            return Status.NOT_ALL_IP
+
+        return Status.ACTIVE
+
+    @property
     def healthy(self) -> bool:
         """Flag to check if the cluster is safe to update quorum members."""
         if (
@@ -297,39 +308,29 @@ class ClusterState(Object):
         return False
 
     @property
-    def stable(self) -> bool:
-        """Flag to check if the quorum is in a stable state, with all members up-to-date."""
+    def stable(self) -> Status:
+        """Gets appropriate Status if the quorum is in a stable state, with all members up-to-date."""
         if not self.all_units_related:
-            logger.debug("cluster not stable - not all units related")
-            return False
+            return Status.NOT_ALL_RELATED
 
         if self.stale_quorum:
-            logger.debug("cluster not stable - quorum needs updating")
-            return False
+            return Status.STALE_QUORUM
 
         if not self.all_servers_added:
-            logger.debug("cluster not stable - not all units added")
-            return False
+            return Status.NOT_ALL_ADDED
 
-        return True
+        return Status.ACTIVE
 
     @property
-    def ready(self) -> bool:
-        """Flag to check if the charm is ready to handle related applications."""
+    def ready(self) -> Status:
+        """Gets appropriate Status if the charm is ready to handle related applications."""
         if not self.all_units_quorum:
-            logger.debug("provider not ready - not all units quorum")
-            return False
+            return Status.NOT_ALL_QUORUM
 
         if self.cluster.switching_encryption:
-            logger.debug("provider not ready - switching encryption")
-            return False
+            return Status.SWITCHING_ENCRYPTION
 
         if self.all_units_unified:
-            logger.debug("provider not ready - all units unified")
-            return False
+            return Status.ALL_UNIFIED
 
-        if not self.stable:
-            logger.debug("provider not ready - cluster not stable")
-            return False
-
-        return True
+        return self.stable
