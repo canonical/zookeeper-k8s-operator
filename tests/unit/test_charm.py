@@ -266,7 +266,7 @@ def test_relation_changed_checks_alive_and_healthy(harness):
     with (
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
-        patch("core.models.ZKServer.started", new_callable=PropertyMock, return_value=False),
+        patch("core.models.ZKServer.started", new_callable=PropertyMock, return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=False),
         patch(
             "workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=True
