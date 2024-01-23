@@ -155,7 +155,7 @@ class ZooKeeperCharm(CharmBase):
 
         # not all methods called
         if not self.state.peer_relation:
-            self._set_status(Status.SERVICE_UNHEALTHY)
+            self._set_status(Status.NO_PEER_RELATION)
             return
 
         # attempt startup of server
@@ -184,7 +184,7 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
 
         # service can stop serving requests if the quorum is lost
-        if not self.workload.healthy:
+        if self.state.unit_server.started and not self.workload.healthy:
             self._set_status(Status.SERVICE_UNHEALTHY)
             return
 
