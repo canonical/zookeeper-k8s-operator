@@ -6,6 +6,7 @@
 import logging
 import re
 import socket
+from dataclasses import dataclass
 from functools import cached_property
 from typing import Set
 
@@ -15,7 +16,7 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from kazoo.exceptions import BadArgumentsError
+from kazoo.exceptions import BadArgumentsError, ConnectionClosedError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import make_acl
 from ops.charm import RelationEvent
@@ -45,6 +46,44 @@ class QuorumManager:
             username=admin_username,
             password=admin_password,
         )
+
+    @dataclass
+    class SyncStatus:
+        """Type for returning status of a syncing quorum."""
+
+        passed: bool = False
+        cause: str = ""
+
+    def is_syncing(self) -> "QuorumManager.SyncStatus":
+        """Checks if any server members are currently syncing data.
+
+        To be used when evaluating whether a cluster can upgrade or not.
+        """
+        try:
+            if not self.client.members_broadcasting or not len(self.client.server_members) == len(
+                self.state.servers
+            ):
+                return self.SyncStatus(
+                    cause="Not all application units are connected and broadcasting in the quorum"
+                )
+
+            if self.client.members_syncing:
+                return self.SyncStatus(cause="Some quorum members are still syncing data")
+
+            if not self.state.stable:
+                return self.SyncStatus(cause="Charm has not finished initialising")
+
+        except QuorumLeaderNotFoundError:
+            return self.SyncStatus(cause="Quorum leader not found")
+
+        except ConnectionClosedError:
+            return self.SyncStatus(cause="Unable to connect to the cluster")
+
+        except Exception as e:
+            logger.error(str(e))
+            return self.SyncStatus(cause="Unknown error")
+
+        return self.SyncStatus(passed=True)
 
     def get_hostname_mapping(self) -> dict[str, str]:
         """Collects hostname mapping for current unit.

@@ -12,8 +12,6 @@ from charms.data_platform_libs.v0.upgrade import (
     DependencyModel,
     KubernetesClientError,
 )
-from charms.zookeeper.v0.client import QuorumLeaderNotFoundError
-from kazoo.client import ConnectionClosedError
 from lightkube.core.client import Client
 from lightkube.core.exceptions import ApiError
 from lightkube.resources.apps_v1 import StatefulSet
@@ -99,40 +97,11 @@ class ZKUpgradeEvents(DataUpgrade):
         if self.idle:
             self._set_rolling_update_partition(partition=len(self.charm.state.servers) - 1)
 
-        default_message = "Pre-upgrade check failed and cannot safely upgrade"
-        try:
-            if not self.charm.quorum_manager.client.members_broadcasting or not len(
-                self.charm.quorum_manager.client.server_members
-            ) == len(self.charm.state.servers):
-                logger.info("Check failed: broadcasting error")
-                raise ClusterNotReadyError(
-                    message=default_message,
-                    cause="Not all application units are connected and broadcasting in the quorum",
-                )
-
-            if self.charm.quorum_manager.client.members_syncing:
-                logger.info("Check failed: quorum members syncing")
-                raise ClusterNotReadyError(
-                    message=default_message, cause="Some quorum members are syncing data"
-                )
-
-            if not self.charm.state.stable:
-                logger.info("Check failed: cluster initializing")
-                raise ClusterNotReadyError(
-                    message=default_message, cause="Charm has not finished initialising"
-                )
-
-        except QuorumLeaderNotFoundError:
-            logger.info("Check failed: Quorum leader not found")
-            raise ClusterNotReadyError(message=default_message, cause="Quorum leader not found")
-        except ConnectionClosedError:
-            logger.info("Check failed: Unable to connect to the cluster")
+        status = self.charm.quorum_manager.is_syncing()
+        if not status.passed:
             raise ClusterNotReadyError(
-                message=default_message, cause="Unable to connect to the cluster"
+                message="Pre-upgrade check failed and cannot safely upgrade", cause=status.cause
             )
-        except Exception as e:
-            logger.info(f"Check failed: Unknown error: {e}")
-            raise ClusterNotReadyError(message=default_message, cause="Unknown error")
 
     @override
     def log_rollback_instructions(self) -> None:
