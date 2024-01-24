@@ -23,7 +23,7 @@ DEPENDENCIES = {
     "service": {
         "dependencies": {},
         "name": "zookeeper",
-        "upgrade_supported": "^3.5",
+        "upgrade_supported": "^3.6",
         "version": "3.8.2",
     },
 }
