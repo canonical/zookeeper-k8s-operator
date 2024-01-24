@@ -68,8 +68,9 @@ class ZKWorkload(WorkloadBase):
     @override
     @retry(
         wait=wait_fixed(2),
-        stop=stop_after_attempt(10),
+        stop=stop_after_attempt(5),
         retry=retry_if_not_result(lambda result: True if result else False),
+        retry_error_callback=(lambda state: state.outcome.result()),  # type: ignore
     )
     def healthy(self) -> bool:
         """Flag to check if the unit service is reachable and serving requests."""
