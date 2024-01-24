@@ -105,7 +105,9 @@ class ZooKeeperCharm(CharmBase):
         # --- CORE EVENTS ---
 
         self.framework.observe(getattr(self.on, "install"), self._on_install)
-        self.framework.observe(getattr(self.on, "update_status"), self.update_quorum)
+        self.framework.observe(
+            getattr(self.on, "update_status"), self._on_cluster_relation_changed
+        )
         self.framework.observe(getattr(self.on, "upgrade_charm"), self._on_zookeeper_pebble_ready)
         self.framework.observe(getattr(self.on, "start"), self._on_zookeeper_pebble_ready)
         self.framework.observe(
