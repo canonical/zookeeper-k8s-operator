@@ -25,6 +25,7 @@ from ops.model import (
     StatusBase,
     WaitingStatus,
 )
+from tenacity import RetryError
 
 from core.cluster import ClusterState
 from events.password_actions import PasswordActionEvents
@@ -209,7 +210,7 @@ class ZooKeeperCharm(CharmBase):
         try:
             if self.workload.healthy:
                 return  # nothing to do, service is up and running, don't replan
-        except ModelError:
+        except (ModelError, RetryError):
             logger.info(f"{CONTAINER} workload service not running, re-initialising...")
 
         # re-initialise + replan pebble layer if no service, or service not running

@@ -9,6 +9,7 @@ import string
 
 from ops.model import Container
 from ops.pebble import ChangeError, Layer
+from tenacity import retry, retry_if_not_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
 from core.workload import WorkloadBase
@@ -65,6 +66,11 @@ class ZKWorkload(WorkloadBase):
 
     @property
     @override
+    @retry(
+        wait=wait_fixed(2),
+        stop=stop_after_attempt(10),
+        retry=retry_if_not_result(lambda result: True if result else False),
+    )
     def healthy(self) -> bool:
         """Flag to check if the unit service is reachable and serving requests."""
         if not self.container.get_service(self.container.name).is_running():
