@@ -301,6 +301,7 @@ def test_zookeeper_pebble_ready_upgrade_sets_completed(harness, mocker):
     mocker.patch.object(ZKUpgradeEvents, "idle", new_callable=PropertyMock, return_value=False)
     mocker.patch.object(ZKWorkload, "alive", new_callable=PropertyMock, return_value=True)
     mocker.patch.object(ZKWorkload, "healthy", new_callable=PropertyMock, return_value=True)
+    mocker.patch.object(ZKUpgradeEvents, "post_upgrade_check", return_value=None)
     mocker.patch.object(ZKUpgradeEvents, "set_unit_completed")
 
     mock_event = mocker.MagicMock()

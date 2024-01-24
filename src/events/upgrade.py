@@ -4,7 +4,6 @@
 
 """Upgrades implementation."""
 import logging
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 from charms.data_platform_libs.v0.upgrade import (
@@ -13,7 +12,7 @@ from charms.data_platform_libs.v0.upgrade import (
     DependencyModel,
     KubernetesClientError,
 )
-from charms.zookeeper.v0.client import QuorumLeaderNotFoundError, ZooKeeperManager
+from charms.zookeeper.v0.client import QuorumLeaderNotFoundError
 from kazoo.client import ConnectionClosedError
 from lightkube.core.client import Client
 from lightkube.core.exceptions import ApiError
@@ -24,7 +23,7 @@ from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_random
 from typing_extensions import override
 
-from literals import CLIENT_PORT, CONTAINER
+from literals import CONTAINER
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
@@ -56,10 +55,9 @@ class ZKUpgradeEvents(DataUpgrade):
         if not self.charm.workload.alive or not self.charm.state.unit_server.started or self.idle:
             return
 
+        # useful to have a log here to indicate that the upgrade is progressing
         try:
-            if self.charm.workload.healthy:
-                self.set_unit_completed()
-                return
+            self.charm.workload.healthy
         except ModelError:
             logger.info(f"{CONTAINER} workload service not running, re-initialising...")
 
@@ -84,16 +82,6 @@ class ZKUpgradeEvents(DataUpgrade):
         """
         return not bool(self.upgrade_stack)
 
-    @cached_property
-    def client(self) -> ZooKeeperManager:
-        """Cached client manager application for performing ZK commands."""
-        return ZooKeeperManager(
-            hosts=[server.host for server in self.charm.state.started_servers],
-            client_port=CLIENT_PORT,
-            username="super",
-            password=self.charm.state.cluster.internal_user_credentials.get("super", ""),
-        )
-
     @retry(stop=stop_after_attempt(5), wait=wait_random(min=1, max=5), reraise=True)
     def post_upgrade_check(self) -> None:
         """Runs necessary checks validating the unit is in a healthy state after upgrade."""
@@ -107,21 +95,22 @@ class ZKUpgradeEvents(DataUpgrade):
 
     @override
     def pre_upgrade_check(self) -> None:
+        # setting initial partition to last unit, ensures upgrades stop until first unit sets completed
         if self.idle:
             self._set_rolling_update_partition(partition=len(self.charm.state.servers) - 1)
 
         default_message = "Pre-upgrade check failed and cannot safely upgrade"
         try:
-            if not self.client.members_broadcasting or not len(self.client.server_members) == len(
-                self.charm.state.servers
-            ):
+            if not self.charm.quorum_manager.client.members_broadcasting or not len(
+                self.charm.quorum_manager.client.server_members
+            ) == len(self.charm.state.servers):
                 logger.info("Check failed: broadcasting error")
                 raise ClusterNotReadyError(
                     message=default_message,
                     cause="Not all application units are connected and broadcasting in the quorum",
                 )
 
-            if self.client.members_syncing:
+            if self.charm.quorum_manager.client.members_syncing:
                 logger.info("Check failed: quorum members syncing")
                 raise ClusterNotReadyError(
                     message=default_message, cause="Some quorum members are syncing data"
