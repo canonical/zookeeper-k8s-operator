@@ -390,10 +390,10 @@ class ConfigManager:
         config_properties = self.static_properties
 
         properties_changed = set(server_properties) ^ set(config_properties)
-        logger.debug(f"{properties_changed=}")
 
-        jaas_config = self.current_jaas
-        jaas_changed = set(jaas_config) ^ set(self.jaas_config.splitlines())
+        clean_server_jaas = [conf.strip() for conf in self.current_jaas]
+        clean_config_jaas = [conf.strip() for conf in self.jaas_config.splitlines()]
+        jaas_changed = set(clean_server_jaas) ^ set(clean_config_jaas)
 
         log_level_changed = self.log_level not in "".join(self.current_env)
 
@@ -411,8 +411,6 @@ class ConfigManager:
             self.set_zookeeper_properties()
 
         if jaas_changed:
-            clean_server_jaas = [conf.strip() for conf in jaas_config]
-            clean_config_jaas = [conf.strip() for conf in self.jaas_config.splitlines()]
             logger.info(
                 (
                     f"Server.{self.state.unit_server.unit_id} updating JAAS config - "
