@@ -117,9 +117,13 @@ async def test_scale_up_gets_new_jaas_users(ops_test: OpsTest):
 async def test_remove_applications(ops_test: OpsTest):
     async with ops_test.fast_forward():
         await ops_test.model.applications[DUMMY_NAME_1].remove()
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], idle_period=30, status="active", timeout=1000)
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME], idle_period=30, status="active", timeout=1000
+        )
         await ops_test.model.applications[DUMMY_NAME_2].remove()
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], idle_period=30, status="active", timeout=1000)
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME], idle_period=30, status="active", timeout=1000
+        )
 
     assert ping_servers(ops_test)
     for unit in ops_test.model.applications[APP_NAME].units:
