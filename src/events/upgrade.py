@@ -41,7 +41,6 @@ class ZKUpgradeEvents(DataUpgrade):
     def __init__(self, charm: "ZooKeeperCharm", **kwargs):
         super().__init__(charm, **kwargs)
         self.charm = charm
-        self.substrate = self.charm.state.substrate
 
         self.framework.observe(
             getattr(self.charm.on, "upgrade_charm"), self._on_zookeeper_pebble_ready_upgrade
