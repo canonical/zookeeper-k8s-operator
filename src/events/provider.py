@@ -49,8 +49,11 @@ class ProviderEvents(Object):
             return
 
         # ACLs created before passwords set to avoid restarting before successful adding
+        # passing event here allows knowledge of broken app, removing it's chroot from ACL list
         try:
-            self.charm.quorum_manager.update_acls()
+            self.charm.quorum_manager.update_acls(
+                event=event if isinstance(event, RelationBrokenEvent) else None
+            )
         except (
             MembersSyncingError,
             MemberNotReadyError,

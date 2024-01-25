@@ -7,6 +7,7 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
+from ops import RelationBrokenEvent
 from ops.testing import Harness
 
 from charm import ZooKeeperCharm
@@ -78,6 +79,29 @@ def test_client_relation_updated_creates_passwords_with_chroot(harness):
 
         harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
         assert harness.charm.state.cluster.client_passwords
+
+
+def test_client_relation_broken_sets_acls_with_broken_events(harness):
+    with harness.hooks_disabled():
+        app_id = harness.add_relation(REL_NAME, "application")
+        harness.set_leader(True)
+
+    with (
+        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        patch("managers.quorum.QuorumManager.update_acls") as patched_update_acls,
+        patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
+    ):
+        harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
+        patched_update_acls.assert_called_with(event=None)
+
+    with (
+        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        patch("managers.quorum.QuorumManager.update_acls") as patched_update_acls,
+        patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
+    ):
+        harness.remove_relation(app_id)
+
+        isinstance(patched_update_acls.call_args_list[0], RelationBrokenEvent)
 
 
 def test_client_relation_broken_removes_passwords(harness):
