@@ -374,7 +374,7 @@ class RollingOpsManager(Object):
             Lock(self).acquire()  # Updates relation data
             # emit relation changed event in the edge case where aquire does not
             relation = self.model.get_relation(self.name)
-            self.charm.on[self.name].relation_changed.emit(relation)
+            self.charm.on[self.name].relation_changed.emit(relation=relation, app=self.charm.app, unit=self.charm.unit)
         except LockNoRelationError:
             logger.debug("No {} peer relation yet. Delaying rolling op.".format(self.name))
             event.defer()

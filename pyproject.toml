@@ -40,6 +40,7 @@ pydantic = "^1.10.7"
 pyyaml = "^6.0.1"
 jsonschema = ">=4.10"
 poetry-plugin-export = ">=1.6"
+lightkube = "^0.15.0"
 
 [tool.poetry.group.fmt]
 optional = true
@@ -75,7 +76,6 @@ juju = "^3.2.0"
 coverage = {extras = ["toml"], version = ">7.0"}
 pytest-operator = ">0.20"
 requests = ">2.25"
-lightkube = "==0.11.0"
 kazoo = ">=2.8"
 jsonschema = ">=4.10"
 pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_cache"}

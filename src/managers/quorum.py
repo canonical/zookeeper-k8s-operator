@@ -6,6 +6,8 @@
 import logging
 import re
 import socket
+from dataclasses import dataclass
+from functools import cached_property
 from typing import Set
 
 from charms.zookeeper.v0.client import (
@@ -14,7 +16,7 @@ from charms.zookeeper.v0.client import (
     QuorumLeaderNotFoundError,
     ZooKeeperManager,
 )
-from kazoo.exceptions import BadArgumentsError
+from kazoo.exceptions import BadArgumentsError, ConnectionClosedError
 from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.security import make_acl
 from ops.charm import RelationEvent
@@ -30,6 +32,58 @@ class QuorumManager:
 
     def __init__(self, state: ClusterState):
         self.state = state
+
+    @cached_property
+    def client(self) -> ZooKeeperManager:
+        """Cached client manager application for performing ZK commands."""
+        admin_username = "super"
+        admin_password = self.state.cluster.internal_user_credentials.get(admin_username, "")
+        active_hosts = [server.host for server in self.state.started_servers]
+
+        return ZooKeeperManager(
+            hosts=active_hosts,
+            client_port=CLIENT_PORT,
+            username=admin_username,
+            password=admin_password,
+        )
+
+    @dataclass
+    class SyncStatus:
+        """Type for returning status of a syncing quorum."""
+
+        passed: bool = False
+        cause: str = ""
+
+    def is_syncing(self) -> "QuorumManager.SyncStatus":
+        """Checks if any server members are currently syncing data.
+
+        To be used when evaluating whether a cluster can upgrade or not.
+        """
+        try:
+            if not self.client.members_broadcasting or not len(self.client.server_members) == len(
+                self.state.servers
+            ):
+                return self.SyncStatus(
+                    cause="Not all application units are connected and broadcasting in the quorum"
+                )
+
+            if self.client.members_syncing:
+                return self.SyncStatus(cause="Some quorum members are still syncing data")
+
+            if not self.state.stable:
+                return self.SyncStatus(cause="Charm has not finished initialising")
+
+        except QuorumLeaderNotFoundError:
+            return self.SyncStatus(cause="Quorum leader not found")
+
+        except ConnectionClosedError:
+            return self.SyncStatus(cause="Unable to connect to the cluster")
+
+        except Exception as e:
+            logger.error(str(e))
+            return self.SyncStatus(cause="Unknown error")
+
+        return self.SyncStatus(passed=True)
 
     def get_hostname_mapping(self) -> dict[str, str]:
         """Collects hostname mapping for current unit.
@@ -81,33 +135,22 @@ class QuorumManager:
         # This means that we cannot dynamically reconfigure without also having a PLAIN port open
         # Ideally, have a check here for `client_port=self.secure_client_port` if tls.enabled
         # Until then, we can just use the insecure port for convenience
-
-        admin_username = "super"
-        admin_password = self.state.cluster.internal_user_credentials.get(admin_username, "")
-        active_hosts = [server.host for server in self.state.started_servers]
         active_server_strings = {server.server_string for server in self.state.started_servers}
 
         try:
-            zk = ZooKeeperManager(
-                hosts=active_hosts,
-                client_port=CLIENT_PORT,
-                username=admin_username,
-                password=admin_password,
-            )
-
             # remove units first, faster due to no startup/sync delay
-            zk_members = zk.server_members
+            zk_members = self.client.server_members
             servers_to_remove = list(zk_members - active_server_strings)
             logger.debug(f"{servers_to_remove=}")
 
-            zk.remove_members(members=servers_to_remove)
+            self.client.remove_members(members=servers_to_remove)
 
             # sorting units to ensure units are added in id order
-            zk_members = zk.server_members
+            zk_members = self.client.server_members
             servers_to_add = sorted(active_server_strings - zk_members)
             logger.debug(f"{servers_to_add=}")
 
-            zk.add_members(members=servers_to_add)
+            self.client.add_members(members=servers_to_add)
 
             return self._get_updated_servers(add=servers_to_add, remove=servers_to_remove)
 
@@ -145,18 +188,7 @@ class QuorumManager:
         Args:
             event (optional): used for checking `RelationBrokenEvent`
         """
-        admin_username = "super"
-        admin_password = self.state.cluster.internal_user_credentials.get(admin_username, "")
-        active_hosts = [server.host for server in self.state.started_servers]
-
-        zk = ZooKeeperManager(
-            hosts=active_hosts,
-            client_port=CLIENT_PORT,
-            username=admin_username,
-            password=admin_password,
-        )
-
-        leader_chroots = zk.leader_znodes(path="/")
+        leader_chroots = self.client.leader_znodes(path="/")
         logger.debug(f"{leader_chroots=}")
 
         requested_acls = set()
@@ -185,14 +217,14 @@ class QuorumManager:
             # Looks for newly related applications not in config yet
             if client.chroot not in leader_chroots:
                 logger.debug(f"CREATE CHROOT - {client.chroot}")
-                zk.create_znode_leader(path=client.chroot, acls=[generated_acl])
+                self.client.create_znode_leader(path=client.chroot, acls=[generated_acl])
 
             # Looks for existing related applications
             logger.debug(f"UPDATE CHROOT - {client.chroot}")
-            zk.set_acls_znode_leader(path=client.chroot, acls=[generated_acl])
+            self.client.set_acls_znode_leader(path=client.chroot, acls=[generated_acl])
 
         # Looks for applications no longer in the relation but still in config
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
             if not self._is_child_of(chroot, requested_chroots):
                 logger.debug(f"DROP CHROOT - {chroot}")
-                zk.delete_znode_leader(path=chroot)
+                self.client.delete_znode_leader(path=chroot)

@@ -25,10 +25,12 @@ from core.cluster import ClusterState
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
 from events.tls import TLSEvents
+from events.upgrade import ZKUpgradeEvents, ZooKeeperDependencyModel
 from literals import (
     CHARM_KEY,
     CHARM_USERS,
     CONTAINER,
+    DEPENDENCIES,
     JMX_PORT,
     LOGS_RULES_DIR,
     METRICS_PROVIDER_PORT,
@@ -57,6 +59,12 @@ class ZooKeeperCharm(CharmBase):
         self.password_action_events = PasswordActionEvents(self)
         self.tls_events = TLSEvents(self)
         self.provider_events = ProviderEvents(self)
+        self.upgrade_events = ZKUpgradeEvents(
+            self,
+            dependency_model=ZooKeeperDependencyModel(
+                **DEPENDENCIES  # pyright: ignore[reportGeneralTypeIssues]
+            ),
+        )
 
         # --- MANAGERS ---
 
@@ -156,8 +164,10 @@ class ZooKeeperCharm(CharmBase):
         # only restart where necessary to avoid slowdowns
         # config_changed call here implicitly updates jaas + zoo.cfg
         if (
-            self.config_manager.config_changed() or self.state.cluster.switching_encryption
-        ) and self.state.unit_server.started:
+            (self.config_manager.config_changed() or self.state.cluster.switching_encryption)
+            and self.state.unit_server.started
+            and self.upgrade_events.idle
+        ):
             self.on[f"{self.restart.name}"].acquire_lock.emit()
 
         # ensures events aren't lost during an upgrade on single units
@@ -170,7 +180,10 @@ class ZooKeeperCharm(CharmBase):
         Handles case where workload has shut down due to failing `ruok` 4lw command and
         needs to be restarted.
         """
-        # FIXME: Will need updating when adding in-place upgrade support
+        # don't want to run default pebble ready during upgrades
+        if not self.upgrade_events.idle:
+            return
+
         # ensure pebble-ready only fires after normal peer-relation-driven server init
         if not self.workload.alive or not self.state.unit_server.started:
             event.defer()
