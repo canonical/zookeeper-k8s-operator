@@ -16,7 +16,8 @@ CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
 METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 
-TLS_NAME="self-signed-certificates"
+TLS_NAME = "self-signed-certificates"
+
 
 @pytest.fixture
 def harness():
