@@ -19,6 +19,7 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
 
+TLS_NAME="self-signed-certificates"
 
 @pytest.mark.abort_on_fail
 async def test_deploy_ssl_quorum(ops_test: OpsTest):
@@ -32,22 +33,22 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             series=SERIES,
         ),
         ops_test.model.deploy(
-            "tls-certificates-operator",
-            application_name="tls-certificates-operator",
-            channel="stable",
+            TLS_NAME,
+            application_name=TLS_NAME,
+            channel="edge",
             num_units=1,
-            config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
+            config={"ca-common-name": "zookeeper"},
             series=TLS_OPERATOR_SERIES,
         ),
     )
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000, idle_period=30
+        apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
     )
-    await ops_test.model.add_relation(APP_NAME, "tls-certificates-operator")
+    await ops_test.model.add_relation(APP_NAME, TLS_NAME)
 
     async with ops_test.fast_forward():
         await ops_test.model.wait_for_idle(
-            apps=[APP_NAME, "tls-certificates-operator"],
+            apps=[APP_NAME, TLS_NAME],
             status="active",
             timeout=1000,
             idle_period=30,
@@ -64,7 +65,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
 @pytest.mark.abort_on_fail
 @pytest.mark.skip(reason="Remove application bad on K8s")
 async def test_remove_tls_provider(ops_test: OpsTest):
-    await ops_test.model.remove_application("tls-certificates-operator", block_until_done=True)
+    await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="active", timeout=1000, idle_period=30
     )
@@ -82,19 +83,19 @@ async def test_remove_tls_provider(ops_test: OpsTest):
 async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
     await asyncio.gather(
         ops_test.model.deploy(
-            "tls-certificates-operator",
-            application_name="tls-certificates-operator",
+            TLS_NAME,
+            application_name=TLS_NAME,
             channel="stable",
             num_units=1,
             config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
         ),
     )
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000
+        apps=[APP_NAME, TLS_NAME], status="active", timeout=1000
     )
-    await ops_test.model.add_relation(APP_NAME, "tls-certificates-operator")
+    await ops_test.model.add_relation(APP_NAME, TLS_NAME)
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, "tls-certificates-operator"], status="active", timeout=1000, idle_period=30
+        apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
     )
 
     assert ping_servers(ops_test)

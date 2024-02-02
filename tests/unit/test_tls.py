@@ -16,6 +16,7 @@ CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
 METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
 
+TLS_NAME="self-signed-certificates"
 
 @pytest.fixture
 def harness():
@@ -54,7 +55,7 @@ def test_certificates_created_defers_if_not_stable(harness):
         harness.set_leader(True)
 
     with patch("ops.framework.EventBase.defer") as patched:
-        harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+        harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
     patched.assert_called_once()
     assert not harness.charm.state.cluster.tls
@@ -68,7 +69,7 @@ def test_certificates_created_sets_upgrading_enabled(harness):
         patch("ops.framework.EventBase.defer"),
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
     ):
-        harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+        harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
     assert harness.charm.state.cluster.tls
     assert harness.charm.state.cluster.switching_encryption
@@ -79,8 +80,8 @@ def test_certificates_joined_defers_if_disabled(harness):
         patch("ops.framework.EventBase.defer") as patched,
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
     ):
-        cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
-        harness.add_relation_unit(cert_rel_id, "tls-certificates-operator/1")
+        cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
+        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}/1")
 
     patched.assert_called_once()
     assert not harness.charm.state.unit_server.private_key
@@ -91,8 +92,8 @@ def test_certificates_joined_creates_private_key_if_enabled(harness):
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("core.models.ZKCluster.tls", new_callable=PropertyMock, return_value=True),
     ):
-        cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
-        harness.add_relation_unit(cert_rel_id, "tls-certificates-operator/1")
+        cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
+        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}/1")
 
     assert harness.charm.state.unit_server.private_key
     assert "BEGIN RSA PRIVATE KEY" in harness.charm.state.unit_server.private_key.splitlines()[0]
@@ -106,8 +107,8 @@ def test_certificates_joined_creates_new_key_trust_store_password(harness):
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("core.models.ZKCluster.tls", new_callable=PropertyMock, return_value=True),
     ):
-        cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
-        harness.add_relation_unit(cert_rel_id, "tls-certificates-operator/1")
+        cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
+        harness.add_relation_unit(cert_rel_id, f"{TLS_NAME}/1")
 
     assert harness.charm.state.unit_server.keystore_password
     assert harness.charm.state.unit_server.truststore_password
@@ -119,7 +120,7 @@ def test_certificates_joined_creates_new_key_trust_store_password(harness):
 
 
 def test_certificates_available_fails_wrong_csr(harness):
-    cert_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+    cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
     harness.update_relation_data(cert_rel_id, f"{CHARM_KEY}/0", {"csr": "not-missing"})
 
     harness.charm.tls_events.certificates.on.certificate_available.emit(
@@ -131,7 +132,7 @@ def test_certificates_available_fails_wrong_csr(harness):
 
 
 def test_certificates_available_succeeds(harness):
-    harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+    harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
     # implicitly tests restart call
     harness.add_relation(harness.charm.restart.name, "{CHARM_KEY}/0")
@@ -162,7 +163,7 @@ def test_certificates_available_succeeds(harness):
 
 def test_certificates_broken(harness):
     with harness.hooks_disabled():
-        certs_rel_id = harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
+        certs_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
