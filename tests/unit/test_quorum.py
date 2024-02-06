@@ -61,6 +61,23 @@ def test_is_child_of_not(harness):
     assert not harness.charm.quorum_manager._is_child_of(path=chroot, chroots=chroots)
 
 
+def test_update_acls_does_not_add_empty_chroot(harness):
+    with harness.hooks_disabled():
+        harness.add_relation(REL_NAME, "application")
+
+    with patch.multiple(
+        "charms.zookeeper.v0.client.ZooKeeperManager",
+        get_leader=DEFAULT,
+        leader_znodes=MagicMock(return_value={"/"}),
+        create_znode_leader=DEFAULT,
+        set_acls_znode_leader=DEFAULT,
+        delete_znode_leader=DEFAULT,
+    ) as patched_manager:
+        harness.charm.quorum_manager.update_acls()
+
+        patched_manager["create_znode_leader"].assert_not_called()
+
+
 def test_update_acls_correctly_handles_relation_chroots(harness):
     dummy_leader_znodes = {
         "/fellowship",
