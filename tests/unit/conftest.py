@@ -8,8 +8,20 @@ from tests.unit.test_charm import PropertyMock
 
 
 @pytest.fixture(autouse=True)
+def patched_idle(mocker):
+    mocker.patch(
+        "events.upgrade.ZKUpgradeEvents.idle", new_callable=PropertyMock, return_value=True
+    )
+
+
+@pytest.fixture(autouse=True)
 def patched_wait(mocker):
     mocker.patch("tenacity.nap.time")
+
+
+@pytest.fixture(autouse=True)
+def patched_set_rolling_update_partition(mocker):
+    mocker.patch("events.upgrade.ZKUpgradeEvents._set_rolling_update_partition")
 
 
 @pytest.fixture(autouse=True)
