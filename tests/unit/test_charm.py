@@ -9,13 +9,14 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
+from charms.rolling_ops.v0.rollingops import WaitingStatus
 from ops.framework import EventBase
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus
+from ops.model import ActiveStatus, BlockedStatus
 from ops.testing import Harness
 
 from charm import ZooKeeperCharm
 from core.models import ZKClient
-from literals import CHARM_KEY, CONTAINER, PEER, REL_NAME, SUBSTRATE
+from literals import CHARM_KEY, CONTAINER, PEER, REL_NAME, SUBSTRATE, Status
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def test_install_sets_ip_hostname_fqdn(harness):
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
         harness.set_leader(True)
 
-    with patch("workload.ZKWorkload.install", return_value=False):
+    with patch("workload.ZKWorkload.install", return_value=True):
         harness.charm.on.install.emit()
 
         assert harness.charm.state.unit_server.ip
@@ -257,6 +258,28 @@ def test_relation_changed_defers_switching_encryption_single_unit(harness):
         patched.assert_called_once()
 
 
+def test_relation_changed_checks_alive_and_healthy(harness):
+    with harness.hooks_disabled():
+        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+
+    with (
+        patch("core.cluster.ClusterState.all_units_related", return_value=True),
+        patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("core.models.ZKServer.started", new_callable=PropertyMock, return_value=True),
+        patch("managers.config.ConfigManager.config_changed", return_value=False),
+        patch(
+            "workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=True
+        ) as patched_alive,
+        patch(
+            "workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True
+        ) as patched_healthy,
+    ):
+        harness.charm.on.config_changed.emit()
+        patched_alive.assert_called_once()
+        patched_healthy.assert_called_once()
+
+
 def test_restart_fails_not_related(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
@@ -299,8 +322,8 @@ def test_restart_fails_not_added(harness):
         patched.assert_not_called()
 
 
-@pytest.mark.parametrize("stable, restarts", [(True, 1), (False, 0)])
-def test_restart_restarts_with_sleep(harness, stable, restarts):
+@pytest.mark.parametrize("stable, restarts", [(Status.ACTIVE, 1), (Status.NOT_ALL_ADDED, 0)])
+def test_restart_restarts_with_sleep_and_alive_healthy_checks(harness, stable, restarts):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -312,10 +335,45 @@ def test_restart_restarts_with_sleep(harness, stable, restarts):
         patch("workload.ZKWorkload.restart") as patched_restart,
         patch("time.sleep") as patched_sleep,
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=stable),
+        patch(
+            "workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=True
+        ) as patched_alive,
+        patch(
+            "workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True
+        ) as patched_healthy,
     ):
         harness.charm._restart(EventBase(harness.charm))
         assert patched_restart.call_count == restarts
         assert patched_sleep.call_count == restarts
+        assert patched_alive.call_count == restarts
+        assert patched_healthy.call_count == restarts
+
+
+@pytest.mark.parametrize(
+    "alive, healthy, active", [(False, True, False), (True, False, False), (True, True, True)]
+)
+def test_restart_only_sets_active_if_alive_and_healthy(harness, alive, healthy, active):
+    with harness.hooks_disabled():
+        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+        harness.set_planned_units(1)
+        harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
+        harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}", {"0": "added"})
+
+    with (
+        patch("workload.ZKWorkload.restart"),
+        patch("time.sleep"),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=alive),
+        patch("workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=healthy),
+    ):
+        harness.charm._restart(EventBase(harness.charm))
+
+        assert isinstance(harness.charm.unit.status, ActiveStatus) == active
 
 
 def test_restart_restarts_snap_sets_active_status(harness):
@@ -328,7 +386,11 @@ def test_restart_restarts_snap_sets_active_status(harness):
 
     with (
         patch("workload.ZKWorkload.restart"),
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("time.sleep"),
     ):
         harness.charm._restart(EventBase(harness.charm))
@@ -347,7 +409,11 @@ def test_restart_sets_password_rotated_on_unit(harness):
 
     with (
         patch("workload.ZKWorkload.restart"),
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("time.sleep"),
     ):
         harness.charm._restart(EventBase(harness.charm))
@@ -364,7 +430,11 @@ def test_restart_sets_unified(harness):
 
     with (
         patch("workload.ZKWorkload.restart"),
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("time.sleep"),
     ):
         harness.charm._restart(EventBase(harness.charm))
@@ -376,7 +446,9 @@ def test_restart_sets_unified(harness):
         with (
             patch("workload.ZKWorkload.restart"),
             patch(
-                "core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True
+                "core.cluster.ClusterState.stable",
+                new_callable=PropertyMock,
+                return_value=Status.ACTIVE,
             ),
             patch("time.sleep"),
         ):
@@ -384,17 +456,17 @@ def test_restart_sets_unified(harness):
             assert not harness.charm.state.unit_server.unified
 
 
-def test_init_server_maintenance_if_no_passwords(harness):
+def test_init_server_waiting_if_no_passwords(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
 
     harness.charm.init_server()
 
-    assert isinstance(harness.charm.unit.status, MaintenanceStatus)
+    assert isinstance(harness.charm.unit.status, WaitingStatus)
 
 
-def test_init_server_maintenance_if_not_turn(harness):
+def test_init_server_waiting_if_not_turn(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -405,7 +477,40 @@ def test_init_server_maintenance_if_not_turn(harness):
     with patch("core.cluster.ClusterState.next_server", return_value=None):
         harness.charm.init_server()
 
-        assert isinstance(harness.charm.unit.status, MaintenanceStatus)
+        assert isinstance(harness.charm.unit.status, WaitingStatus)
+
+
+def test_init_server_sets_blocked_if_not_alive(harness):
+    with harness.hooks_disabled():
+        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+        harness.update_relation_data(
+            peer_rel_id,
+            f"{CHARM_KEY}/0",
+            {"ip": "aragorn", "fqdn": "legolas", "hostname": "gimli"},
+        )
+        harness.update_relation_data(
+            peer_rel_id,
+            CHARM_KEY,
+            {
+                "sync-password": "mellon",
+                "super-password": "mellon",
+                "switching-encryption": "started",
+                "quorum": "ssl",
+            },
+        )
+    with (
+        patch("managers.config.ConfigManager.set_zookeeper_myid"),
+        patch("managers.config.ConfigManager.set_server_jvmflags"),
+        patch("managers.config.ConfigManager.set_zookeeper_dynamic_properties"),
+        patch("managers.config.ConfigManager.set_zookeeper_properties"),
+        patch("managers.config.ConfigManager.set_jaas_config"),
+        patch("workload.ZKWorkload.start"),
+        patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=False),
+    ):
+        harness.charm.init_server()
+
+        assert not isinstance(harness.charm.unit.status, ActiveStatus)
 
 
 def test_init_server_calls_necessary_methods(harness):
@@ -590,8 +695,16 @@ def test_config_changed_applies_relation_data(harness):
 
     with (
         patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
-        patch("core.cluster.ClusterState.stable", return_value=True),
-        patch("core.cluster.ClusterState.ready", return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
@@ -608,8 +721,16 @@ def test_config_changed_fails_apply_relation_data_not_ready(harness):
 
     with (
         patch("core.models.ZKClient.update") as patched_update,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
-        patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=False),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.NOT_ALL_QUORUM,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
@@ -624,8 +745,16 @@ def test_config_changed_fails_apply_relation_data_not_stable(harness):
 
     with (
         patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=False),
-        patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.STALE_QUORUM,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
     ):
         harness.charm.on.config_changed.emit()
@@ -640,8 +769,16 @@ def test_update_quorum_updates_relation_data(harness):
 
     with (
         patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
-        patch("core.cluster.ClusterState.stable", return_value=True),
-        patch("core.cluster.ClusterState.ready", return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
     ):
         harness.charm.update_quorum(EventBase)
@@ -656,8 +793,16 @@ def test_update_quorum_fails_update_relation_data_if_not_stable(harness):
 
     with (
         patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock(return_value=False)),
-        patch("core.cluster.ClusterState.ready", return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.STALE_QUORUM,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
     ):
         harness.charm.update_quorum(EventBase)
@@ -672,8 +817,16 @@ def test_update_quorum_fails_update_relation_data_if_not_ready(harness):
 
     with (
         patch("core.models.ZKClient.update") as patched_update,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
-        patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=False),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.NOT_ALL_QUORUM,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
     ):
         harness.charm.update_quorum(EventBase)
@@ -688,8 +841,14 @@ def test_restart_defers_if_not_stable(harness):
 
     with (
         patch("charm.ZooKeeperCharm.update_client_data", return_value=None) as patched_apply,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock(return_value=False)),
-        patch("core.cluster.ClusterState.ready", return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.STALE_QUORUM,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready", new_calable=PropertyMock, return_value=Status.ACTIVE
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("ops.framework.EventBase.defer") as patched_defer,
     ):
@@ -706,8 +865,16 @@ def test_restart_fails_update_relation_data_if_not_ready(harness):
 
     with (
         patch("core.models.ZKClient.update") as patched_update,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
-        patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=False),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.NOT_ALL_QUORUM,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
     ):
         harness.charm._restart(EventBase)
@@ -722,8 +889,16 @@ def test_restart_fails_update_relation_data_if_not_idle(harness):
 
     with (
         patch("core.models.ZKClient.update") as patched_update,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
-        patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=False),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.NOT_ALL_QUORUM,
+        ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
     ):
         harness.charm._restart(EventBase)
@@ -822,7 +997,11 @@ def test_update_relation_data(harness):
         )
 
     with (
-        patch("core.cluster.ClusterState.ready", new_callable=PropertyMock, return_value=True),
+        patch(
+            "core.cluster.ClusterState.ready",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch(
             "managers.config.ConfigManager.current_jaas",
             new_callable=PropertyMock,

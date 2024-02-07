@@ -120,11 +120,10 @@ class TLSManager:
             self.workload.exec(
                 command=[
                     "rm",
-                    "-rf",
-                    f"{self.workload.paths.conf_path}/*.pem",
-                    f"*{self.workload.paths.conf_path}/*.key",
-                    f"*{self.workload.paths.conf_path}/*.p12",
-                    f"*{self.workload.paths.conf_path}/*.jks",
+                    self.workload.paths.ca,
+                    self.workload.paths.certificate,
+                    self.workload.paths.keystore,
+                    self.workload.paths.truststore,
                 ],
                 working_dir=self.workload.paths.conf_path,
             )

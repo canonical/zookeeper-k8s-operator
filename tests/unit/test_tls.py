@@ -10,7 +10,7 @@ import yaml
 from ops.testing import Harness
 
 from charm import ZooKeeperCharm
-from literals import CERTS_REL_NAME, CHARM_KEY, PEER
+from literals import CERTS_REL_NAME, CHARM_KEY, PEER, Status
 
 CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
 ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
@@ -66,7 +66,11 @@ def test_certificates_created_sets_upgrading_enabled(harness):
 
     with (
         patch("ops.framework.EventBase.defer"),
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
     ):
         harness.add_relation(CERTS_REL_NAME, "tls-certificates-operator")
 

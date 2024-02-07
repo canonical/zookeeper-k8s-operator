@@ -9,9 +9,11 @@ import string
 
 from ops.model import Container
 from ops.pebble import ChangeError, Layer
+from tenacity import retry, retry_if_not_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
 from core.workload import WorkloadBase
+from literals import CLIENT_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +66,38 @@ class ZKWorkload(WorkloadBase):
 
     @property
     @override
+    @retry(
+        wait=wait_fixed(2),
+        stop=stop_after_attempt(5),
+        retry=retry_if_not_result(lambda result: True if result else False),
+        retry_error_callback=(lambda state: state.outcome.result()),  # type: ignore
+    )
     def healthy(self) -> bool:
-        return self.container.get_service(self.container.name).is_running()
+        """Flag to check if the unit service is reachable and serving requests."""
+        if not self.container.get_service(self.container.name).is_running():
+            return False
+
+        # netcat isn't a default utility, so can't guarantee it's on the charm containers
+        # this ugly hack avoids needing netcat
+        bash_netcat = (
+            f"echo '4lw' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"
+        )
+        ruok = [bash_netcat.replace("4lw", "ruok")]
+        srvr = [bash_netcat.replace("4lw", "srvr")]
+
+        # timeout needed as it can sometimes hang forever if there's a problem
+        # for example when the endpoint is unreachable
+        timeout = ["timeout", "10s", "bash", "-c"]
+
+        ruok_response = self.exec(command=timeout + ruok)
+        if not ruok_response or "imok" not in ruok_response:
+            return False
+
+        srvr_response = self.exec(command=timeout + srvr)
+        if not srvr_response or "not currently serving requests" in srvr_response:
+            return False
+
+        return True
 
     # --- ZK Specific ---
 
