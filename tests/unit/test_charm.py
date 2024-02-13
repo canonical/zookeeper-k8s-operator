@@ -118,6 +118,21 @@ def test_relation_changed_updates_ip_hostname_fqdn(harness):
     assert harness.charm.state.unit_server.ip == "gandalf-the-white"
 
 
+def test_relation_changed_defers_if_upgrading(harness, patched_idle):
+    patched_idle.return_value = False
+    with harness.hooks_disabled():
+        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
+        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+
+    with (
+        patch("ops.framework.EventBase.defer") as patched_defer,
+        patch("managers.config.ConfigManager.config_changed") as patched_config_changed,
+    ):
+        harness.charm.on.cluster_relation_changed.emit(harness.charm.state.peer_relation)
+        patched_defer.assert_called_once()
+        patched_config_changed.assert_not_called()
+
+
 def test_relation_changed_emitted_for_leader_elected(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
