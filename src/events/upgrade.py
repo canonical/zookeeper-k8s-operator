@@ -52,6 +52,8 @@ class ZKUpgradeEvents(DataUpgrade):
         if not self.charm.workload.alive or not self.charm.state.unit_server.started or self.idle:
             return
 
+        self.apply_backwards_compatibility_fixes()
+
         # useful to have a log here to indicate that the upgrade is progressing
         try:
             self.charm.workload.healthy
@@ -133,3 +135,7 @@ class ZKUpgradeEvents(DataUpgrade):
             else:
                 cause = str(e)
             raise KubernetesClientError("Kubernetes StatefulSet patch failed", cause)
+
+    def apply_backwards_compatibility_fixes(self) -> None:
+        """A range of functions needed for backwards compatibility."""
+        return
