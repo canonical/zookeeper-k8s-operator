@@ -33,6 +33,9 @@ def harness():
 
 
 def test_client_relation_updated_defers_if_not_stable_leader(harness):
+    with harness.hooks_disabled():
+        harness.set_leader(True)
+
     with (
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=False),
         patch("ops.framework.EventBase.defer") as patched_defer,
