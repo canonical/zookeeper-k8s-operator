@@ -161,6 +161,12 @@ class ZooKeeperCharm(CharmBase):
             self._set_status(Status.NO_PEER_RELATION)
             return
 
+        # don't want to prematurely set config using outdated/missing relation data
+        # also skip update-status overriding statues during upgrades
+        if not self.upgrade_events.idle:
+            event.defer()
+            return
+
         # attempt startup of server
         if not self.state.unit_server.started:
             self.init_server()

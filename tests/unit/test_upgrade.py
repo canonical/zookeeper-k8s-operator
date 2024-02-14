@@ -210,6 +210,7 @@ def test_upgrade_granted_succeeds(harness, mocker):
     mocker.patch.object(ZKUpgradeEvents, "pre_upgrade_check")
     mocker.patch.object(ZKUpgradeEvents, "set_unit_completed")
     mocker.patch.object(ZKUpgradeEvents, "set_unit_failed")
+    mocker.patch.object(ZKUpgradeEvents, "apply_backwards_compatibility_fixes")
 
     mock_event = mocker.MagicMock()
 
@@ -217,6 +218,7 @@ def test_upgrade_granted_succeeds(harness, mocker):
 
     ZKWorkload.stop.assert_called_once()
     ZKWorkload.install.assert_called_once()
+    ZKUpgradeEvents.apply_backwards_compatibility_fixes.assert_called_once()
     ZKWorkload.restart.assert_called_once()
     ZKUpgradeEvents.set_unit_completed.assert_called_once()
     ZKUpgradeEvents.set_unit_failed.assert_not_called()
@@ -301,6 +303,7 @@ def test_zookeeper_pebble_ready_upgrade_sets_completed(harness, mocker):
     mocker.patch.object(ZKUpgradeEvents, "idle", new_callable=PropertyMock, return_value=False)
     mocker.patch.object(ZKWorkload, "alive", new_callable=PropertyMock, return_value=True)
     mocker.patch.object(ZKWorkload, "healthy", new_callable=PropertyMock, return_value=True)
+    mocker.patch.object(ZKUpgradeEvents, "apply_backwards_compatibility_fixes")
     mocker.patch.object(ZKUpgradeEvents, "post_upgrade_check", return_value=None)
     mocker.patch.object(ZKUpgradeEvents, "set_unit_completed")
 
@@ -308,4 +311,5 @@ def test_zookeeper_pebble_ready_upgrade_sets_completed(harness, mocker):
 
     harness.charm.upgrade_events._on_zookeeper_pebble_ready_upgrade(mock_event)
 
+    ZKUpgradeEvents.apply_backwards_compatibility_fixes.assert_called_once()
     ZKUpgradeEvents.set_unit_completed.assert_called_once()
