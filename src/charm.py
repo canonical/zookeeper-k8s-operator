@@ -226,6 +226,10 @@ class ZooKeeperCharm(CharmBase):
         if self.state.cluster.switching_encryption and len(self.state.servers) == 1:
             event.defer()
 
+        if not self.workload.alive:
+            self._set_status(Status.CONTAINER_NOT_CONNECTED)
+            return
+
         # service can stop serving requests if the quorum is lost
         if self.state.unit_server.started and not self.workload.healthy:
             self._set_status(Status.SERVICE_UNHEALTHY)
@@ -287,16 +291,6 @@ class ZooKeeperCharm(CharmBase):
             }
         )
 
-        if not self.workload.alive:
-            self._set_status(Status.CONTAINER_NOT_CONNECTED)
-            return
-
-        if not self.workload.healthy:
-            self._set_status(Status.SERVICE_UNHEALTHY)
-            return
-
-        self._set_status(Status.ACTIVE)
-
     # --- CONVENIENCE METHODS ---
 
     def init_server(self):
@@ -352,16 +346,6 @@ class ZooKeeperCharm(CharmBase):
 
         logger.debug("starting ZooKeeper service")
         self.workload.start(layer=self._layer)
-
-        if not self.workload.alive:
-            self._set_status(Status.CONTAINER_NOT_CONNECTED)
-            return
-
-        if not self.workload.healthy:
-            self._set_status(Status.SERVICE_UNHEALTHY)
-            return
-
-        self._set_status(Status.ACTIVE)
 
         # unit flags itself as 'started' so it can be retrieved by the leader
         logger.info(f"{self.unit.name} started")
