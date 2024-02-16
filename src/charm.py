@@ -231,6 +231,8 @@ class ZooKeeperCharm(CharmBase):
             self._set_status(Status.SERVICE_UNHEALTHY)
             return
 
+        self._set_status(Status.ACTIVE)
+
     def _on_zookeeper_pebble_ready(self, event: EventBase) -> None:
         """Handler for the `upgrade-charm`, `zookeeper-pebble-ready` and `start` events.
 
