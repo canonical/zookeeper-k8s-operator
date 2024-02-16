@@ -25,6 +25,7 @@ from ops.model import (
     StatusBase,
     WaitingStatus,
 )
+from ops.pebble import Layer, LayerDict
 from tenacity import RetryError
 
 from core.cluster import ClusterState
@@ -35,6 +36,7 @@ from events.upgrade import ZKUpgradeEvents, ZooKeeperDependencyModel
 from literals import (
     CHARM_KEY,
     CHARM_USERS,
+    CLIENT_PORT,
     CONTAINER,
     DEPENDENCIES,
     JMX_PORT,
@@ -130,6 +132,37 @@ class ZooKeeperCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "cluster_relation_departed"), self._on_cluster_relation_changed
         )
+
+    @property
+    def _layer(self) -> Layer:
+        """Returns a Pebble configuration layer for ZooKeeper on K8s."""
+        layer_config: "LayerDict" = {
+            "summary": "zookeeper layer",
+            "description": "Pebble config layer for zookeeper",
+            "services": {
+                CONTAINER: {
+                    "override": "replace",
+                    "summary": "zookeeper",
+                    "command": f"{self.workload.paths.binaries_path}/bin/zkServer.sh --config {self.workload.paths.conf_path} start-foreground",
+                    "startup": "enabled",
+                    "environment": {
+                        "SERVER_JVMFLAGS": " ".join(
+                            self.config_manager.server_jvmflags + self.config_manager.jmx_jvmflags
+                        )
+                    },
+                },
+            },
+            "checks": {
+                CONTAINER: {
+                    "override": "replace",
+                    "level": "alive",
+                    "exec": {
+                        "command": f"echo ruok | nc {self.state.unit_server.host} {CLIENT_PORT}"
+                    },
+                }
+            },
+        }
+        return Layer(layer_config)
 
     # --- CORE EVENT HANDLERS ---
 
@@ -298,7 +331,7 @@ class ZooKeeperCharm(CharmBase):
         self.config_manager.set_jaas_config()
 
         logger.debug("starting ZooKeeper service")
-        self.workload.start(layer=self.config_manager.layer)
+        self.workload.start(layer=self._layer)
 
         if not self.workload.alive:
             self._set_status(Status.CONTAINER_NOT_CONNECTED)
