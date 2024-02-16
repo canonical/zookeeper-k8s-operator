@@ -160,17 +160,22 @@ def test_tls_switching_encryption(harness):
 def test_tls_ssl_quorum(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"quorum": "ssl"}
-        )
-
-        assert "sslQuorum=true" in harness.charm.config_manager.zookeeper_properties
-
-        harness.update_relation_data(
             harness.charm.state.peer_relation.id, CHARM_KEY, {"quorum": "non-ssl"}
         )
 
         assert "sslQuorum=true" not in harness.charm.config_manager.zookeeper_properties
 
+        harness.update_relation_data(
+            harness.charm.state.peer_relation.id, CHARM_KEY, {"quorum": "ssl"}
+        )
+
+        assert "sslQuorum=true" not in harness.charm.config_manager.zookeeper_properties
+
+        harness.update_relation_data(
+            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"certificate": "keep it safe"}
+        )
+
+        assert "sslQuorum=true" in harness.charm.config_manager.zookeeper_properties
 
 def test_properties_tls_uses_passwords(harness):
     with harness.hooks_disabled():
