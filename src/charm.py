@@ -274,16 +274,6 @@ class ZooKeeperCharm(CharmBase):
         # without, other units might restart before this unit rejoins, losing quorum
         time.sleep(5)
 
-        if not self.workload.alive:
-            self._set_status(Status.CONTAINER_NOT_CONNECTED)
-            return
-
-        if not self.workload.healthy:
-            self._set_status(Status.SERVICE_UNHEALTHY)
-            return
-
-        self._set_status(Status.ACTIVE)
-
         self.state.unit_server.update(
             {
                 # flag to declare unit running `portUnification` during ssl<->no-ssl upgrade
@@ -294,6 +284,16 @@ class ZooKeeperCharm(CharmBase):
                 "password-rotated": "true" if self.state.cluster.rotate_passwords else "",
             }
         )
+
+        if not self.workload.alive:
+            self._set_status(Status.CONTAINER_NOT_CONNECTED)
+            return
+
+        if not self.workload.healthy:
+            self._set_status(Status.SERVICE_UNHEALTHY)
+            return
+
+        self._set_status(Status.ACTIVE)
 
     # --- CONVENIENCE METHODS ---
 
