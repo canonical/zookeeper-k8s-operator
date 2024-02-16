@@ -335,6 +335,19 @@ class ZooKeeperCharm(CharmBase):
         self.config_manager.set_zookeeper_properties()
         self.config_manager.set_jaas_config()
 
+        # during pod-reschedules (e.g upgrades or otherwise) we lose all files
+        # need to manually add-back key/truststores
+        if (
+            self.state.cluster.tls
+            and self.state.unit_server.certificate
+            and self.state.unit_server.ca
+        ):  # TLS is probably completed
+            self.tls_manager.set_private_key()
+            self.tls_manager.set_ca()
+            self.tls_manager.set_certificate()
+            self.tls_manager.set_truststore()
+            self.tls_manager.set_p12_keystore()
+
         logger.debug("starting ZooKeeper service")
         self.workload.start(layer=self._layer)
 

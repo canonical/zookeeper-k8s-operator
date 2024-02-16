@@ -188,9 +188,21 @@ def get_relation_data(model_full_name: str, unit: str, endpoint: str):
 def count_lines_with(model_full_name: str, unit: str, file: str, pattern: str) -> int:
     result = check_output(
         f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'grep \"{pattern}\" {file} | wc -l'",
+    )
+
+    return int(result)
+
+
+def delete_pod(ops_test, unit_name: str) -> None:
+    """Deletes K8s pod associated with a provided unit name.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit to kill pod of
+    """
+    check_output(
+        f"kubectl delete pod {unit_name.replace('/', '-')} -n {ops_test.model.info.name}",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
     )
-
-    return int(result)

@@ -535,12 +535,19 @@ def test_init_server_calls_necessary_methods(harness):
         harness.update_relation_data(
             peer_rel_id,
             f"{CHARM_KEY}/0",
-            {"ip": "aragorn", "fqdn": "legolas", "hostname": "gimli"},
+            {
+                "ip": "aragorn",
+                "fqdn": "legolas",
+                "hostname": "gimli",
+                "ca": "keep it secret",
+                "certificate": "keep it safe",
+            },
         )
         harness.update_relation_data(
             peer_rel_id,
             CHARM_KEY,
             {
+                "tls": "enabled",
                 "sync-password": "mellon",
                 "super-password": "mellon",
                 "switching-encryption": "started",
@@ -555,6 +562,11 @@ def test_init_server_calls_necessary_methods(harness):
         ) as zookeeper_dynamic_properties,
         patch("managers.config.ConfigManager.set_zookeeper_properties") as zookeeper_properties,
         patch("managers.config.ConfigManager.set_jaas_config") as zookeeper_jaas_config,
+        patch("managers.tls.TLSManager.set_private_key") as patched_private_key,
+        patch("managers.tls.TLSManager.set_ca") as patched_ca,
+        patch("managers.tls.TLSManager.set_certificate") as patched_certificate,
+        patch("managers.tls.TLSManager.set_truststore") as patched_truststore,
+        patch("managers.tls.TLSManager.set_p12_keystore") as patched_keystore,
         patch("workload.ZKWorkload.start") as start,
     ):
         harness.charm.init_server()
@@ -564,6 +576,11 @@ def test_init_server_calls_necessary_methods(harness):
         zookeeper_dynamic_properties.assert_called_once()
         zookeeper_properties.assert_called_once()
         zookeeper_jaas_config.assert_called_once()
+        patched_private_key.assert_called_once()
+        patched_ca.assert_called_once()
+        patched_certificate.assert_called_once()
+        patched_truststore.assert_called_once()
+        patched_keystore.assert_called_once()
         start.assert_called_once()
 
         assert harness.charm.state.unit_server.quorum == "ssl"
