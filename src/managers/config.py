@@ -4,17 +4,12 @@
 
 """Manager for for handling configuration building + writing."""
 import logging
-from typing import TYPE_CHECKING
 
 from ops.model import ConfigData
-from ops.pebble import Layer
-
-if TYPE_CHECKING:
-    from ops.pebble import LayerDict
 
 from core.cluster import SUBSTRATES, ClusterState
 from core.workload import WorkloadBase
-from literals import CLIENT_PORT, CONTAINER, JMX_PORT, METRICS_PROVIDER_PORT
+from literals import JMX_PORT, METRICS_PROVIDER_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -85,38 +80,6 @@ class ConfigManager:
             return "WARN"
 
         return config_log_level
-
-    @property
-    def layer(self) -> Layer:
-        """Returns a Pebble configuration layer for ZooKeeper on K8s."""
-        if self.substrate != "k8s":
-            raise NotImplementedError
-
-        layer_config: "LayerDict" = {
-            "summary": "zookeeper layer",
-            "description": "Pebble config layer for zookeeper",
-            "services": {
-                CONTAINER: {
-                    "override": "replace",
-                    "summary": "zookeeper",
-                    "command": f"{self.workload.paths.binaries_path}/bin/zkServer.sh --config {self.workload.paths.conf_path} start-foreground",
-                    "startup": "enabled",
-                    "environment": {
-                        "SERVER_JVMFLAGS": " ".join(self.server_jvmflags + self.jmx_jvmflags)
-                    },
-                },
-            },
-            "checks": {
-                CONTAINER: {
-                    "override": "replace",
-                    "level": "alive",
-                    "exec": {
-                        "command": f"echo ruok | nc {self.state.unit_server.host} {CLIENT_PORT}"
-                    },
-                }
-            },
-        }
-        return Layer(layer_config)
 
     @property
     def server_jvmflags(self) -> list[str]:
