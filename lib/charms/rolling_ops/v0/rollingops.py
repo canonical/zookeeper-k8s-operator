@@ -70,6 +70,7 @@ operation without restarting workloads that were able to successfully restart --
 omit the successful units from a subsequent run-action call.)
 
 """
+import os
 import logging
 from enum import Enum
 from typing import AnyStr, Callable, Optional
@@ -88,7 +89,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 5
+LIBPATCH = 6
 
 
 class LockNoRelationError(Exception):
@@ -326,6 +327,9 @@ class RollingOpsManager(Object):
         Then, if we are the leader, fire off a process locks event.
 
         """
+        if self.name not in os.environ.get("JUJU_DISPATCH_PATH", ""):
+            return
+
         lock = Lock(self)
 
         if lock.is_pending():
