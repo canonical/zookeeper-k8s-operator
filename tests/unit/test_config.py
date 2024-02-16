@@ -177,6 +177,7 @@ def test_tls_ssl_quorum(harness):
 
         assert "sslQuorum=true" in harness.charm.config_manager.zookeeper_properties
 
+
 def test_properties_tls_uses_passwords(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
