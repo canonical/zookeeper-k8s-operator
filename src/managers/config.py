@@ -99,7 +99,7 @@ class ConfigManager:
                 CONTAINER: {
                     "override": "replace",
                     "summary": "zookeeper",
-                    "command": f"/bin/zkServer.sh --config {self.workload.paths.conf_path} start-foreground",
+                    "command": f"{self.workload.paths.binaries_path}/bin/zkServer.sh --config {self.workload.paths.conf_path} start-foreground",
                     "startup": "enabled",
                     "environment": {
                         "SERVER_JVMFLAGS": " ".join(self.server_jvmflags + self.jmx_jvmflags)

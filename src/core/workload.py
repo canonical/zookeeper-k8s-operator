@@ -63,7 +63,7 @@ class ZKPaths:
 
         Used for scraping and exposing mBeans of a JMX target.
         """
-        return f"{self.binaries_path}/jmx_prometheus_javaagent.jar"
+        return f"{self.binaries_path}/lib/jmx_prometheus_javaagent.jar"
 
     @property
     def jmx_prometheus_config(self) -> str:
