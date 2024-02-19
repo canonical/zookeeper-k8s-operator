@@ -338,7 +338,7 @@ def test_restart_fails_not_added(harness):
 
 
 @pytest.mark.parametrize("stable, restarts", [(Status.ACTIVE, 1), (Status.NOT_ALL_ADDED, 0)])
-def test_restart_restarts_with_sleep_and_alive_healthy_checks(harness, stable, restarts):
+def test_restart_starts_with_sleep_and_alive_healthy_checks(harness, stable, restarts):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -347,7 +347,7 @@ def test_restart_restarts_with_sleep_and_alive_healthy_checks(harness, stable, r
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}", {"0": "added"})
 
     with (
-        patch("workload.ZKWorkload.restart") as patched_restart,
+        patch("workload.ZKWorkload.start") as patched_start,
         patch("time.sleep") as patched_sleep,
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=stable),
         patch(
@@ -358,7 +358,7 @@ def test_restart_restarts_with_sleep_and_alive_healthy_checks(harness, stable, r
         ) as patched_healthy,
     ):
         harness.charm._restart(EventBase(harness.charm))
-        assert patched_restart.call_count == restarts
+        assert patched_start.call_count == restarts
         assert patched_sleep.call_count == restarts
         assert patched_alive.call_count == restarts
         assert patched_healthy.call_count == restarts
