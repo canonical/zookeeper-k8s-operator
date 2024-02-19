@@ -263,7 +263,11 @@ class ZooKeeperCharm(CharmBase):
             return
 
         logger.info(f"{self.unit.name} restarting...")
-        self.workload.restart()
+        current_plan = self.workload.container.get_plan()
+        if current_plan.services != self._layer.services:
+            self.workload.start(layer=self._layer)
+        else:
+            self.workload.restart()
 
         # gives time for server to rejoin quorum, as command exits too fast
         # without, other units might restart before this unit rejoins, losing quorum
