@@ -36,12 +36,13 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             series=TLS_OPERATOR_SERIES,
         ),
     )
+    await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
     )
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
 
-    async with ops_test.fast_forward():
+    async with ops_test.fast_forward(fast_interval="60s"):
         await ops_test.model.wait_for_idle(
             apps=[APP_NAME, TLS_NAME],
             status="active",
