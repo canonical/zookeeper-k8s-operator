@@ -6,6 +6,7 @@
 import logging
 import secrets
 import string
+from subprocess import CalledProcessError
 
 from ops.model import Container
 from ops.pebble import ChangeError, ExecError, Layer
@@ -97,7 +98,7 @@ class ZKWorkload(WorkloadBase):
             srvr_response = self.exec(command=timeout + srvr)
             if not srvr_response or "not currently serving requests" in srvr_response:
                 return False
-        except ExecError:
+        except (ExecError, CalledProcessError):
             return False
 
         return True
