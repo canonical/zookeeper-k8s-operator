@@ -5,20 +5,16 @@
 import asyncio
 import logging
 import time
-from pathlib import Path
 
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
 from literals import DEPENDENCIES
 
+from . import APP_NAME
 from .helpers import correct_version_running, get_relation_data, ping_servers
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
 
 # FIXME: update this to 'stable' when `pre-upgrade-check` is released to 'stable'
 CHANNEL = "edge"

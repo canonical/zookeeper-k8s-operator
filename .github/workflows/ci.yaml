@@ -51,6 +51,7 @@ jobs:
       fail-fast: false
       matrix:
         tox-environments:
+          - integration-charm
           - integration-password-rotation
           - integration-provider
           - integration-tls

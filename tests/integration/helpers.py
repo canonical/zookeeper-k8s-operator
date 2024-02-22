@@ -4,16 +4,13 @@
 
 import json
 import re
-from pathlib import Path
 from subprocess import PIPE, check_output
 from typing import Dict
 
-import yaml
 from kazoo.client import KazooClient
 from pytest_operator.plugin import OpsTest
 
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
+from . import APP_NAME
 
 
 def get_password(model_full_name: str) -> str:
@@ -186,3 +183,14 @@ def get_relation_data(model_full_name: str, unit: str, endpoint: str):
         if relation["endpoint"] == endpoint:
             return relation["application-data"]
     raise Exception("No relation found!")
+
+
+def count_lines_with(model_full_name: str, unit: str, file: str, pattern: str) -> int:
+    result = check_output(
+        f"JUJU_MODEL={model_full_name} juju ssh --container zookeeper {unit} 'grep \"{pattern}\" {file} | wc -l'",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    return int(result)

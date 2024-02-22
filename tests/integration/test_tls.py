@@ -4,20 +4,14 @@
 
 import asyncio
 import logging
-from pathlib import Path
 
 import pytest
-import yaml
 from pytest_operator.plugin import OpsTest
 
-from . import SERIES, TLS_OPERATOR_SERIES
+from . import APP_NAME, SERIES, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
 from .helpers import check_properties, ping_servers
 
 logger = logging.getLogger(__name__)
-
-METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
-APP_NAME = METADATA["name"]
-ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
 
 TLS_NAME = "self-signed-certificates"
 
@@ -110,7 +104,7 @@ async def test_scale_up_tls(ops_test: OpsTest):
     await ops_test.model.applications[APP_NAME].add_units(count=1)
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 4)
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME], status="active", timeout=1000, idle_period=30
+        apps=[APP_NAME], status="active", timeout=1000, idle_period=40
     )
     assert ping_servers(ops_test)
 
