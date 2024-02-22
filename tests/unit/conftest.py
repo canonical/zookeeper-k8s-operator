@@ -16,6 +16,7 @@ def patched_idle(mocker, request):
             "events.upgrade.ZKUpgradeEvents.idle", new_callable=PropertyMock, return_value=True
         )
 
+
 @pytest.fixture(autouse=True)
 def patched_wait(mocker):
     mocker.patch("tenacity.nap.time")
