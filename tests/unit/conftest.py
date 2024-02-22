@@ -8,11 +8,13 @@ from tests.unit.test_charm import PropertyMock
 
 
 @pytest.fixture(autouse=True)
-def patched_idle(mocker):
-    yield mocker.patch(
-        "events.upgrade.ZKUpgradeEvents.idle", new_callable=PropertyMock, return_value=True
-    )
-
+def patched_idle(mocker, request):
+    if "nopatched_idle" in request.keywords:
+        yield
+    else:
+        yield mocker.patch(
+            "events.upgrade.ZKUpgradeEvents.idle", new_callable=PropertyMock, return_value=True
+        )
 
 @pytest.fixture(autouse=True)
 def patched_wait(mocker):
