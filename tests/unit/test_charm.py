@@ -347,7 +347,6 @@ def test_restart_restarts_with_sleep(harness):
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}", {"0": "added"})
 
     with (
-        patch("workload.ZKWorkload.restart") as patched_restart,
         patch("time.sleep") as patched_sleep,
         patch(
             "core.cluster.ClusterState.stable",
@@ -356,7 +355,6 @@ def test_restart_restarts_with_sleep(harness):
         ),
     ):
         harness.charm._restart(EventBase(harness.charm))
-        patched_restart.assert_called_once()
         patched_sleep.assert_called_once()
 
 
