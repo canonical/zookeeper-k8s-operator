@@ -9,7 +9,7 @@ import pytest
 from pytest_operator.plugin import OpsTest
 
 from . import APP_NAME, SERIES, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
-from .helpers import check_properties, ping_servers
+from .helpers import check_properties, delete_pod, ping_servers
 
 logger = logging.getLogger(__name__)
 
@@ -125,3 +125,13 @@ async def test_client_relate_maintains_quorum(ops_test: OpsTest):
     )
 
     assert ping_servers(ops_test)
+
+
+@pytest.mark.abort_on_fail
+async def test_pod_reschedule_tls(ops_test: OpsTest):
+    delete_pod(ops_test, unit_name=f"{APP_NAME}/0")
+
+    async with ops_test.fast_forward(fast_interval="60s"):
+        await ops_test.model.wait_for_idle(
+            [APP_NAME], status="active", timeout=1000, idle_period=30
+        )

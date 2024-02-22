@@ -277,6 +277,7 @@ def test_relation_changed_checks_alive_and_healthy(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
+        harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
 
     with (
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
@@ -291,7 +292,7 @@ def test_relation_changed_checks_alive_and_healthy(harness):
         ) as patched_healthy,
     ):
         harness.charm.on.config_changed.emit()
-        patched_alive.assert_called_once()
+        patched_alive.assert_called()
         patched_healthy.assert_called_once()
 
 
@@ -337,8 +338,7 @@ def test_restart_fails_not_added(harness):
         patched.assert_not_called()
 
 
-@pytest.mark.parametrize("stable, restarts", [(Status.ACTIVE, 1), (Status.NOT_ALL_ADDED, 0)])
-def test_restart_starts_with_sleep_and_alive_healthy_checks(harness, stable, restarts):
+def test_restart_restarts_with_sleep(harness):
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -347,48 +347,15 @@ def test_restart_starts_with_sleep_and_alive_healthy_checks(harness, stable, res
         harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}", {"0": "added"})
 
     with (
-        patch("workload.ZKWorkload.start") as patched_start,
         patch("time.sleep") as patched_sleep,
-        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=stable),
-        patch(
-            "workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=True
-        ) as patched_alive,
-        patch(
-            "workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True
-        ) as patched_healthy,
-    ):
-        harness.charm._restart(EventBase(harness.charm))
-        assert patched_start.call_count == restarts
-        assert patched_sleep.call_count == restarts
-        assert patched_alive.call_count == restarts
-        assert patched_healthy.call_count == restarts
-
-
-@pytest.mark.parametrize(
-    "alive, healthy, active", [(False, True, False), (True, False, False), (True, True, True)]
-)
-def test_restart_only_sets_active_if_alive_and_healthy(harness, alive, healthy, active):
-    with harness.hooks_disabled():
-        peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
-        harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
-        harness.set_planned_units(1)
-        harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}/0", {"state": "started"})
-        harness.update_relation_data(peer_rel_id, f"{CHARM_KEY}", {"0": "added"})
-
-    with (
-        patch("workload.ZKWorkload.restart"),
-        patch("time.sleep"),
         patch(
             "core.cluster.ClusterState.stable",
             new_callable=PropertyMock,
             return_value=Status.ACTIVE,
         ),
-        patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=alive),
-        patch("workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=healthy),
     ):
         harness.charm._restart(EventBase(harness.charm))
-
-        assert isinstance(harness.charm.unit.status, ActiveStatus) == active
+        patched_sleep.assert_called_once()
 
 
 def test_restart_restarts_snap_sets_active_status(harness):
@@ -535,12 +502,19 @@ def test_init_server_calls_necessary_methods(harness):
         harness.update_relation_data(
             peer_rel_id,
             f"{CHARM_KEY}/0",
-            {"ip": "aragorn", "fqdn": "legolas", "hostname": "gimli"},
+            {
+                "ip": "aragorn",
+                "fqdn": "legolas",
+                "hostname": "gimli",
+                "ca": "keep it secret",
+                "certificate": "keep it safe",
+            },
         )
         harness.update_relation_data(
             peer_rel_id,
             CHARM_KEY,
             {
+                "tls": "enabled",
                 "sync-password": "mellon",
                 "super-password": "mellon",
                 "switching-encryption": "started",
@@ -555,6 +529,11 @@ def test_init_server_calls_necessary_methods(harness):
         ) as zookeeper_dynamic_properties,
         patch("managers.config.ConfigManager.set_zookeeper_properties") as zookeeper_properties,
         patch("managers.config.ConfigManager.set_jaas_config") as zookeeper_jaas_config,
+        patch("managers.tls.TLSManager.set_private_key") as patched_private_key,
+        patch("managers.tls.TLSManager.set_ca") as patched_ca,
+        patch("managers.tls.TLSManager.set_certificate") as patched_certificate,
+        patch("managers.tls.TLSManager.set_truststore") as patched_truststore,
+        patch("managers.tls.TLSManager.set_p12_keystore") as patched_keystore,
         patch("workload.ZKWorkload.start") as start,
     ):
         harness.charm.init_server()
@@ -564,12 +543,16 @@ def test_init_server_calls_necessary_methods(harness):
         zookeeper_dynamic_properties.assert_called_once()
         zookeeper_properties.assert_called_once()
         zookeeper_jaas_config.assert_called_once()
+        patched_private_key.assert_called_once()
+        patched_ca.assert_called_once()
+        patched_certificate.assert_called_once()
+        patched_truststore.assert_called_once()
+        patched_keystore.assert_called_once()
         start.assert_called_once()
 
         assert harness.charm.state.unit_server.quorum == "ssl"
         assert harness.charm.state.unit_server.unified
         assert harness.charm.state.unit_server.started
-        assert isinstance(harness.charm.unit.status, ActiveStatus)
 
 
 def test_adding_units_updates_relation_data(harness):

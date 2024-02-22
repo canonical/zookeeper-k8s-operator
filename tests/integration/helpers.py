@@ -194,3 +194,18 @@ def count_lines_with(model_full_name: str, unit: str, file: str, pattern: str) -
     )
 
     return int(result)
+
+
+def delete_pod(ops_test, unit_name: str) -> None:
+    """Deletes K8s pod associated with a provided unit name.
+
+    Args:
+        ops_test: OpsTest
+        unit_name: the Juju unit to kill pod of
+    """
+    check_output(
+        f"kubectl delete pod {unit_name.replace('/', '-')} -n {ops_test.model.info.name}",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )

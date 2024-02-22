@@ -501,7 +501,7 @@ class DataUpgrade(Object, ABC):
 
     STATES = ["recovery", "failed", "idle", "ready", "upgrading", "completed"]
 
-    on = UpgradeEvents()  # pyright: ignore [reportGeneralTypeIssues]
+    on = UpgradeEvents()  # pyright: ignore [reportAssignmentType]
 
     def __init__(
         self,
@@ -1023,17 +1023,14 @@ class DataUpgrade(Object, ABC):
                 self.model.get_relation(self.relation_name)
             )
 
-        # FIXME: this is disabled as we don't need the functionality. Should be added as an arg to the lib
-
         # This hook shouldn't run for the last unit (the first that is upgraded). For that unit it
         # should be done through an action after the upgrade success on that unit is double-checked.
-        # if unit_number == len(self.peer_relation.units):
-        #     logger.info(
-        #         f"{self.charm.unit.name} unit upgraded. Evaluate and run `resume-upgrade` action to continue upgrade"
-        #     )
-        #     return
-
         unit_number = int(self.charm.unit.name.split("/")[1])
+        if unit_number == len(self.peer_relation.units):
+            logger.info(
+                f"{self.charm.unit.name} unit upgraded. Evaluate and run `resume-upgrade` action to continue upgrade"
+            )
+            return
 
         # Also, the hook shouldn't run for the first unit (the last that is upgraded).
         if unit_number == 0:

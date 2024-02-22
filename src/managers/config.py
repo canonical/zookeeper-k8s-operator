@@ -205,7 +205,7 @@ class ConfigManager:
         if self.state.cluster.switching_encryption:
             properties = properties + ["portUnification=true"]
 
-        if self.state.cluster.quorum == "ssl":
+        if self.state.cluster.quorum == "ssl" and self.state.unit_server.certificate:
             properties = properties + ["sslQuorum=true"]
 
         return properties
