@@ -8,7 +8,7 @@ import secrets
 import string
 
 from ops.model import Container
-from ops.pebble import ChangeError, Layer
+from ops.pebble import ChangeError, ExecError, Layer
 from tenacity import retry, retry_if_not_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
@@ -89,12 +89,15 @@ class ZKWorkload(WorkloadBase):
         # for example when the endpoint is unreachable
         timeout = ["timeout", "10s", "bash", "-c"]
 
-        ruok_response = self.exec(command=timeout + ruok)
-        if not ruok_response or "imok" not in ruok_response:
-            return False
+        try:
+            ruok_response = self.exec(command=timeout + ruok)
+            if not ruok_response or "imok" not in ruok_response:
+                return False
 
-        srvr_response = self.exec(command=timeout + srvr)
-        if not srvr_response or "not currently serving requests" in srvr_response:
+            srvr_response = self.exec(command=timeout + srvr)
+            if not srvr_response or "not currently serving requests" in srvr_response:
+                return False
+        except ExecError:
             return False
 
         return True
