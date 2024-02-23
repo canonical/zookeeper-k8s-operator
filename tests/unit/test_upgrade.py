@@ -4,7 +4,7 @@
 
 import logging
 from pathlib import Path
-from unittest.mock import PropertyMock
+from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
@@ -19,6 +19,7 @@ from core.cluster import ClusterState
 from core.models import ZKServer
 from events.upgrade import ZKUpgradeEvents, ZooKeeperDependencyModel
 from literals import CHARM_KEY, DEPENDENCIES, SUBSTRATE
+from managers.config import ConfigManager
 from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
@@ -155,6 +156,34 @@ def test_build_upgrade_stack(harness):
 
     assert stack[0] == 0
     assert len(stack) == 4
+
+
+@pytest.mark.nopatched_idle
+@pytest.mark.parametrize("upgrade_stack", ([], [0]))
+def test_run_password_rotation_while_upgrading(harness, mocker, upgrade_stack):
+    harness.charm.upgrade_events.upgrade_stack = upgrade_stack
+    with harness.hooks_disabled():
+        harness.set_leader(True)
+
+    mock_event = mocker.MagicMock()
+    mock_event.params = {"username": "super"}
+
+    with (
+        mocker.patch.object(ConfigManager, "set_zookeeper_myid"),
+        mocker.patch.object(ConfigManager, "set_server_jvmflags"),
+        mocker.patch.object(ConfigManager, "set_zookeeper_dynamic_properties"),
+        mocker.patch.object(ConfigManager, "set_zookeeper_properties"),
+        mocker.patch.object(ConfigManager, "set_jaas_config"),
+        patch("charm.ZooKeeperCharm.update_quorum"),
+    ):
+        harness.charm.password_action_events._set_password_action(mock_event)
+
+    if not upgrade_stack:
+        mock_event.set_results.assert_called()
+    else:
+        mock_event.fail.assert_called_with(
+            f"Cannot set password while upgrading (upgrade_stack: {upgrade_stack})"
+        )
 
 
 def test_zookeeper_dependency_model():
