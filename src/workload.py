@@ -4,6 +4,7 @@
 
 """Implementation of WorkloadBase for running on K8s."""
 import logging
+import re
 import secrets
 import string
 from subprocess import CalledProcessError
@@ -116,3 +117,32 @@ class ZKWorkload(WorkloadBase):
             String of 32 randomized letter+digit characters
         """
         return "".join([secrets.choice(string.ascii_letters + string.digits) for _ in range(32)])
+
+    @override
+    def get_version(self) -> str:
+        bash_netcat = (
+            f"echo '4lw' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"
+        )
+        ruok = [bash_netcat.replace("4lw", "ruok")]
+        stat = [bash_netcat.replace("4lw", "stat")]
+
+        # timeout needed as it can sometimes hang forever if there's a problem
+        # for example when the endpoint is unreachable
+        timeout = ["timeout", "10s", "bash", "-c"]
+
+        try:
+            ruok_response = self.exec(command=timeout + ruok)
+            if not ruok_response or "imok" not in ruok_response:
+                return ""
+
+            stat_response = self.exec(command=timeout + stat)
+            if not stat_response or "not currently serving requests" in stat_response:
+                return ""
+
+            matcher = re.search(r"(?P<version>\d\.\d\.\d)", stat_response)
+            version = matcher.group("version") if matcher else ""
+
+        except (ExecError, CalledProcessError):
+            return ""
+
+        return version

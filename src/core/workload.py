@@ -154,3 +154,12 @@ class WorkloadBase(ABC):
     def healthy(self) -> bool:
         """Checks that the workload is healthy."""
         ...
+
+    @abstractmethod
+    def get_version(self) -> str:
+        """Get the workload version.
+
+        Returns:
+            String of zookeeper version
+        """
+        ...
