@@ -5,7 +5,7 @@
 import logging
 import re
 from pathlib import Path
-from unittest.mock import PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 import yaml
@@ -40,7 +40,9 @@ def harness():
     return harness
 
 
-def test_install_fails_create_passwords_until_peer_relation(harness):
+def test_install_fails_create_passwords_until_peer_relation(harness, monkeypatch):
+    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
+
     with harness.hooks_disabled():
         harness.set_leader(True)
 
@@ -55,7 +57,9 @@ def test_install_fails_create_passwords_until_peer_relation(harness):
     assert not harness.charm.state.cluster.internal_user_credentials
 
 
-def test_install_fails_creates_passwords_succeeds(harness):
+def test_install_fails_creates_passwords_succeeds(harness, monkeypatch):
+    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
+
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -462,7 +466,9 @@ def test_init_server_waiting_if_not_turn(harness):
         assert isinstance(harness.charm.unit.status, WaitingStatus)
 
 
-def test_init_server_sets_blocked_if_not_alive(harness):
+def test_init_server_sets_blocked_if_not_alive(harness, monkeypatch):
+    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
+
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -495,7 +501,8 @@ def test_init_server_sets_blocked_if_not_alive(harness):
         assert not isinstance(harness.charm.unit.status, ActiveStatus)
 
 
-def test_init_server_calls_necessary_methods(harness):
+def test_init_server_calls_necessary_methods(harness, monkeypatch):
+    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
     with harness.hooks_disabled():
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.add_relation_unit(peer_rel_id, f"{CHARM_KEY}/0")
@@ -1057,3 +1064,8 @@ def test_update_relation_data(harness):
 
         usernames.append(client.username)
         passwords.append(client.password)
+
+
+def test_workload_version(harness, monkeypatch):
+    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
+    assert harness.charm.version == "1.2.3"
