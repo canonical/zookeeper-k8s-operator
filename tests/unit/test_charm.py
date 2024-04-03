@@ -198,6 +198,7 @@ def test_relation_changed_starts_units(harness):
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
         patched.assert_called_once()
@@ -213,6 +214,7 @@ def test_relation_changed_does_not_start_units_again(harness):
     with (
         patch("charm.ZooKeeperCharm.init_server") as patched,
         patch("managers.config.ConfigManager.config_changed"),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
         patched.assert_not_called()
@@ -238,6 +240,7 @@ def test_relation_changed_updates_quorum(harness):
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
         patched.assert_called_once()
@@ -256,6 +259,7 @@ def test_relation_changed_restarts(harness):
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
         patched_restart.assert_called_once()
@@ -272,6 +276,7 @@ def test_relation_changed_defers_switching_encryption_single_unit(harness):
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
         patched.assert_called_once()
@@ -294,6 +299,7 @@ def test_relation_changed_checks_alive_and_healthy(harness):
         patch(
             "workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True
         ) as patched_healthy,
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
         patched_alive.assert_called()
@@ -568,6 +574,7 @@ def test_adding_units_updates_relation_data(harness):
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
         harness.set_leader(True)
@@ -603,6 +610,7 @@ def test_update_quorum_updates_cluster_for_relation_departed(harness):
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.remove_relation_unit(peer_rel_id, f"{CHARM_KEY}/1")
         patched_update_cluster.assert_called()
@@ -620,6 +628,7 @@ def test_update_quorum_updates_cluster_for_leader_elected(harness):
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("charm.ZooKeeperCharm.init_server"),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.set_leader(True)
         patched_update_cluster.assert_called()
@@ -642,6 +651,7 @@ def test_update_quorum_adds_init_leader(harness):
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("charm.ZooKeeperCharm.init_server"),
         patch("managers.quorum.QuorumManager.update_cluster"),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.set_leader(True)
 
@@ -713,6 +723,7 @@ def test_config_changed_applies_relation_data(harness):
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("core.cluster.ClusterState.all_units_related", return_value=True),
         patch("core.cluster.ClusterState.all_units_declaring_ip", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
 
@@ -737,6 +748,7 @@ def test_config_changed_fails_apply_relation_data_not_ready(harness):
             return_value=Status.NOT_ALL_QUORUM,
         ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
 
@@ -761,6 +773,7 @@ def test_config_changed_fails_apply_relation_data_not_stable(harness):
             return_value=Status.ACTIVE,
         ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm.on.config_changed.emit()
 
@@ -856,6 +869,7 @@ def test_restart_defers_if_not_stable(harness):
         ),
         patch("managers.config.ConfigManager.config_changed", return_value=True),
         patch("ops.framework.EventBase.defer") as patched_defer,
+        patch("workload.ZKWorkload.get_version", return_value=""),
     ):
         harness.charm._restart(EventBase)
 
@@ -1067,7 +1081,6 @@ def test_update_relation_data(harness):
 
 
 def test_workload_version_is_setted(harness, monkeypatch):
-    imok = "imok"
     output_install = (
         "Zookeeper version: 3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
     )
@@ -1077,9 +1090,10 @@ def test_workload_version_is_setted(harness, monkeypatch):
     monkeypatch.setattr(
         harness.charm.workload,
         "exec",
-        Mock(side_effect=[imok, output_install, imok, output_changed]),
+        Mock(side_effect=[output_install, output_changed]),
     )
     monkeypatch.setattr(harness.charm.workload, "install", Mock(return_value=True))
+    monkeypatch.setattr(harness.charm.workload, "healthy", Mock(return_value=True))
 
     with (
         patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=True),

@@ -120,23 +120,20 @@ class ZKWorkload(WorkloadBase):
 
     @override
     def get_version(self) -> str:
-        bash_netcat = (
-            f"echo '4lw' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"
-        )
-        ruok = [bash_netcat.replace("4lw", "ruok")]
-        stat = [bash_netcat.replace("4lw", "stat")]
+        if not self.healthy:
+            return ""
+
+        stat = [
+            f"echo 'stat' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"
+        ]
 
         # timeout needed as it can sometimes hang forever if there's a problem
         # for example when the endpoint is unreachable
         timeout = ["timeout", "10s", "bash", "-c"]
 
         try:
-            ruok_response = self.exec(command=timeout + ruok)
-            if not ruok_response or "imok" not in ruok_response:
-                return ""
-
             stat_response = self.exec(command=timeout + stat)
-            if not stat_response or "not currently serving requests" in stat_response:
+            if not stat_response:
                 return ""
 
             matcher = re.search(r"(?P<version>\d\.\d\.\d)", stat_response)
