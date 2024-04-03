@@ -1066,6 +1066,36 @@ def test_update_relation_data(harness):
         passwords.append(client.password)
 
 
-def test_workload_version(harness, monkeypatch):
-    monkeypatch.setattr(harness.charm.workload, "get_version", Mock(return_value="1.2.3"))
-    assert harness.charm.version == "1.2.3"
+def test_workload_version_is_setted(harness, monkeypatch):
+    imok = "imok"
+    output_install = (
+        "Zookeeper version: 3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    )
+    output_changed = (
+        "Zookeeper version: 3.8.2-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    )
+    monkeypatch.setattr(
+        harness.charm.workload,
+        "exec",
+        Mock(side_effect=[imok, output_install, imok, output_changed]),
+    )
+    monkeypatch.setattr(harness.charm.workload, "install", Mock(return_value=True))
+
+    with (
+        patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=True),
+        patch("charm.ZooKeeperCharm.init_server"),
+        patch("charm.ZooKeeperCharm.update_quorum"),
+        patch("managers.config.ConfigManager.config_changed"),
+        patch("core.cluster.ClusterState.all_units_related"),
+        patch("core.cluster.ClusterState.all_units_declaring_ip"),
+        patch(
+            "core.cluster.ClusterState.peer_relation",
+            new_callable=PropertyMock,
+        ),
+        patch("events.upgrade.ZKUpgradeEvents.idle", return_value=True),
+    ):
+        harness.charm.on.install.emit()
+        assert harness.get_workload_version() == "3.8.1"
+        harness.charm.on.config_changed.emit()
+
+    assert harness.get_workload_version() == "3.8.2"
