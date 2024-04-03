@@ -7,9 +7,6 @@ parts:
     charm-binary-python-packages:
       - setuptools
     build-packages:
-      # The following are needed for tls-certificates-interface
-      - build-essential
-      - python3-dev
       - pkg-config
       - libffi-dev
       - libssl-dev
