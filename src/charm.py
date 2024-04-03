@@ -183,7 +183,7 @@ class ZooKeeperCharm(CharmBase):
         if self.unit.is_leader():
             self.state.cluster.update({"quorum": "default - non-ssl"})
 
-        self.unit.set_workload_version(self.version)
+        self.unit.set_workload_version(self.workload.get_version())
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
@@ -237,6 +237,7 @@ class ZooKeeperCharm(CharmBase):
             self._set_status(Status.SERVICE_UNHEALTHY)
             return
 
+        self.unit.set_workload_version(self.workload.get_version())
         self._set_status(Status.ACTIVE)
 
     def _on_zookeeper_pebble_ready(self, event: EventBase) -> None:
@@ -351,7 +352,7 @@ class ZooKeeperCharm(CharmBase):
 
         # unit flags itself as 'started' so it can be retrieved by the leader
         logger.info(f"{self.unit.name} started")
-        self.unit.set_workload_version(self.version)
+        self.unit.set_workload_version(self.workload.get_version())
 
         # added here in case a `restart` was missed
         self.state.unit_server.update(
@@ -454,11 +455,6 @@ class ZooKeeperCharm(CharmBase):
 
         getattr(logger, log_level.lower())(status.message)
         self.unit.status = status
-
-    @property
-    def version(self) -> str:
-        """Report the current workload (Zookeeper) version."""
-        return self.workload.get_version()
 
 
 if __name__ == "__main__":
