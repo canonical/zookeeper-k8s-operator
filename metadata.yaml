@@ -1,14 +1,21 @@
-# Copyright 2023 Canonical Ltd.
+# Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
-
 name: zookeeper-k8s
-display-name: Zookeeper K8s
+display-name: Charmed Zookeeper K8s
 description: |
   ZooKeeper is a centralized service for maintaining configuration information, naming,
   providing distributed synchronization, and providing group services.
-summary: The Charmed ZooKeeper K8s Operator
+summary: Charmed ZooKeeper K8s Operator
+source: https://github.com/canonical/zookeeper-k8s-operator
+issues: https://github.com/canonical/zookeeper-k8s-operator/issues
+website:
+  - https://charmhub.io/zookeeper-k8s
+  - https://github.com/canonical/zookeeper-k8s-operator
+  - https://matrix.to/#/#charmhub-data-platform:ubuntu.com
 maintainers:
-  - Marc Oppenheimer <marc.oppenheimer@canonical.com>
+  - Canonical Data Platform <data-platform@lists.launchpad.net>
+assumes:
+  - k8s-api
 
 containers:
   zookeeper:
@@ -55,5 +62,3 @@ storage:
     minimum-size: 10G
     location: /var/lib/zookeeper
 
-assumes:
-  - k8s-api
