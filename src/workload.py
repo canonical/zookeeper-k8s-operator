@@ -124,15 +124,13 @@ class ZKWorkload(WorkloadBase):
             return ""
 
         stat = [
-            f"echo 'stat' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)"
+            "bash",
+            "-c",
+            f"echo 'stat' | (exec 3<>/dev/tcp/localhost/{CLIENT_PORT}; cat >&3; cat <&3; exec 3<&-)",
         ]
 
-        # timeout needed as it can sometimes hang forever if there's a problem
-        # for example when the endpoint is unreachable
-        timeout = ["timeout", "10s", "bash", "-c"]
-
         try:
-            stat_response = self.exec(command=timeout + stat)
+            stat_response = self.exec(command=stat)
             if not stat_response:
                 return ""
 
