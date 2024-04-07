@@ -11,7 +11,6 @@ issues: https://github.com/canonical/zookeeper-k8s-operator/issues
 website:
   - https://charmhub.io/zookeeper-k8s
   - https://github.com/canonical/zookeeper-k8s-operator
-  - https://matrix.to/#/#charmhub-data-platform:ubuntu.com
 maintainers:
   - Canonical Data Platform <data-platform@lists.launchpad.net>
 assumes:
