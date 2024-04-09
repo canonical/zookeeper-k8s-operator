@@ -16,6 +16,7 @@ from ops.charm import (
     InstallEvent,
     LeaderElectedEvent,
     RelationDepartedEvent,
+    SecretChangedEvent,
 )
 from ops.framework import EventBase
 from ops.main import main
@@ -43,6 +44,7 @@ from literals import (
     LOGS_RULES_DIR,
     METRICS_PROVIDER_PORT,
     METRICS_RULES_DIR,
+    PEER,
     SUBSTRATE,
     DebugLevel,
     Status,
@@ -123,6 +125,7 @@ class ZooKeeperCharm(CharmBase):
         self.framework.observe(
             getattr(self.on, "config_changed"), self._on_cluster_relation_changed
         )
+        self.framework.observe(getattr(self.on, "secret_changed"), self._on_secret_changed)
 
         self.framework.observe(
             getattr(self.on, "cluster_relation_changed"), self._on_cluster_relation_changed
@@ -170,7 +173,7 @@ class ZooKeeperCharm(CharmBase):
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
         # don't complete install until passwords set
-        if not self.state.peer_relation:
+        if not self.state.has_peer_relation():
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
@@ -236,6 +239,21 @@ class ZooKeeperCharm(CharmBase):
             return
 
         self._set_status(Status.ACTIVE)
+
+    def _on_secret_changed(self, event: SecretChangedEvent) -> None:
+        """Reconfigure services on a secret changed event."""
+        if not event.secret.label:
+            return
+
+        if not self.state.cluster.relation:
+            return
+
+        if event.secret.label == self.state.cluster.data_interface._generate_secret_label(
+            PEER,
+            self.state.cluster.relation.id,
+            "extra",  # type:ignore noqa  -- Changes with the https://github.com/canonical/data-platform-libs/issues/124
+        ):
+            self._on_cluster_relation_changed(event)
 
     def _on_zookeeper_pebble_ready(self, event: EventBase) -> None:
         """Handler for the `upgrade-charm`, `zookeeper-pebble-ready` and `start` events.

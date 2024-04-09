@@ -4,12 +4,14 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
-from typing import Literal, MutableMapping
+from collections.abc import MutableMapping
+from typing import Literal
 
+from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData
 from ops.model import Application, Relation, Unit
 from typing_extensions import override
 
-from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SERVER_PORT
+from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SECRETS_APP, SERVER_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -20,34 +22,64 @@ class StateBase:
     """Base state object."""
 
     def __init__(
-        self, relation: Relation | None, component: Unit | Application, substrate: SUBSTRATES
+        self,
+        relation: Relation | None,
+        data_interface: Data,
+        component: Unit | Application,
+        substrate: SUBSTRATES,
     ):
         self.relation = relation
+        self.data_interface = data_interface
         self.component = component
         self.substrate = substrate
 
-    @property
-    def relation_data(self) -> MutableMapping[str, str]:
-        """The raw relation data."""
-        if not self.relation:
-            return {}
+    def update(self, items: dict[str, str]) -> None:
+        """Changes the state."""
+        raise NotImplementedError
 
-        return self.relation.data[self.component]
+    def data(self) -> MutableMapping:
+        """Data representing the state."""
+        raise NotImplementedError
+
+
+class RelationState(StateBase):
+    """Base state object."""
+
+    def __init__(
+        self,
+        relation: Relation,
+        data_interface: Data,
+        component: Unit | Application,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
+        # Redundant definition as lint can't resolve that super's relation may be None
+        self.relation = relation
+        self.relation_data = self.data_interface.as_dict(self.relation.id)
+
+    @property
+    def data(self) -> MutableMapping:
+        """Data representing the state."""
+        return self.relation_data
 
     def update(self, items: dict[str, str]) -> None:
         """Writes to relation_data."""
-        if not self.relation:
-            return
+        delete_fields = [key for key in items if not items[key]]
+        update_content = {k: items[k] for k in items if k not in delete_fields}
 
-        self.relation_data.update(items)
+        self.relation_data.update(update_content)
+
+        for field in delete_fields:
+            del self.relation_data[field]
 
 
-class ZKClient(StateBase):
+class ZKClient(RelationState):
     """State collection metadata for a single related client application."""
 
     def __init__(
         self,
-        relation: Relation | None,
+        relation: Relation,
+        data_interface: Data,
         component: Application,
         substrate: SUBSTRATES,
         local_app: Application | None = None,
@@ -56,21 +88,13 @@ class ZKClient(StateBase):
         tls: str = "",
         uris: str = "",
     ):
-        super().__init__(relation, component, substrate)
+        super().__init__(relation, data_interface, component, substrate)
         self.app = component
         self._password = password
         self._endpoints = endpoints
         self._tls = tls
         self._uris = uris
         self._local_app = local_app
-
-    @override
-    def update(self, items: dict[str, str]) -> None:
-        """Overridden update to allow for same interface, but writing to local app bag."""
-        if not self.relation or not self._local_app:
-            return
-
-        self.relation.data[self._local_app].update(items)
 
     @property
     def username(self) -> str:
@@ -112,24 +136,49 @@ class ZKClient(StateBase):
             - 'w' - write
             - 'a' - append
         """
-        return self.relation_data.get("chroot-acl", "cdrwa")
+        return self.relation_data.get(
+            "chroot-acl", "cdrwa"
+        )  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def chroot(self) -> str:
         """The client requested root zNode path value."""
         chroot = self.relation_data.get("chroot", "")
-        if not chroot.startswith("/") and chroot:
+        if chroot and not chroot.startswith("/") and chroot:
             chroot = f"/{chroot}"
 
-        return chroot
+        return chroot  # pyright: ignore reportGeneralTypeIssues
 
 
-class ZKCluster(StateBase):
+class ZKCluster(RelationState):
     """State collection metadata for the charm application."""
 
-    def __init__(self, relation: Relation | None, component: Application, substrate: SUBSTRATES):
-        super().__init__(relation, component, substrate)
+    def __init__(
+        self,
+        relation: Relation,
+        data_interface: DataPeerData,
+        component: Application,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
+        # Lint :-/ It can't resolve the subtype otherwise, even though the same assignment happens in super()
+        self.data_interface = data_interface
         self.app = component
+
+    @override
+    def update(self, items: dict[str, str]) -> None:
+        """Overridden update to allow for same interface, but writing to local app bag."""
+        if not self.relation:
+            return
+
+        for key, value in items.items():
+            if key in SECRETS_APP or key.startswith("relation-"):
+                if value:
+                    self.data_interface.set_secret(self.relation.id, key, value)
+                else:
+                    self.data_interface.delete_secret(self.relation.id, key)
+            else:
+                self.data_interface.update_relation_data(self.relation.id, {key: value})
 
     @property
     def quorum_unit_ids(self) -> list[int]:
@@ -190,7 +239,7 @@ class ZKCluster(StateBase):
     @property
     def quorum(self) -> str:
         """The current quorum encryption for the cluster."""
-        return self.relation_data.get("quorum", "")
+        return self.relation_data.get("quorum", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def switching_encryption(self) -> bool:
@@ -203,11 +252,17 @@ class ZKCluster(StateBase):
         return self.relation_data.get("tls", "") == "enabled"
 
 
-class ZKServer(StateBase):
+class ZKServer(RelationState):
     """State collection metadata for a charm unit."""
 
-    def __init__(self, relation: Relation | None, component: Unit, substrate: SUBSTRATES):
-        super().__init__(relation, component, substrate)
+    def __init__(
+        self,
+        relation: Relation,
+        data_interface: Data,
+        component: Unit,
+        substrate: SUBSTRATES,
+    ):
+        super().__init__(relation, data_interface, component, substrate)
         self.unit = component
 
     @property
@@ -233,17 +288,17 @@ class ZKServer(StateBase):
     @property
     def hostname(self) -> str:
         """The hostname for the unit."""
-        return self.relation_data.get("hostname", "")
+        return self.relation_data.get("hostname", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def fqdn(self) -> str:
         """The Fully Qualified Domain Name for the unit."""
-        return self.relation_data.get("fqdn", "")
+        return self.relation_data.get("fqdn", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def ip(self) -> str:
         """The IP for the unit."""
-        return self.relation_data.get("ip", "")
+        return self.relation_data.get("ip", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def server_id(self) -> int:
@@ -270,7 +325,7 @@ class ZKServer(StateBase):
         if self.substrate == "k8s":
             host = f"{self.component.name.split('/')[0]}-{self.unit_id}.{self.component.name.split('/')[0]}-endpoints"
 
-        return host
+        return host  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def server_string(self) -> str:
@@ -282,7 +337,7 @@ class ZKServer(StateBase):
     @property
     def quorum(self) -> str:
         """The quorum encryption currently set on the unit."""
-        return self.relation_data.get("quorum", "")
+        return self.relation_data.get("quorum", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def unified(self) -> bool:
@@ -297,32 +352,39 @@ class ZKServer(StateBase):
     @property
     def private_key(self) -> str:
         """The private-key contents for the unit to use for TLS."""
-        return self.relation_data.get("private-key", "")
+        return self.relation_data.get("private-key", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def keystore_password(self) -> str:
         """The Java Keystore password for the unit to use for TLS."""
-        return self.relation_data.get("keystore-password", "")
+        return self.relation_data.get(
+            "keystore-password", ""
+        )  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def truststore_password(self) -> str:
         """The Java Truststore password for the unit to use for TLS."""
-        return self.relation_data.get("truststore-password", "")
+        return self.relation_data.get(
+            "truststore-password", ""
+        )  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def csr(self) -> str:
         """The current certificate signing request contents for the unit."""
-        return self.relation_data.get("csr", "")
+        return self.relation_data.get("csr", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def certificate(self) -> str:
         """The certificate contents for the unit to use for TLS."""
-        return self.relation_data.get("certificate", "")
+        return self.relation_data.get("certificate", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
-        return self.relation_data.get("ca", "")
+        # Backwards compatibility
+        if cert := self.relation_data.get("ca"):  # pyright: ignore reportGeneralTypeIssues
+            return cert
+        return self.relation_data.get("ca-cert", "")  # pyright: ignore reportGeneralTypeIssues
 
     @property
     def sans(self) -> dict[str, list[str]]:

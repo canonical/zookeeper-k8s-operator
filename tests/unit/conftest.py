@@ -4,6 +4,7 @@
 from unittest.mock import patch
 
 import pytest
+from ops import JujuVersion
 from tests.unit.test_charm import PropertyMock
 
 
@@ -44,3 +45,9 @@ def patched_etc_hosts_environment():
         patch("managers.config.ConfigManager.set_server_jvmflags"),
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def juju_has_secrets(mocker):
+    """Using Juju3 we should always have secrets available."""
+    mocker.patch.object(JujuVersion, "has_secrets", new_callable=PropertyMock).return_value = True

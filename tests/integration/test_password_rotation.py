@@ -2,6 +2,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import asyncio
 import logging
 
 import pytest
@@ -79,6 +80,8 @@ async def test_password_rotation(ops_test: OpsTest):
 
     assert super_password != new_super_password
     assert sync_password != new_sync_password
+
+    await asyncio.sleep(30)
 
     host = await get_address(ops_test, APP_NAME, leader_num)
     write_key(host=host, password=new_super_password)
