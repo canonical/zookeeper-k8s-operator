@@ -51,3 +51,12 @@ def patched_etc_hosts_environment():
 def juju_has_secrets(mocker):
     """Using Juju3 we should always have secrets available."""
     mocker.patch.object(JujuVersion, "has_secrets", new_callable=PropertyMock).return_value = True
+
+
+@pytest.fixture(autouse=True)
+def patched_version(mocker, request):
+    if "nopatched_version" in request.keywords:
+        yield
+    else:
+        yield mocker.patch("workload.ZKWorkload.get_version", return_value=""),
+
