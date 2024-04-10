@@ -254,7 +254,7 @@ async def get_password(ops_test, user: str | None = "super", app_name: str | Non
     if not app_name:
         app_name = APP_NAME
     secret_data = await get_secret_by_label(ops_test, f"{app_name}.app", app_name)
-    return secret_data
+    return secret_data.get(f"{user}-password")
 
 
 async def get_secret_by_label(ops_test, label: str, owner: str | None = None) -> dict[str, str]:
