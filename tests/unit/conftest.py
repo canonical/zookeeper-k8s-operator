@@ -44,3 +44,11 @@ def patched_etc_hosts_environment():
         patch("managers.config.ConfigManager.set_server_jvmflags"),
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def patched_version(mocker, request):
+    if "nopatched_version" in request.keywords:
+        yield
+    else:
+        yield mocker.patch("workload.ZKWorkload.get_version", return_value=""),
