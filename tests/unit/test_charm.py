@@ -1104,6 +1104,8 @@ def test_workload_version_is_setted(harness, monkeypatch):
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related"),
         patch("core.cluster.ClusterState.all_units_declaring_ip"),
+        patch("core.cluster.ClusterState.unit_server"),
+        patch("core.cluster.ClusterState.cluster"),
         patch(
             "core.cluster.ClusterState.peer_relation",
             new_callable=PropertyMock,
