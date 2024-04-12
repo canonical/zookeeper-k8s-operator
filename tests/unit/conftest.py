@@ -59,3 +59,4 @@ def patched_version(mocker, request):
         yield
     else:
         yield mocker.patch("workload.ZKWorkload.get_version", return_value=""),
+
