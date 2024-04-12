@@ -44,8 +44,6 @@ jobs:
   build:
     name: Build charms
     uses: canonical/data-platform-workflows/.github/workflows/build_charms_with_cache.yaml@v7
-    with:
-      lxd-snap-channel: 5.20/stable
 
   integration-test:
     strategy:
