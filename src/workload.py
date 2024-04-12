@@ -120,9 +120,6 @@ class ZKWorkload(WorkloadBase):
 
     @override
     def get_version(self) -> str:
-        if not self.alive:
-            return ""
-
         if not self.healthy:
             return ""
 
