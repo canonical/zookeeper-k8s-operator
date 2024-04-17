@@ -8,7 +8,7 @@ import pytest
 import requests
 from pytest_operator.plugin import OpsTest
 
-from literals import JMX_PORT, METRICS_PROVIDER_PORT
+from literals import DEPENDENCIES, JMX_PORT, METRICS_PROVIDER_PORT
 
 from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
 from .helpers import count_lines_with, get_address
@@ -34,6 +34,12 @@ async def test_deploy_active(ops_test: OpsTest):
         await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
 
     assert ops_test.model.applications[APP_NAME].status == "active"
+
+
+@pytest.mark.abort_on_fail
+async def test_consistency_between_workload_and_metadata(ops_test: OpsTest):
+    application = ops_test.model.applications[APP_NAME]
+    assert application.data.get("workload-version", "") == DEPENDENCIES["service"]["version"]
 
 
 async def test_exporter_endpoints(ops_test: OpsTest):
