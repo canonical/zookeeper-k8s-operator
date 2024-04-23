@@ -116,7 +116,7 @@ class TLSEvents(Object):
             self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
 
         self.charm.state.unit_server.update(
-            {"certificate": event.certificate, "ca-cert": event.ca}
+            {"certificate": event.certificate, "ca-cert": event.ca, "ca": ""}
         )
         self._cleanup_old_ca_field()
 
@@ -148,7 +148,9 @@ class TLSEvents(Object):
 
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
-        self.charm.state.unit_server.update({"csr": "", "certificate": "", "ca-cert": ""})
+        self.charm.state.unit_server.update(
+            {"csr": "", "certificate": "", "ca-cert": "", "ca": ""}
+        )
         self._cleanup_old_ca_field()
 
         # remove all existing keystores from the unit so we don't preserve certs

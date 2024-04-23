@@ -62,6 +62,10 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
 @pytest.mark.skip(reason="Remove application bad on K8s")
 async def test_remove_tls_provider(ops_test: OpsTest):
     await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(90)
+
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="active", timeout=1000, idle_period=30
     )
@@ -88,6 +92,11 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
     )
     await ops_test.model.wait_for_idle(apps=[APP_NAME, TLS_NAME], status="active", timeout=1000)
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
+
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(90)
+
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
     )

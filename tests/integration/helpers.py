@@ -12,9 +12,11 @@ from pytest_operator.plugin import OpsTest
 
 from . import APP_NAME
 
+PEER = "cluster"
+
 
 async def get_password(ops_test) -> str:
-    secret_data = await get_secret_by_label(ops_test, f"{APP_NAME}.app")
+    secret_data = await get_secret_by_label(ops_test, f"{PEER}.{APP_NAME}.app")
     return secret_data.get("super-password")
 
 

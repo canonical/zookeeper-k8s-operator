@@ -26,6 +26,7 @@ USERNAME = "super"
 CONTAINER = "zookeeper"
 SERVICE = CONTAINER
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
+PEER = "cluster"
 
 
 async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3) -> None:
@@ -253,7 +254,7 @@ async def process_stopped(
 async def get_password(ops_test, user: str | None = "super", app_name: str | None = None) -> str:
     if not app_name:
         app_name = APP_NAME
-    secret_data = await get_secret_by_label(ops_test, f"{app_name}.app", app_name)
+    secret_data = await get_secret_by_label(ops_test, f"{PEER}.{app_name}.app", app_name)
     return secret_data.get(f"{user}-password")
 
 

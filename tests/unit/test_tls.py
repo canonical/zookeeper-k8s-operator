@@ -140,7 +140,7 @@ def test_certificates_available_succeeds(harness):
     harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
     # implicitly tests restart call
-    harness.charm.unit.add_secret({"csr": "not-missing"}, label="zookeeper-k8s.unit")
+    harness.charm.unit.add_secret({"csr": "not-missing"}, label=f"{PEER}.zookeeper-k8s.unit")
 
     # implicitly tests these method calls
     with patch.multiple(
@@ -162,7 +162,7 @@ def test_certificates_available_succeeds(harness):
         assert harness.charm.state.unit_server.ca
 
     # The certs are saved in a secret, with expected keys
-    secret = harness.charm.model.get_secret(label="zookeeper-k8s.unit")
+    secret = harness.charm.model.get_secret(label=f"{PEER}.zookeeper-k8s.unit")
     assert secret.peek_content() == {
         "csr": "not-missing",
         "certificate": "cert",
@@ -200,7 +200,7 @@ def test_certificates_available_halfway_through_upgrade_succeeds(harness):
         assert harness.charm.state.unit_server.ca
 
         # The certs are saved in a secret, with expected keys
-        secret = harness.charm.model.get_secret(label="zookeeper-k8s.unit")
+        secret = harness.charm.model.get_secret(label=f"{PEER}.zookeeper-k8s.unit")
         assert secret.get_content() == {"certificate": "cert", "ca-cert": "ca"}
 
         # The correct CSR is preserved still in databag
@@ -213,7 +213,7 @@ def test_certificates_broken(harness):
 
         harness.charm.unit.add_secret(
             {"csr": "not-missing", "certificate": "cert", "ca-cert": "exists"},
-            label="zookeeper-k8s.unit",
+            label=f"{PEER}.zookeeper-k8s.unit",
         )
         harness.set_leader(True)
 

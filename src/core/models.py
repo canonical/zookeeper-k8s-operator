@@ -4,9 +4,9 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
-from typing import Literal, MutableMapping, cast
+from typing import Literal, MutableMapping
 
-from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData
+from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, DataPeerUnitData
 from ops.model import Application, Relation, Unit
 from typing_extensions import override
 
@@ -17,44 +17,28 @@ logger = logging.getLogger(__name__)
 SUBSTRATES = Literal["vm", "k8s"]
 
 
-class StateBase:
-    """Base state object."""
+class RelationState:
+    """Relation state object."""
 
     def __init__(
         self,
         relation: Relation | None,
         data_interface: Data,
-        component: Unit | Application,
+        component: Unit | Application | None,
         substrate: SUBSTRATES,
     ):
         self.relation = relation
         self.data_interface = data_interface
         self.component = component
         self.substrate = substrate
+        self.relation_data = self.data_interface.as_dict(self.relation.id) if self.relation else {}
 
-    def update(self, items: dict[str, str]) -> None:
-        """Changes the state."""
-        raise NotImplementedError
-
-    def data(self) -> MutableMapping:
-        """Data representing the state."""
-        raise NotImplementedError
-
-
-class RelationState(StateBase):
-    """Base state object."""
-
-    def __init__(
-        self,
-        relation: Relation,
-        data_interface: Data,
-        component: Unit | Application,
-        substrate: SUBSTRATES,
-    ):
-        super().__init__(relation, data_interface, component, substrate)
-        # Redundant definition as lint can't resolve that super's relation may be None
-        self.relation = relation
-        self.relation_data = cast(dict[str, str], self.data_interface.as_dict(self.relation.id))
+    def __bool__(self):
+        """Boolean evaluation based on the existence of self.relation."""
+        try:
+            return bool(self.relation)
+        except AttributeError:
+            return False
 
     @property
     def data(self) -> MutableMapping:
@@ -63,6 +47,12 @@ class RelationState(StateBase):
 
     def update(self, items: dict[str, str]) -> None:
         """Writes to relation_data."""
+        if not self.relation:
+            logger.warning(
+                f"Fields {list(items.keys())} were attempted to be written on the relation before it exists."
+            )
+            return
+
         delete_fields = [key for key in items if not items[key]]
         update_content = {k: items[k] for k in items if k not in delete_fields}
 
@@ -77,7 +67,7 @@ class ZKClient(RelationState):
 
     def __init__(
         self,
-        relation: Relation,
+        relation: Relation | None,
         data_interface: Data,
         component: Application,
         substrate: SUBSTRATES,
@@ -87,7 +77,7 @@ class ZKClient(RelationState):
         tls: str = "",
         uris: str = "",
     ):
-        super().__init__(relation, data_interface, component, substrate)
+        super().__init__(relation, data_interface, None, substrate)
         self.app = component
         self._password = password
         self._endpoints = endpoints
@@ -152,7 +142,7 @@ class ZKCluster(RelationState):
 
     def __init__(
         self,
-        relation: Relation,
+        relation: Relation | None,
         data_interface: DataPeerData,
         component: Application,
         substrate: SUBSTRATES,
@@ -254,8 +244,8 @@ class ZKServer(RelationState):
 
     def __init__(
         self,
-        relation: Relation,
-        data_interface: Data,
+        relation: Relation | None,
+        data_interface: DataPeerUnitData,
         component: Unit,
         substrate: SUBSTRATES,
     ):
@@ -268,7 +258,7 @@ class ZKServer(RelationState):
 
         e.g zookeeper/2 --> 2
         """
-        return int(self.component.name.split("/")[1])
+        return int(self.unit.name.split("/")[1])
 
     # -- Cluster Init --
 
@@ -320,7 +310,7 @@ class ZKServer(RelationState):
                     break
 
         if self.substrate == "k8s":
-            host = f"{self.component.name.split('/')[0]}-{self.unit_id}.{self.component.name.split('/')[0]}-endpoints"
+            host = f"{self.unit.name.split('/')[0]}-{self.unit_id}.{self.unit.name.split('/')[0]}-endpoints"
 
         return host
 
@@ -375,9 +365,7 @@ class ZKServer(RelationState):
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
         # Backwards compatibility
-        if cert := self.relation_data.get("ca"):
-            return cert
-        return self.relation_data.get("ca-cert", "")
+        return self.relation_data.get("ca-cert", self.relation_data.get("ca", ""))
 
     @property
     def sans(self) -> dict[str, list[str]]:

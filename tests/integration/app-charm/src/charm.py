@@ -32,6 +32,7 @@ class ApplicationCharm(CharmBase):
         self.name = CHARM_KEY
 
         self.requires_interface = DatabaseRequires(self, "zookeeper", "/myapp")
+
         self.framework.observe(getattr(self.on, "start"), self._on_start)
         self.framework.observe(self.on[REL_NAME].relation_changed, self._log)
         self.framework.observe(self.on[REL_NAME].relation_joined, self._set_data)
