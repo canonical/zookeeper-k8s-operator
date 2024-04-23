@@ -33,17 +33,14 @@ class ClusterState(Object):
             self.model, relation_name=PEER, additional_secret_fields=SECRETS_UNIT
         )
         self.client_provider_interface = DatabaseProviderData(self.model, relation_name=REL_NAME)
-
         self._servers_data = {}
 
     # --- RAW RELATION ---
 
     @property
-    def peer_relation(self) -> Relation:
+    def peer_relation(self) -> Relation | None:
         """The cluster peer relation."""
-        if not (peer_relation := self.model.get_relation(PEER)):
-            raise AttributeError(f"No peer relation {PEER} found.")
-        return peer_relation
+        return self.model.get_relation(PEER)
 
     @property
     def client_relations(self) -> Set[Relation]:
@@ -375,10 +372,3 @@ class ClusterState(Object):
             return Status.ALL_UNIFIED
 
         return self.stable
-
-    def has_peer_relation(self) -> bool:
-        """The cluster has a peer relation."""
-        try:
-            return bool(self.peer_relation)
-        except AttributeError:
-            return False

@@ -173,7 +173,7 @@ class ZooKeeperCharm(CharmBase):
     def _on_install(self, event: InstallEvent) -> None:
         """Handler for the `on_install` event."""
         # don't complete install until passwords set
-        if not self.state.has_peer_relation():
+        if not self.state.peer_relation:
             self.unit.status = WaitingStatus("waiting for peer relation")
             event.defer()
             return
