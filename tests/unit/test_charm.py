@@ -2,6 +2,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -67,6 +68,7 @@ def test_install_fails_creates_passwords_succeeds(harness, monkeypatch):
 
     with patch("workload.ZKWorkload.install"):
         harness.charm.on.install.emit()
+        assert harness.charm.state.cluster.relation_data
 
         assert harness.charm.state.cluster.internal_user_credentials
 
@@ -513,7 +515,7 @@ def test_init_server_calls_necessary_methods(harness, monkeypatch):
                 "ip": "aragorn",
                 "fqdn": "legolas",
                 "hostname": "gimli",
-                "ca": "keep it secret",
+                "ca-cert": "keep it secret",
                 "certificate": "keep it safe",
             },
         )
@@ -962,11 +964,19 @@ def test_update_relation_data(harness):
         harness.set_leader(True)
         app_1_id = harness.add_relation(REL_NAME, "application")
         app_2_id = harness.add_relation(REL_NAME, "new_application")
-        harness.update_relation_data(app_1_id, "application", {"chroot": "app"})
+        harness.update_relation_data(
+            app_1_id,
+            "application",
+            {"chroot": "app", "requested-secrets": json.dumps(["username", "password"])},
+        )
         harness.update_relation_data(
             app_2_id,
             "new_application",
-            {"chroot": "new_app", "chroot-acl": "rw"},
+            {
+                "chroot": "new_app",
+                "chroot-acl": "rw",
+                "requested-secrets": json.dumps(["username", "password"]),
+            },
         )
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
@@ -995,9 +1005,8 @@ def test_update_relation_data(harness):
                 "hostname": "merry",
             },
         )
-        harness.update_relation_data(
+        harness.charm.state.peer_app_interface.update_relation_data(
             harness.charm.state.peer_relation.id,
-            CHARM_KEY,
             {f"relation-{app_1_id}": "mellon", f"relation-{app_2_id}": "friend"},
         )
 
@@ -1018,16 +1027,22 @@ def test_update_relation_data(harness):
     # building bare clients for validation
     usernames = []
     passwords = []
+
     for relation in harness.charm.state.client_relations:
+        myclient = None
+        for client in harness.charm.state.clients:
+            if client.relation == relation:
+                myclient = client
         client = ZKClient(
             relation=relation,
+            data_interface=harness.charm.state.client_provider_interface,
             substrate=SUBSTRATE,
             component=relation.app,
             local_app=harness.charm.app,
-            password=relation.data[harness.charm.app].get("password", ""),
-            endpoints=relation.data[harness.charm.app].get("endpoints", ""),
-            uris=relation.data[harness.charm.app].get("uris", ""),
-            tls=relation.data[harness.charm.app].get("tls", ""),
+            password=myclient.relation_data.get("password", ""),
+            endpoints=myclient.relation_data.get("endpoints", ""),
+            uris=myclient.relation_data.get("uris", ""),
+            tls=myclient.relation_data.get("tls", ""),
         )
 
         assert client.username, (
@@ -1089,6 +1104,8 @@ def test_workload_version_is_setted(harness, monkeypatch):
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related"),
         patch("core.cluster.ClusterState.all_units_declaring_ip"),
+        patch("core.cluster.ClusterState.unit_server"),
+        patch("core.cluster.ClusterState.cluster"),
         patch(
             "core.cluster.ClusterState.peer_relation",
             new_callable=PropertyMock,

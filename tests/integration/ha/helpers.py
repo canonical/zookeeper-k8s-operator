@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -25,6 +26,7 @@ USERNAME = "super"
 CONTAINER = "zookeeper"
 SERVICE = CONTAINER
 PROCESS = "org.apache.zookeeper.server.quorum.QuorumPeerMain"
+PEER = "cluster"
 
 
 async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3) -> None:
@@ -173,41 +175,6 @@ def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> 
     return ""
 
 
-def get_super_password(ops_test: OpsTest, app_name: str = APP_NAME) -> str:
-    """Gets current `super-password` for a given ZooKeeper application.
-
-    Args:
-        ops_test: OpsTest
-        app_name: the ZooKeeper Juju application
-
-
-    Returns:
-        String of password for the `super` user
-    """
-    password = ""
-    for unit in ops_test.model.applications[app_name].units:
-        show_unit = subprocess.check_output(
-            f"JUJU_MODEL={ops_test.model_full_name} juju show-unit {unit.name}",
-            stderr=subprocess.PIPE,
-            shell=True,
-            universal_newlines=True,
-        )
-        response = yaml.safe_load(show_unit)
-        relations_info = response[f"{unit.name}"]["relation-info"]
-
-        for info in relations_info:
-            if info["endpoint"] == "cluster":
-                password = info["application-data"]["super-password"]
-                break
-
-        break
-
-    if not password:
-        raise Exception("no relations found")
-
-    return password
-
-
 async def send_control_signal(
     ops_test: OpsTest,
     unit_name: str,
@@ -282,6 +249,28 @@ async def process_stopped(
     )
 
     return "Tl" in proc.split()[7]
+
+
+async def get_password(ops_test, user: str | None = "super", app_name: str | None = None) -> str:
+    if not app_name:
+        app_name = APP_NAME
+    secret_data = await get_secret_by_label(ops_test, f"{PEER}.{app_name}.app", app_name)
+    return secret_data.get(f"{user}-password")
+
+
+async def get_secret_by_label(ops_test, label: str, owner: str | None = None) -> dict[str, str]:
+    secrets_meta_raw = await ops_test.juju("list-secrets", "--format", "json")
+    secrets_meta = json.loads(secrets_meta_raw[1])
+
+    for secret_id in secrets_meta:
+        if owner and not secrets_meta[secret_id]["owner"] == owner:
+            continue
+        if secrets_meta[secret_id]["label"] == label:
+            break
+
+    secret_data_raw = await ops_test.juju("show-secret", "--format", "json", "--reveal", secret_id)
+    secret_data = json.loads(secret_data_raw[1])
+    return secret_data[secret_id]["content"]["Data"]
 
 
 def write_key(host: str, password: str, username: str = USERNAME) -> None:

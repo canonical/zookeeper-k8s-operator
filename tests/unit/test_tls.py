@@ -140,6 +140,40 @@ def test_certificates_available_succeeds(harness):
     harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
     # implicitly tests restart call
+    harness.charm.unit.add_secret({"csr": "not-missing"}, label=f"{PEER}.zookeeper-k8s.unit")
+
+    # implicitly tests these method calls
+    with patch.multiple(
+        "managers.tls.TLSManager",
+        set_private_key=DEFAULT,
+        set_ca=DEFAULT,
+        set_certificate=DEFAULT,
+        set_truststore=DEFAULT,
+        set_p12_keystore=DEFAULT,
+    ):
+        harness.charm.tls_events.certificates.on.certificate_available.emit(
+            certificate_signing_request="not-missing",
+            certificate="cert",
+            ca="ca",
+            chain=["ca", "cert"],
+        )
+
+        assert harness.charm.state.unit_server.certificate
+        assert harness.charm.state.unit_server.ca
+
+    # The certs are saved in a secret, with expected keys
+    secret = harness.charm.model.get_secret(label=f"{PEER}.zookeeper-k8s.unit")
+    assert secret.peek_content() == {
+        "csr": "not-missing",
+        "certificate": "cert",
+        "ca-cert": "ca",
+    }
+
+
+def test_certificates_available_halfway_through_upgrade_succeeds(harness):
+    harness.add_relation(CERTS_REL_NAME, TLS_NAME)
+
+    # implicitly tests restart call
     harness.add_relation(harness.charm.restart.name, "{CHARM_KEY}/0")
 
     harness.update_relation_data(
@@ -165,16 +199,53 @@ def test_certificates_available_succeeds(harness):
         assert harness.charm.state.unit_server.certificate
         assert harness.charm.state.unit_server.ca
 
+        # The certs are saved in a secret, with expected keys
+        secret = harness.charm.model.get_secret(label=f"{PEER}.zookeeper-k8s.unit")
+        assert secret.get_content() == {"certificate": "cert", "ca-cert": "ca"}
+
+        # The correct CSR is preserved still in databag
+        assert harness.charm.state.unit_server.csr == "not-missing"
+
 
 def test_certificates_broken(harness):
     with harness.hooks_disabled():
         certs_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
+        harness.charm.unit.add_secret(
+            {"csr": "not-missing", "certificate": "cert", "ca-cert": "exists"},
+            label=f"{PEER}.zookeeper-k8s.unit",
+        )
+        harness.set_leader(True)
+
+    assert harness.charm.state.unit_server.certificate
+    assert harness.charm.state.unit_server.ca
+    assert harness.charm.state.unit_server.csr
+
+    # implicitly tests these method calls
+    with patch.multiple(
+        "managers.tls.TLSManager",
+        remove_stores=DEFAULT,
+    ):
+        harness.remove_relation(certs_rel_id)
+
+        assert not harness.charm.state.unit_server.certificate
+        assert not harness.charm.state.unit_server.ca
+        assert not harness.charm.state.unit_server.csr
+        assert not harness.charm.state.cluster.tls
+        assert harness.charm.state.cluster.switching_encryption
+
+
+def test_certificates_broken_after_upgrade(harness):
+    with harness.hooks_disabled():
+        certs_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
+
+        # Databag was used before the upgrade
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
             f"{CHARM_KEY}/0",
             {"csr": "not-missing", "certificate": "cert", "ca": "exists"},
         )
+
         harness.set_leader(True)
 
     assert harness.charm.state.unit_server.certificate

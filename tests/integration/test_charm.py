@@ -31,7 +31,9 @@ async def test_deploy_active(ops_test: OpsTest):
         await ops_test.model.block_until(
             lambda: len(ops_test.model.applications[APP_NAME].units) == 3
         )
-        await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
+        await ops_test.model.wait_for_idle(
+            apps=[APP_NAME], status="active", timeout=1000, idle_period=30
+        )
 
     assert ops_test.model.applications[APP_NAME].status == "active"
 

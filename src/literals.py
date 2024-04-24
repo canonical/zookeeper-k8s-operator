@@ -90,3 +90,14 @@ class Status(Enum):
     SERVICE_UNHEALTHY = StatusLevel(
         BlockedStatus("zookeeper service is unreachable or not serving requests"), "ERROR"
     )
+
+
+SECRETS_APP = ["sync-password", "super-password"]
+SECRETS_UNIT = [
+    "ca-cert",
+    "csr",
+    "certificate",
+    "truststore-password",
+    "keystore-password",
+    "private-key",
+]

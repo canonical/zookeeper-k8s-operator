@@ -12,24 +12,25 @@ from pytest_operator.plugin import OpsTest
 
 from . import APP_NAME
 
+PEER = "cluster"
 
-def get_password(model_full_name: str) -> str:
-    # getting relation data
-    show_unit = check_output(
-        f"JUJU_MODEL={model_full_name} juju show-unit {APP_NAME}/0 --format json",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
-    response = json.loads(show_unit)
-    relations_info = response[f"{APP_NAME}/0"]["relation-info"]
 
-    for info in relations_info:
-        if info["endpoint"] == "cluster":
-            password = info["application-data"]["super_password"]
-            return password
-    else:
-        raise Exception("no relations found")
+async def get_password(ops_test) -> str:
+    secret_data = await get_secret_by_label(ops_test, f"{PEER}.{APP_NAME}.app")
+    return secret_data.get("super-password")
+
+
+async def get_secret_by_label(ops_test, label: str) -> dict[str, str]:
+    secrets_meta_raw = await ops_test.juju("list-secrets", "--format", "json")
+    secrets_meta = json.loads(secrets_meta_raw[1])
+
+    for secret_id in secrets_meta:
+        if secrets_meta[secret_id]["label"] == label:
+            break
+
+    secret_data_raw = await ops_test.juju("show-secret", "--format", "json", "--reveal", secret_id)
+    secret_data = json.loads(secret_data_raw[1])
+    return secret_data[secret_id]["content"]["Data"]
 
 
 async def get_user_password(ops_test: OpsTest, user: str, num_unit=0) -> str:

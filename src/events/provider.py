@@ -6,6 +6,7 @@
 import logging
 from typing import TYPE_CHECKING
 
+from charms.data_platform_libs.v0.data_interfaces import DatabaseProviderEventHandlers
 from charms.zookeeper.v0.client import (
     MemberNotReadyError,
     MembersSyncingError,
@@ -29,6 +30,10 @@ class ProviderEvents(Object):
     def __init__(self, charm):
         super().__init__(charm, "provider")
         self.charm: "ZooKeeperCharm" = charm
+
+        self.provider_events = DatabaseProviderEventHandlers(
+            self.charm, self.charm.state.client_provider_interface
+        )
 
         self.framework.observe(
             self.charm.on[REL_NAME].relation_changed, self._on_client_relation_updated
