@@ -14,7 +14,7 @@ SUBSTRATE = "k8s"
 CHARM_KEY = "zookeeper-k8s"
 
 PEER = "cluster"
-REL_NAME = "zookeeper"
+REL_NAME = "database"
 CONTAINER = "zookeeper"
 CHARM_USERS = ["super", "sync"]
 CERTS_REL_NAME = "certificates"

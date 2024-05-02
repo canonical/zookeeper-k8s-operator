@@ -34,11 +34,11 @@ class TLSManager:
 
     def set_ca(self) -> None:
         """Sets the unit CA."""
-        if not self.state.unit_server.ca:
+        if not self.state.unit_server.ca_cert:
             logger.error("Can't set CA to unit, missing CA in relation data")
             return
 
-        self.workload.write(content=self.state.unit_server.ca, path=self.workload.paths.ca)
+        self.workload.write(content=self.state.unit_server.ca_cert, path=self.workload.paths.ca)
 
     def set_certificate(self) -> None:
         """Sets the unit certificate."""

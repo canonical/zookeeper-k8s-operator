@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 CHARM_KEY = "app"
 PEER = "cluster"
-REL_NAME = "zookeeper"
+REL_NAME = "database"
 
 
 class ApplicationCharm(CharmBase):
@@ -31,7 +31,7 @@ class ApplicationCharm(CharmBase):
         super().__init__(*args)
         self.name = CHARM_KEY
 
-        self.requires_interface = DatabaseRequires(self, "zookeeper", "/myapp")
+        self.requires_interface = DatabaseRequires(self, REL_NAME, "/myapp")
 
         self.framework.observe(getattr(self.on, "start"), self._on_start)
         self.framework.observe(self.on[REL_NAME].relation_changed, self._log)
@@ -49,9 +49,9 @@ class ApplicationCharm(CharmBase):
             return
 
         # reasonable confidence there won't be conflicting chroots
-        current_chroot = self.relation.data[self.app].get("chroot", None)
+        current_chroot = self.relation.data[self.app].get("database", None)
         self.relation.data[self.app].update(
-            {"chroot": current_chroot or f"{CHARM_KEY}_{random.randrange(1,99)}"}
+            {"database": current_chroot or f"{CHARM_KEY}_{random.randrange(1,99)}"}
         )
 
     def _log(self, _):

@@ -75,7 +75,7 @@ class ProviderEvents(Object):
         # FIXME: should be data-platform-libs
         # setting password for new users to relation data
         for client in self.charm.state.clients:
-            if not client.chroot:
+            if not client.database:
                 continue
 
             if (

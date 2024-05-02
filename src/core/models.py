@@ -4,7 +4,9 @@
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
 import logging
-from typing import Literal, MutableMapping
+import warnings
+from collections.abc import MutableMapping
+from typing import Literal
 
 from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, DataPeerUnitData
 from ops.model import Application, Relation, Unit
@@ -103,7 +105,12 @@ class ZKClient(RelationState):
     @property
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
-        return self._uris + self.chroot if self._uris else ""
+        # TODO (zkclient): Remove this property
+        warnings.warn(
+            "Using 'uris' in the databag is deprecated, use 'endpoints' instead",
+            DeprecationWarning,
+        )
+        return self._uris + self.database if self._uris else ""
 
     @property
     def tls(self) -> str:
@@ -125,12 +132,51 @@ class ZKClient(RelationState):
             - 'w' - write
             - 'a' - append
         """
-        return self.relation_data.get("chroot-acl", "cdrwa")
+        # TODO (zkclient): Remove this property and replace by "cdrwa" in self.extra_user_roles
+        acl = self.relation_data.get("chroot-acl")
+        if acl is not None:
+            warnings.warn(
+                "Using 'chroot-acl' in the databag is deprecated, use 'extra-user-roles' instead",
+                DeprecationWarning,
+            )
+
+        else:
+            acl = "cdrwa"
+
+        return acl
+
+    @property
+    def extra_user_roles(self) -> str:
+        """The client defined ACLs for their requested ACL.
+
+        Contains:
+            - 'c' - create
+            - 'd' - delete
+            - 'r' - read
+            - 'w' - write
+            - 'a' - append
+        """
+        return self.relation_data.get("extra-user-roles", self.chroot_acl)
 
     @property
     def chroot(self) -> str:
         """The client requested root zNode path value."""
+        # TODO (zkclient): Remove this property and replace by "" in self.database
         chroot = self.relation_data.get("chroot", "")
+        if chroot:
+            warnings.warn(
+                "Using 'chroot' in the databag is deprecated, use 'database' instead",
+                DeprecationWarning,
+            )
+        if chroot and not chroot.startswith("/"):
+            chroot = f"/{chroot}"
+
+        return chroot
+
+    @property
+    def database(self) -> str:
+        """The client requested root zNode path value."""
+        chroot = self.relation_data.get("database", self.chroot)
         if chroot and not chroot.startswith("/"):
             chroot = f"/{chroot}"
 
@@ -365,7 +411,19 @@ class ZKServer(RelationState):
     def ca(self) -> str:
         """The root CA contents for the unit to use for TLS."""
         # Backwards compatibility
-        return self.relation_data.get("ca-cert", self.relation_data.get("ca", ""))
+        # TODO (zkclient): Remove this property and replace by "" in self.ca_cert
+        ca = self.relation_data.get("ca", "")
+        if ca:
+            warnings.warn(
+                "Using 'ca' in the databag is deprecated, use 'ca_cert' instead",
+                DeprecationWarning,
+            )
+        return ca
+
+    @property
+    def ca_cert(self) -> str:
+        """The root CA contents for the unit to use for TLS."""
+        return self.relation_data.get("ca-cert", self.ca)
 
     @property
     def sans(self) -> dict[str, list[str]]:

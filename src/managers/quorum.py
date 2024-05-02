@@ -195,37 +195,37 @@ class QuorumManager:
         requested_chroots = set()
 
         for client in self.state.clients:
-            if not client.chroot:
+            if not client.database:
                 continue
 
             generated_acl = make_acl(
                 scheme="sasl",
                 credential=client.username,
-                read="r" in client.chroot_acl,
-                write="w" in client.chroot_acl,
-                create="c" in client.chroot_acl,
-                delete="d" in client.chroot_acl,
-                admin="a" in client.chroot_acl,
+                read="r" in client.extra_user_roles,
+                write="w" in client.extra_user_roles,
+                create="c" in client.extra_user_roles,
+                delete="d" in client.extra_user_roles,
+                admin="a" in client.extra_user_roles,
             )
             logger.info(f"{generated_acl=}")
 
             requested_acls.add(generated_acl)
 
             # FIXME: data-platform-libs should handle this when it's implemented
-            if client.chroot:
+            if client.database:
                 if event and client.relation and client.relation.id == event.relation.id:
                     continue  # skip broken chroots, so they're removed
                 else:
-                    requested_chroots.add(client.chroot)
+                    requested_chroots.add(client.database)
 
             # Looks for newly related applications not in config yet
             if client.chroot not in leader_chroots:
-                logger.info(f"CREATE CHROOT - {client.chroot}")
-                self.client.create_znode_leader(path=client.chroot, acls=[generated_acl])
+                logger.info(f"CREATE CHROOT - {client.database}")
+                self.client.create_znode_leader(path=client.database, acls=[generated_acl])
 
             # Looks for existing related applications
-            logger.info(f"UPDATE CHROOT - {client.chroot}")
-            self.client.set_acls_znode_leader(path=client.chroot, acls=[generated_acl])
+            logger.info(f"UPDATE CHROOT - {client.database}")
+            self.client.set_acls_znode_leader(path=client.database, acls=[generated_acl])
 
         # Looks for applications no longer in the relation but still in config
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):

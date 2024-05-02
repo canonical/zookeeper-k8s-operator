@@ -42,7 +42,7 @@ def test_client_relation_updated_defers_if_not_stable_leader(harness):
         patch("managers.quorum.QuorumManager.update_acls") as patched_acls,
     ):
         app_id = harness.add_relation(REL_NAME, "application")
-        harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
+        harness.update_relation_data(app_id, "application", {"database": "balrog"})
 
         patched_acls.assert_not_called()
         patched_defer.assert_called()
@@ -59,7 +59,7 @@ def test_client_relation_updated_succeeds(harness):
         patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
     ):
         app_id = harness.add_relation(REL_NAME, "application")
-        harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
+        harness.update_relation_data(app_id, "application", {"database": "balrog"})
 
         patched_acls.assert_called()
         patched_defer.assert_not_called()
@@ -80,6 +80,14 @@ def test_client_relation_updated_creates_passwords_with_chroot(harness):
         harness.update_relation_data(app_id, "application", {"ungoliant": "spider"})
         assert not harness.charm.state.cluster.client_passwords
 
+        harness.update_relation_data(app_id, "application", {"database": "balrog"})
+        assert harness.charm.state.cluster.client_passwords
+
+        # test legacy 'chroot' field
+        # TODO (zkclient): Remove this section of the test
+        harness.remove_relation(app_id)
+        app_id = harness.add_relation(REL_NAME, "application")
+        assert not harness.charm.state.cluster.client_passwords
         harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
         assert harness.charm.state.cluster.client_passwords
 
@@ -94,7 +102,7 @@ def test_client_relation_broken_sets_acls_with_broken_events(harness):
         patch("managers.quorum.QuorumManager.update_acls") as patched_update_acls,
         patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
     ):
-        harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
+        harness.update_relation_data(app_id, "application", {"database": "balrog"})
         patched_update_acls.assert_called_with(event=None)
 
     with (
@@ -118,7 +126,7 @@ def test_client_relation_broken_removes_passwords(harness):
         patch("managers.quorum.QuorumManager.update_acls"),
         patch("charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"),
     ):
-        harness.update_relation_data(app_id, "application", {"chroot": "balrog"})
+        harness.update_relation_data(app_id, "application", {"database": "balrog"})
         assert harness.charm.state.cluster.client_passwords
 
         harness.remove_relation(app_id)
