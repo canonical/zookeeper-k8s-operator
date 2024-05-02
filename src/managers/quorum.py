@@ -219,7 +219,7 @@ class QuorumManager:
                     requested_chroots.add(client.database)
 
             # Looks for newly related applications not in config yet
-            if client.chroot not in leader_chroots:
+            if client.database not in leader_chroots:
                 logger.info(f"CREATE CHROOT - {client.database}")
                 self.client.create_znode_leader(path=client.database, acls=[generated_acl])
 
