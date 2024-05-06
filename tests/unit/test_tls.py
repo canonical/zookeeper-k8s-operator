@@ -229,7 +229,7 @@ def test_certificates_broken(harness):
         harness.remove_relation(certs_rel_id)
 
         assert not harness.charm.state.unit_server.certificate
-        assert not harness.charm.state.unit_server.ca
+        assert not harness.charm.state.unit_server.ca_cert
         assert not harness.charm.state.unit_server.csr
         assert not harness.charm.state.cluster.tls
         assert harness.charm.state.cluster.switching_encryption
@@ -249,7 +249,7 @@ def test_certificates_broken_after_upgrade(harness):
         harness.set_leader(True)
 
     assert harness.charm.state.unit_server.certificate
-    assert harness.charm.state.unit_server.ca
+    assert harness.charm.state.unit_server.ca_cert
     assert harness.charm.state.unit_server.csr
 
     # implicitly tests these method calls
@@ -260,7 +260,7 @@ def test_certificates_broken_after_upgrade(harness):
         harness.remove_relation(certs_rel_id)
 
         assert not harness.charm.state.unit_server.certificate
-        assert not harness.charm.state.unit_server.ca
+        assert not harness.charm.state.unit_server.ca_cert
         assert not harness.charm.state.unit_server.csr
         assert not harness.charm.state.cluster.tls
         assert harness.charm.state.cluster.switching_encryption

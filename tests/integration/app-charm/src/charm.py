@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 CHARM_KEY = "app"
 PEER = "cluster"
-REL_NAME = "database"
+REL_NAME = "zookeeper"
 
 
 class ApplicationCharm(CharmBase):

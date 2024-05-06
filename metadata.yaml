@@ -39,7 +39,7 @@ peers:
     interface: upgrade
 
 provides:
-  database:
+  zookeeper:
     interface: zookeeper
   metrics-endpoint:
     interface: prometheus_scrape

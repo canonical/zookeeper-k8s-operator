@@ -918,7 +918,7 @@ def test_port_updates_if_tls(harness):
         harness.add_relation(PEER, CHARM_KEY)
         app_id = harness.add_relation(REL_NAME, "application")
         harness.set_leader(True)
-        harness.update_relation_data(app_id, "application", {"chroot": "app"})
+        harness.update_relation_data(app_id, "application", {"database": "app"})
 
         # checking if ssl port and ssl flag are passed
         harness.update_relation_data(
@@ -967,14 +967,14 @@ def test_update_relation_data(harness):
         harness.update_relation_data(
             app_1_id,
             "application",
-            {"chroot": "app", "requested-secrets": json.dumps(["username", "password"])},
+            {"database": "app", "requested-secrets": json.dumps(["username", "password"])},
         )
         harness.update_relation_data(
             app_2_id,
             "new_application",
             {
-                "chroot": "new_app",
-                "chroot-acl": "rw",
+                "database": "new_app",
+                "extra-user-roles": "rw",
                 "requested-secrets": json.dumps(["username", "password"]),
             },
         )
@@ -1075,7 +1075,7 @@ def test_update_relation_data(harness):
             # checking client_port in uri
             assert re.search(r":[\d]+", uri)
 
-        assert client.uris.endswith(client.chroot)
+        assert client.uris.endswith(client.database)
 
         usernames.append(client.username)
         passwords.append(client.password)

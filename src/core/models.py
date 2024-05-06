@@ -10,7 +10,7 @@ from typing import Literal
 
 from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, DataPeerUnitData
 from ops.model import Application, Relation, Unit
-from typing_extensions import override
+from typing_extensions import deprecated, override
 
 from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SECRETS_APP, SERVER_PORT
 
@@ -103,13 +103,10 @@ class ZKClient(RelationState):
         return self._endpoints
 
     @property
+    @deprecated("Using 'uris' in the databag is deprecated, use 'endpoints' instead")
     def uris(self) -> str:
         """The ZooKeeper connection uris for the client application to connect with."""
         # TODO (zkclient): Remove this property
-        warnings.warn(
-            "Using 'uris' in the databag is deprecated, use 'endpoints' instead",
-            DeprecationWarning,
-        )
         return self._uris + self.database if self._uris else ""
 
     @property
