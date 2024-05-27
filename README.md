@@ -8,7 +8,7 @@
 
 The Charmed ZooKeeper K8s Operator delivers automated operations management from day 0 to day 2 on the [Apache ZooKeeper](https://zookeeper.apache.org/) server which enables highly reliable distributed coordination, deployed on top of a [Kubernetes cluster](https://kubernetes.io/). It is an open source, end-to-end, production ready data platform on top of cloud native technologies.
 
-This operator charm comes with features such as:
+The ZooKeeper K8s Operator can be found on [Charmhub](https://charmhub.io/zookeeper-k8s) and it comes with features such as:
 - Horizontal scaling for high-availability out-of-the-box
 - Server-Server and Client-Server authentication both enabled by default
 - Access control management supported with user-provided ACL lists.
