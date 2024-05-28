@@ -92,7 +92,7 @@ def test_update_acls_correctly_handles_relation_chroots(harness):
 
     with harness.hooks_disabled():
         app_id = harness.add_relation(REL_NAME, "application")
-        harness.update_relation_data(app_id, "application", {"chroot": "/rohan"})
+        harness.update_relation_data(app_id, "application", {"database": "/rohan"})
         harness.set_leader(True)
 
     with patch.multiple(

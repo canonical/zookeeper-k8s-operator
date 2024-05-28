@@ -12,7 +12,7 @@ import logging
 import random
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires
-from ops.charm import CharmBase
+from ops.charm import CharmBase, RelationEvent
 from ops.main import main
 from ops.model import ActiveStatus
 
@@ -31,10 +31,11 @@ class ApplicationCharm(CharmBase):
         super().__init__(*args)
         self.name = CHARM_KEY
 
-        self.requires_interface = DatabaseRequires(self, "zookeeper", "/myapp")
+        self.requires_interface = DatabaseRequires(self, REL_NAME, "/myapp")
 
         self.framework.observe(getattr(self.on, "start"), self._on_start)
         self.framework.observe(self.on[REL_NAME].relation_changed, self._log)
+        self.framework.observe(self.on[REL_NAME].relation_broken, self._log)
         self.framework.observe(self.on[REL_NAME].relation_joined, self._set_data)
 
     @property
@@ -49,16 +50,15 @@ class ApplicationCharm(CharmBase):
             return
 
         # reasonable confidence there won't be conflicting chroots
-        current_chroot = self.relation.data[self.app].get("chroot", None)
         self.relation.data[self.app].update(
-            {"chroot": current_chroot or f"{CHARM_KEY}_{random.randrange(1,99)}"}
+            {
+                "database": f"{CHARM_KEY}_{random.randrange(1,99)}",
+                "requested-secrets": """["username","password","tls","tls-ca","uris"]""",
+            }
         )
 
-    def _log(self, _):
-        if not self.unit.is_leader():
-            return
-
-        logger.info(f"{self.relation.data[self.app]=}")
+    def _log(self, event: RelationEvent):
+        return
 
 
 if __name__ == "__main__":

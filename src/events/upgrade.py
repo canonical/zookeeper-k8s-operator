@@ -122,7 +122,7 @@ class ZKUpgradeEvents(DataUpgrade):
         """Set the rolling update partition to a specific value."""
         try:
             patch = {"spec": {"updateStrategy": {"rollingUpdate": {"partition": partition}}}}
-            Client().patch(  # pyright: ignore [reportGeneralTypeIssues]
+            Client().patch(  # pyright: ignore [reportArgumentType]
                 StatefulSet,
                 name=self.charm.model.app.name,
                 namespace=self.charm.model.name,

@@ -106,7 +106,7 @@ def test_server_jvmflags_has_opts(harness):
 def test_jaas_users_are_added(harness):
     with harness.hooks_disabled():
         app_id = harness.add_relation(REL_NAME, "application")
-        harness.update_relation_data(app_id, "application", {"chroot": "app"})
+        harness.update_relation_data(app_id, "application", {"database": "app"})
         harness.update_relation_data(
             harness.charm.state.peer_relation.id, CHARM_KEY, {"relation-2": "password"}
         )
@@ -118,8 +118,8 @@ def test_multiple_jaas_users_are_added(harness):
     with harness.hooks_disabled():
         app_1_id = harness.add_relation(REL_NAME, "application")
         app_2_id = harness.add_relation(REL_NAME, "application2")
-        harness.update_relation_data(app_1_id, "application", {"chroot": "app"})
-        harness.update_relation_data(app_2_id, "application2", {"chroot": "app2"})
+        harness.update_relation_data(app_1_id, "application", {"database": "app"})
+        harness.update_relation_data(app_2_id, "application2", {"database": "app2"})
         harness.update_relation_data(
             harness.charm.state.peer_relation.id,
             CHARM_KEY,
