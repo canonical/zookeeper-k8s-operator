@@ -11,7 +11,7 @@ from subprocess import CalledProcessError
 
 from ops.model import Container
 from ops.pebble import ChangeError, ExecError, Layer
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
 from core.workload import WorkloadBase
@@ -76,7 +76,12 @@ class ZKWorkload(WorkloadBase):
 
     @property
     @override
-    @retry(wait=wait_fixed(2), stop=stop_after_attempt(5))
+    @retry(
+        wait=wait_fixed(1),
+        stop=stop_after_attempt(5),
+        retry=retry_if_result(lambda result: result is False),
+        retry_error_callback=lambda _: False,
+    )
     def healthy(self) -> bool:
         """Flag to check if the unit service is reachable and serving requests."""
         if not self.alive:
