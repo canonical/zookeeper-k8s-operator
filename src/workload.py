@@ -11,7 +11,7 @@ from subprocess import CalledProcessError
 
 from ops.model import Container
 from ops.pebble import ChangeError, ExecError, Layer
-from tenacity import retry, retry_if_not_result, stop_after_attempt, wait_fixed
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
 from core.workload import WorkloadBase
@@ -64,19 +64,27 @@ class ZKWorkload(WorkloadBase):
     @property
     @override
     def alive(self) -> bool:
+        if not self.container_can_connect:
+            return False
+
+        return self.container.get_service(self.container.name).is_running()
+
+    @property
+    def container_can_connect(self) -> bool:
+        """Check if a connection can be made to the container."""
         return self.container.can_connect()
 
     @property
     @override
     @retry(
-        wait=wait_fixed(2),
+        wait=wait_fixed(1),
         stop=stop_after_attempt(5),
-        retry=retry_if_not_result(lambda result: True if result else False),
-        retry_error_callback=(lambda state: state.outcome.result()),  # type: ignore
+        retry=retry_if_result(lambda result: result is False),
+        retry_error_callback=lambda _: False,
     )
     def healthy(self) -> bool:
         """Flag to check if the unit service is reachable and serving requests."""
-        if not self.container.get_service(self.container.name).is_running():
+        if not self.alive:
             return False
 
         # netcat isn't a default utility, so can't guarantee it's on the charm containers

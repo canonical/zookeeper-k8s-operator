@@ -11,21 +11,19 @@ from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
-from ops.charm import (
+from ops import (
+    ActiveStatus,
     CharmBase,
+    EventBase,
     InstallEvent,
     LeaderElectedEvent,
+    ModelError,
     RelationDepartedEvent,
     SecretChangedEvent,
-)
-from ops.framework import EventBase
-from ops.main import main
-from ops.model import (
-    ActiveStatus,
-    ModelError,
     StatusBase,
     WaitingStatus,
 )
+from ops.main import main
 from ops.pebble import Layer, LayerDict
 from tenacity import RetryError
 
@@ -190,7 +188,8 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
-        if not self.workload.alive:
+        # NOTE: k8s specific check, the container needs to be available before moving on
+        if not self.workload.container_can_connect:
             self._set_status(Status.CONTAINER_NOT_CONNECTED)
             event.defer()
             return
@@ -232,7 +231,7 @@ class ZooKeeperCharm(CharmBase):
             event.defer()
 
         if not self.workload.alive:
-            self._set_status(Status.CONTAINER_NOT_CONNECTED)
+            self._set_status(Status.SERVICE_NOT_RUNNING)
             return
 
         # service can stop serving requests if the quorum is lost
@@ -269,7 +268,7 @@ class ZooKeeperCharm(CharmBase):
             return
 
         # ensure pebble-ready only fires after normal peer-relation-driven server init
-        if not self.workload.alive or not self.state.unit_server.started:
+        if not self.workload.container_can_connect or not self.state.unit_server.started:
             self._set_status(Status.CONTAINER_NOT_CONNECTED)
             event.defer()
             return

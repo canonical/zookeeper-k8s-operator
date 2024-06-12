@@ -34,6 +34,11 @@ def patched_pebble_restart(mocker):
 
 
 @pytest.fixture(autouse=True)
+def patched_alive(mocker):
+    mocker.patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=True)
+
+
+@pytest.fixture(autouse=True)
 def patched_healthy(mocker):
     mocker.patch("workload.ZKWorkload.healthy", new_callable=PropertyMock, return_value=True)
 
