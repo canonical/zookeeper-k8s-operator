@@ -212,8 +212,6 @@ class QuorumManager:
                 credential=make_digest_acl_credential(client.username, client.password),
                 **acls,
             )
-            logger.info(f"{sasl_acl=}")
-            logger.info(f"{digest_acl=}")
 
             requested_acls.add(sasl_acl)
             requested_acls.add(digest_acl)
