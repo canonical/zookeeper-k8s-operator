@@ -54,6 +54,7 @@ jobs:
           - integration-password-rotation
           - integration-provider
           - integration-tls
+          - integration-backup
           - integration-replication
     name: ${{ matrix.tox-environments }}
     needs:
