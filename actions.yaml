@@ -33,3 +33,12 @@ pre-upgrade-check:
 
 resume-upgrade:
   description: Resume a rolling upgrade after asserting successful upgrade of a new revision.
+
+create-backup:
+  description: todo
+
+list-backups:
+  description: todo
+
+restore:
+  description: todo

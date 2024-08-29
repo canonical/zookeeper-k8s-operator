@@ -2,7 +2,6 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import asyncio
 import logging
 import time
 
@@ -22,8 +21,7 @@ CHANNEL = "edge"
 
 @pytest.mark.abort_on_fail
 @pytest.mark.skip(reason="Not yet released to stable")
-async def test_in_place_upgrade(ops_test: OpsTest):
-    build_charm = asyncio.ensure_future(ops_test.build_charm("."))
+async def test_in_place_upgrade(ops_test: OpsTest, zk_charm):
 
     await ops_test.model.deploy(APP_NAME, application_name=APP_NAME, num_units=3, channel=CHANNEL)
     await ops_test.model.wait_for_idle(
@@ -47,7 +45,7 @@ async def test_in_place_upgrade(ops_test: OpsTest):
         model_full_name=ops_test.model_full_name, unit=f"{APP_NAME}/0", endpoint="upgrade"
     )
 
-    test_charm = await build_charm
+    test_charm = zk_charm
 
     await ops_test.model.applications[APP_NAME].refresh(path=test_charm)
     await ops_test.model.wait_for_idle(

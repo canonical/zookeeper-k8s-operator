@@ -3,6 +3,7 @@
 # See LICENSE file for licensing details.
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
+import json
 import logging
 import warnings
 from collections.abc import MutableMapping
@@ -191,7 +192,6 @@ class ZKCluster(RelationState):
         substrate: SUBSTRATES,
     ):
         super().__init__(relation, data_interface, component, substrate)
-        # Lint :-/ It can't resolve the subtype otherwise, even though the same assignment happens in super()
         self.data_interface = data_interface
         self.app = component
 
@@ -280,6 +280,11 @@ class ZKCluster(RelationState):
     def tls(self) -> bool:
         """Flag to check if TLS is enabled for the cluster."""
         return self.relation_data.get("tls", "") == "enabled"
+
+    @property
+    def s3_credentials(self) -> dict[str, str]:
+        """The current credentials and parameters to access object storage."""
+        return json.loads(self.relation_data.get("s3-credentials", "{}"))
 
 
 class ZKServer(RelationState):

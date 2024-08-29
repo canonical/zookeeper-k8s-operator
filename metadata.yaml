@@ -54,6 +54,9 @@ requires:
   logging:
     interface: loki_push_api
     optional: true
+  s3-credentials:
+    interface: s3
+    limit: 1
 
 storage:
   zookeeper:

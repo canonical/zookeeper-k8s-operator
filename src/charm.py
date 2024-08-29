@@ -28,6 +28,7 @@ from ops.pebble import Layer, LayerDict
 from tenacity import RetryError
 
 from core.cluster import ClusterState
+from events.backup import BackupEvents
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
 from events.tls import TLSEvents
@@ -66,6 +67,7 @@ class ZooKeeperCharm(CharmBase):
 
         # --- CHARM EVENT HANDLERS ---
 
+        self.backup_events = BackupEvents(self)
         self.password_action_events = PasswordActionEvents(self)
         self.tls_events = TLSEvents(self)
         self.provider_events = ProviderEvents(self)
