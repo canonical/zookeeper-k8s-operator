@@ -35,6 +35,8 @@ ops = "^2.4.1"
 kazoo = ">=2.8.0,<2.10.0"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
+# FIXME: Unpin once rustc 1.76 is available at build time
+rpds-py = "<0.19"
 cryptography = ">42.0.0"
 cosl = ">=0.0.5"
 pydantic = "^1.10.7"
