@@ -12,6 +12,7 @@ import pytest
 import pytest_microceph
 from mypy_boto3_s3.service_resource import Bucket
 from pytest_operator.plugin import OpsTest
+from tests.integration import ZOOKEEPER_IMAGE
 
 from .helpers import APP_NAME
 
@@ -61,6 +62,7 @@ async def test_deploy_active(ops_test: OpsTest, zk_charm, cloud_configs, cloud_c
             zk_charm,
             application_name=APP_NAME,
             num_units=3,
+            resources={"zookeeper-image": ZOOKEEPER_IMAGE},
         ),
         ops_test.model.deploy(S3_INTEGRATOR, channel=S3_CHANNEL),
     )
