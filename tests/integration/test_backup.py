@@ -14,7 +14,6 @@ from mypy_boto3_s3.service_resource import Bucket
 from pytest_operator.plugin import OpsTest
 
 from . import ZOOKEEPER_IMAGE
-
 from .helpers import APP_NAME
 
 logger = logging.getLogger(__name__)
