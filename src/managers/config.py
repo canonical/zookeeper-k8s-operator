@@ -40,6 +40,7 @@ clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
+sslQuorumReloadCertFiles=true
 """
 
 

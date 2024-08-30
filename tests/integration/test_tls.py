@@ -145,3 +145,15 @@ async def test_pod_reschedule_tls(ops_test: OpsTest):
         await ops_test.model.wait_for_idle(
             [APP_NAME], status="active", timeout=1000, idle_period=30
         )
+
+
+@pytest.mark.abort_on_fail
+async def test_renew_cert(ops_test: OpsTest):
+    # invalidate previous certs
+    await ops_test.model.applications[TLS_NAME].set_config({"ca-common-name": "new-name"})
+    async with ops_test.fast_forward(fast_interval="60s"):
+        await ops_test.model.wait_for_idle(
+            [APP_NAME], status="active", timeout=1000, idle_period=30
+        )
+
+    assert ping_servers(ops_test)

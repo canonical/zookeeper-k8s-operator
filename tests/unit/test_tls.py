@@ -28,7 +28,7 @@ def harness():
     return harness
 
 
-def test_all_units_unified_succeeds(harness):
+def test_all_units_unified_succeeds(harness: Harness[ZooKeeperCharm]):
     harness.update_relation_data(
         harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"unified": "true"}
     )
@@ -36,7 +36,7 @@ def test_all_units_unified_succeeds(harness):
     assert harness.charm.state.all_units_unified
 
 
-def test_all_units_unified_fails(harness):
+def test_all_units_unified_fails(harness: Harness[ZooKeeperCharm]):
     harness.set_planned_units(3)
     harness.update_relation_data(
         harness.charm.state.peer_relation.id,
@@ -46,12 +46,12 @@ def test_all_units_unified_fails(harness):
     assert not harness.charm.state.all_units_unified
 
 
-def test_all_units_unified_fails_if_not_all_units_related(harness):
+def test_all_units_unified_fails_if_not_all_units_related(harness: Harness[ZooKeeperCharm]):
     harness.set_planned_units(3)
     assert not harness.charm.state.all_units_unified
 
 
-def test_certificates_created_defers_if_not_stable(harness):
+def test_certificates_created_defers_if_not_stable(harness: Harness[ZooKeeperCharm]):
     with harness.hooks_disabled():
         harness.set_leader(True)
 
@@ -62,7 +62,7 @@ def test_certificates_created_defers_if_not_stable(harness):
     assert not harness.charm.state.cluster.tls
 
 
-def test_certificates_created_sets_upgrading_enabled(harness):
+def test_certificates_created_sets_upgrading_enabled(harness: Harness[ZooKeeperCharm]):
     with harness.hooks_disabled():
         harness.set_leader(True)
 
@@ -80,7 +80,7 @@ def test_certificates_created_sets_upgrading_enabled(harness):
     assert harness.charm.state.cluster.switching_encryption
 
 
-def test_certificates_joined_defers_if_disabled(harness):
+def test_certificates_joined_defers_if_disabled(harness: Harness[ZooKeeperCharm]):
     with (
         patch("ops.framework.EventBase.defer") as patched,
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
@@ -92,7 +92,7 @@ def test_certificates_joined_defers_if_disabled(harness):
     assert not harness.charm.state.unit_server.private_key
 
 
-def test_certificates_joined_creates_private_key_if_enabled(harness):
+def test_certificates_joined_creates_private_key_if_enabled(harness: Harness[ZooKeeperCharm]):
     with (
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("core.models.ZKCluster.tls", new_callable=PropertyMock, return_value=True),
@@ -104,7 +104,9 @@ def test_certificates_joined_creates_private_key_if_enabled(harness):
     assert "BEGIN RSA PRIVATE KEY" in harness.charm.state.unit_server.private_key.splitlines()[0]
 
 
-def test_certificates_joined_creates_new_key_trust_store_password(harness):
+def test_certificates_joined_creates_new_key_trust_store_password(
+    harness: Harness[ZooKeeperCharm],
+):
     assert not harness.charm.state.unit_server.keystore_password
     assert not harness.charm.state.unit_server.truststore_password
 
@@ -124,7 +126,7 @@ def test_certificates_joined_creates_new_key_trust_store_password(harness):
     )
 
 
-def test_certificates_available_fails_wrong_csr(harness):
+def test_certificates_available_fails_wrong_csr(harness: Harness[ZooKeeperCharm]):
     cert_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
     harness.update_relation_data(cert_rel_id, f"{CHARM_KEY}/0", {"csr": "not-missing"})
 
@@ -136,7 +138,7 @@ def test_certificates_available_fails_wrong_csr(harness):
     assert not harness.charm.state.unit_server.ca_cert
 
 
-def test_certificates_available_succeeds(harness):
+def test_certificates_available_succeeds(harness: Harness[ZooKeeperCharm]):
     harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
     # implicitly tests restart call
@@ -170,7 +172,55 @@ def test_certificates_available_succeeds(harness):
     }
 
 
-def test_certificates_available_halfway_through_upgrade_succeeds(harness):
+def test_renew_certificates_auto_reload(harness: Harness[ZooKeeperCharm]):
+    # Setup working relation
+    harness.add_relation(CERTS_REL_NAME, TLS_NAME)
+    harness.add_relation(harness.charm.restart.name, "{CHARM_KEY}/0")
+
+    harness.update_relation_data(
+        harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"csr": "not-missing"}
+    )
+
+    with patch.multiple(
+        "managers.tls.TLSManager",
+        set_private_key=DEFAULT,
+        set_ca=DEFAULT,
+        set_certificate=DEFAULT,
+        set_truststore=DEFAULT,
+        set_p12_keystore=DEFAULT,
+    ):
+        harness.charm.tls_events.certificates.on.certificate_available.emit(
+            certificate_signing_request="not-missing",
+            certificate="cert",
+            ca="ca",
+            chain=["ca", "cert"],
+        )
+
+    with (
+        patch.multiple(
+            "managers.tls.TLSManager",
+            set_private_key=DEFAULT,
+            set_ca=DEFAULT,
+            set_certificate=DEFAULT,
+            set_truststore=DEFAULT,
+            set_p12_keystore=DEFAULT,
+        ),
+        patch(
+            "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock"
+        ) as patched_restart,
+    ):
+        harness.charm.tls_events.certificates.on.certificate_available.emit(
+            certificate_signing_request="not-missing",
+            certificate="new-cert",
+            ca="ca",
+            chain=["ca", "cert"],
+        )
+
+    assert harness.charm.state.unit_server.certificate == "new-cert"
+    assert not patched_restart.called
+
+
+def test_certificates_available_halfway_through_upgrade_succeeds(harness: Harness[ZooKeeperCharm]):
     harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
     # implicitly tests restart call
@@ -207,7 +257,7 @@ def test_certificates_available_halfway_through_upgrade_succeeds(harness):
         assert harness.charm.state.unit_server.csr == "not-missing"
 
 
-def test_certificates_broken(harness):
+def test_certificates_broken(harness: Harness[ZooKeeperCharm]):
     with harness.hooks_disabled():
         certs_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
@@ -235,7 +285,7 @@ def test_certificates_broken(harness):
         assert harness.charm.state.cluster.switching_encryption
 
 
-def test_certificates_broken_after_upgrade(harness):
+def test_certificates_broken_after_upgrade(harness: Harness[ZooKeeperCharm]):
     with harness.hooks_disabled():
         certs_rel_id = harness.add_relation(CERTS_REL_NAME, TLS_NAME)
 
@@ -266,7 +316,7 @@ def test_certificates_broken_after_upgrade(harness):
         assert harness.charm.state.cluster.switching_encryption
 
 
-def test_certificates_expiring(harness):
+def test_certificates_expiring(harness: Harness[ZooKeeperCharm]):
     key = open("tests/keys/0.key").read()
     harness.update_relation_data(
         harness.charm.state.peer_relation.id,
@@ -292,7 +342,7 @@ def test_certificates_expiring(harness):
         assert harness.charm.state.unit_server.csr != "csr"
 
 
-def test_set_tls_private_key(harness):
+def test_set_tls_private_key(harness: Harness[ZooKeeperCharm]):
     harness.update_relation_data(
         harness.charm.state.peer_relation.id,
         f"{CHARM_KEY}/0",

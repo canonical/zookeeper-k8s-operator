@@ -111,10 +111,6 @@ class TLSEvents(Object):
             logger.error("Can't use certificate, found unknown CSR")
             return
 
-        # if certificate already exists, this event must be new, flag manual restart
-        if self.charm.state.unit_server.certificate:
-            self.charm.on[f"{self.charm.restart.name}"].acquire_lock.emit()
-
         self.charm.state.unit_server.update(
             {"certificate": event.certificate, "ca-cert": event.ca, "ca": ""}
         )
