@@ -33,6 +33,8 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
             num_units=1,
             config={"ca-common-name": "zookeeper"},
             series=TLS_OPERATOR_SERIES,
+            # FIXME (certs): Unpin the revision once the charm is fixed
+            revision=163,
         ),
     )
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
