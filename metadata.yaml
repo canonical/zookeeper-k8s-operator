@@ -57,6 +57,7 @@ requires:
   s3-credentials:
     interface: s3
     limit: 1
+    optional: true
 
 storage:
   zookeeper:
