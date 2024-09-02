@@ -5,7 +5,7 @@
 """Event handlers for creating and restoring backups."""
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from charms.data_platform_libs.v0.s3 import (
     CredentialsChangedEvent,
@@ -15,6 +15,7 @@ from charms.data_platform_libs.v0.s3 import (
 from ops import ActionEvent
 from ops.framework import Object
 
+from core.stubs import S3ConnectionInfo
 from literals import S3_BACKUPS_PATH, S3_REL_NAME, Status
 from managers.backup import BackupManager
 
@@ -31,7 +32,7 @@ class BackupEvents(Object):
         super().__init__(charm, "backup")
         self.charm: "ZooKeeperCharm" = charm
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
-        self.backup_manager = BackupManager(self.charm.state)
+        self.backup_manager = BackupManager(self.charm.state.cluster.s3_credentials)
 
         self.framework.observe(
             self.s3_requirer.on.credentials_changed, self._on_s3_credentials_changed
@@ -39,8 +40,8 @@ class BackupEvents(Object):
         self.framework.observe(self.s3_requirer.on.credentials_gone, self._on_s3_credentials_gone)
 
         self.framework.observe(self.charm.on.create_backup_action, self._on_create_backup_action)
-        self.framework.observe(self.charm.on.list_backups_action, self._on_list_backups_action)
-        self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
+        # self.framework.observe(self.charm.on.list_backups_action, self._on_list_backups_action)
+        # self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
 
     def _on_s3_credentials_changed(self, event: CredentialsChangedEvent):
         if not self.charm.unit.is_leader():
@@ -67,20 +68,15 @@ class BackupEvents(Object):
             self.charm._set_status(Status.MISSING_S3_CONFIG)
             return
 
-        s3_parameters = self.s3_requirer.get_s3_connection_info()
-
-        # Add some sensible defaults (as expected by the code) for missing optional parameters
         s3_parameters.setdefault("endpoint", "https://s3.amazonaws.com")
         s3_parameters.setdefault("region", "")
         s3_parameters.setdefault("path", S3_BACKUPS_PATH)
-        s3_parameters.setdefault("s3-uri-style", "host")
-        s3_parameters.setdefault("delete-older-than-days", "9999999")
 
-        # Strip whitespaces from all parameters.
         for key, value in s3_parameters.items():
             if isinstance(value, str):
                 s3_parameters[key] = value.strip()
 
+        s3_parameters = cast(S3ConnectionInfo, s3_parameters)
         if not self.backup_manager.create_bucket(s3_parameters):
             self.charm._set_status(Status.BUCKET_NOT_CREATED)
             return
@@ -114,7 +110,7 @@ class BackupEvents(Object):
                 event.fail(msg)
                 return
 
-        self.backup_manager.write_test_string(self.charm.state.cluster.s3_credentials)
+        self.backup_manager.write_test_string()
 
     def _on_list_backups_action(self, _):
         # TODO

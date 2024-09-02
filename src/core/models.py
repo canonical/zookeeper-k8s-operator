@@ -13,6 +13,7 @@ from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, Dat
 from ops.model import Application, Relation, Unit
 from typing_extensions import deprecated, override
 
+from core.stubs import S3ConnectionInfo
 from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SECRETS_APP, SERVER_PORT
 
 logger = logging.getLogger(__name__)
@@ -282,8 +283,10 @@ class ZKCluster(RelationState):
         return self.relation_data.get("tls", "") == "enabled"
 
     @property
-    def s3_credentials(self) -> dict[str, str]:
+    def s3_credentials(self) -> S3ConnectionInfo:
         """The current credentials and parameters to access object storage."""
+        # Using "{}" would lead to an incorrect runtime object according to the type above.
+        # This is checked in events.backup actions
         return json.loads(self.relation_data.get("s3-credentials", "{}"))
 
 
