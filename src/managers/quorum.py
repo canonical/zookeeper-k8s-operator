@@ -191,7 +191,6 @@ class QuorumManager:
         leader_chroots = self.client.leader_znodes(path="/")
         logger.debug(f"{leader_chroots=}")
 
-        requested_acls = set()
         requested_chroots = set()
 
         for client in self.state.clients:
@@ -209,8 +208,6 @@ class QuorumManager:
             )
             logger.info(f"{generated_acl=}")
 
-            requested_acls.add(generated_acl)
-
             # FIXME: data-platform-libs should handle this when it's implemented
             if client.database:
                 if event and client.relation and client.relation.id == event.relation.id:
@@ -224,7 +221,7 @@ class QuorumManager:
                 self.client.create_znode_leader(path=client.database, acls=[generated_acl])
 
             # Looks for existing related applications
-            logger.info(f"UPDATE CHROOT - {client.database}")
+            logger.debug(f"UPDATE CHROOT - {client.database}")
             self.client.set_acls_znode_leader(path=client.database, acls=[generated_acl])
 
         # Looks for applications no longer in the relation but still in config

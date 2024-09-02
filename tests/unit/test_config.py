@@ -135,11 +135,11 @@ def test_tls_enabled(harness):
             harness.charm.state.peer_relation.id, CHARM_KEY, {"tls": "enabled"}
         )
 
-    assert "ssl.clientAuth=none" in harness.charm.config_manager.zookeeper_properties
+    assert "ssl.client.enable=true" in harness.charm.config_manager.zookeeper_properties
 
 
 def test_tls_disabled(harness):
-    assert "ssl.clientAuth=none" not in harness.charm.config_manager.zookeeper_properties
+    assert "ssl.client.enable=true" not in harness.charm.config_manager.zookeeper_properties
 
 
 def test_tls_switching_encryption(harness):
