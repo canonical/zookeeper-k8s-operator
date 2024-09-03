@@ -4,6 +4,7 @@
 
 import asyncio
 import logging
+from subprocess import PIPE, check_output
 
 import pytest
 from pytest_operator.plugin import OpsTest
@@ -151,9 +152,24 @@ async def test_pod_reschedule_tls(ops_test: OpsTest):
 async def test_renew_cert(ops_test: OpsTest):
     # invalidate previous certs
     await ops_test.model.applications[TLS_NAME].set_config({"ca-common-name": "new-name"})
-    async with ops_test.fast_forward(fast_interval="60s"):
-        await ops_test.model.wait_for_idle(
-            [APP_NAME], status="active", timeout=1000, idle_period=30
-        )
 
+    await ops_test.model.wait_for_idle([APP_NAME], status="active", timeout=1000, idle_period=30)
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(60)
+
+    # check quorum TLS
     assert ping_servers(ops_test)
+
+    # check client-presented certs
+    for unit in ops_test.model.applications[APP_NAME].units:
+        host = unit.public_address
+        break
+
+    response = check_output(
+        f"openssl s_client -showcerts -connect {host}:2182 < /dev/null",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+
+    assert "CN = new-name" in response

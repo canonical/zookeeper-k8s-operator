@@ -52,36 +52,73 @@ class TLSManager:
 
     def set_truststore(self) -> None:
         """Creates the unit Java Truststore and adds the unit CA."""
-        keytool_cmd = "charmed-zookeeper.keytool" if self.substrate == "vm" else "keytool"
-
         try:
-            self.workload.exec(
-                command=[
-                    keytool_cmd,
-                    "-import",
-                    "-v",
-                    "-alias",
-                    "ca",
-                    "-file",
-                    self.workload.paths.ca,
-                    "-keystore",
-                    self.workload.paths.truststore,
-                    "-storepass",
-                    self.state.unit_server.truststore_password,
-                    "-noprompt",
-                ],
-            )
+            self._import_ca_in_truststore()
+
             if self.substrate == "vm":
                 self.workload.exec(
                     command=["chown", "snap_daemon:root", self.workload.paths.truststore],
                 )
-
         except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
             if "already exists" in str(e.stdout):
+                # replace ca in four steps to prevent the truststore for being empty at any point.
+                try:
+                    if self.substrate == "vm":
+                        self.workload.exec(
+                            command=["chown", "root:root", self.workload.paths.truststore],
+                        )
+                    self._import_ca_in_truststore("ca-temp")
+                    self._delete_ca_in_truststore("ca")
+                    self._import_ca_in_truststore("ca")
+                    self._delete_ca_in_truststore("ca-temp")
+                    if self.substrate == "vm":
+                        self.workload.exec(
+                            command=["chown", "snap_daemon:root", self.workload.paths.truststore],
+                        )
+                except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
+
+                    logger.error(str(e.stdout))
+                    raise e
+
                 return
 
             logger.error(str(e.stdout))
             raise e
+
+    def _import_ca_in_truststore(self, alias: str = "ca") -> None:
+        keytool_cmd = "charmed-zookeeper.keytool" if self.substrate == "vm" else "keytool"
+        self.workload.exec(
+            command=[
+                keytool_cmd,
+                "-import",
+                "-v",
+                "-alias",
+                alias,
+                "-file",
+                self.workload.paths.ca,
+                "-keystore",
+                self.workload.paths.truststore,
+                "-storepass",
+                self.state.unit_server.truststore_password,
+                "-noprompt",
+            ],
+        )
+
+    def _delete_ca_in_truststore(self, alias: str) -> None:
+        keytool_cmd = "charmed-zookeeper.keytool" if self.substrate == "vm" else "keytool"
+        self.workload.exec(
+            command=[
+                keytool_cmd,
+                "-delete",
+                "-v",
+                "-alias",
+                alias,
+                "-keystore",
+                self.workload.paths.truststore,
+                "-storepass",
+                self.state.unit_server.truststore_password,
+            ],
+        )
 
     def set_p12_keystore(self) -> None:
         """Creates the unit Java Keystore and adds unit certificate + private-key."""
