@@ -161,7 +161,7 @@ async def test_renew_cert(ops_test: OpsTest):
     assert ping_servers(ops_test)
 
     # check client-presented certs
-    host = get_address(ops_test, unit_num=0)
+    host = await get_address(ops_test, unit_num=0)
 
     response = check_output(
         f"openssl s_client -showcerts -connect {host}:2182 < /dev/null",
