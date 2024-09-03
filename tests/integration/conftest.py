@@ -16,3 +16,10 @@ def copy_data_interfaces_library_into_charm(ops_test: OpsTest):
     install_path = "tests/integration/app-charm/" + library_path
     os.makedirs(os.path.dirname(install_path), exist_ok=True)
     shutil.copyfile(library_path, install_path)
+
+
+@pytest.fixture(scope="module")
+async def zk_charm(ops_test: OpsTest):
+    """Zookeeper charm used for integration testing."""
+    charm = await ops_test.build_charm(".")
+    return charm

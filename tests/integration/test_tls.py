@@ -17,11 +17,10 @@ TLS_NAME = "self-signed-certificates"
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_ssl_quorum(ops_test: OpsTest):
-    charm = await ops_test.build_charm(".")
+async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
     await asyncio.gather(
         ops_test.model.deploy(
-            charm,
+            zk_charm,
             application_name=APP_NAME,
             num_units=3,
             resources={"zookeeper-image": ZOOKEEPER_IMAGE},
@@ -34,6 +33,8 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest):
             num_units=1,
             config={"ca-common-name": "zookeeper"},
             series=TLS_OPERATOR_SERIES,
+            # FIXME (certs): Unpin the revision once the charm is fixed
+            revision=163,
         ),
     )
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)

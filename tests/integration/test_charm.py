@@ -18,10 +18,9 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.skip_if_deployed
 @pytest.mark.abort_on_fail
-async def test_deploy_active(ops_test: OpsTest):
-    charm = await ops_test.build_charm(".")
+async def test_deploy_active(ops_test: OpsTest, zk_charm):
     await ops_test.model.deploy(
-        charm,
+        zk_charm,
         application_name=APP_NAME,
         num_units=3,
         resources={"zookeeper-image": ZOOKEEPER_IMAGE},
