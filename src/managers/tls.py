@@ -10,6 +10,7 @@ import ops.pebble
 
 from core.cluster import SUBSTRATES, ClusterState
 from core.workload import WorkloadBase
+from literals import GROUP, USER
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class TLSManager:
 
             if self.substrate == "vm":
                 self.workload.exec(
-                    command=["chown", "snap_daemon:root", self.workload.paths.truststore],
+                    command=["chown", f"{USER}:{GROUP}", self.workload.paths.truststore],
                 )
         except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
             if "already exists" in str(e.stdout):
@@ -68,7 +69,7 @@ class TLSManager:
                 try:
                     if self.substrate == "vm":
                         self.workload.exec(
-                            command=["chown", "root:root", self.workload.paths.truststore],
+                            command=["chown", f"{GROUP}:{GROUP}", self.workload.paths.truststore],
                         )
                     self._import_ca_in_truststore("ca-upcoming")
                     self._delete_ca_in_truststore("ca")
@@ -76,7 +77,7 @@ class TLSManager:
                     self._delete_ca_in_truststore("ca-upcoming")
                     if self.substrate == "vm":
                         self.workload.exec(
-                            command=["chown", "snap_daemon:root", self.workload.paths.truststore],
+                            command=["chown", f"{USER}:{GROUP}", self.workload.paths.truststore],
                         )
                 except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
 
@@ -147,7 +148,7 @@ class TLSManager:
             )
             if self.substrate == "vm":
                 self.workload.exec(
-                    command=["chown", "snap_daemon:root", self.workload.paths.keystore],
+                    command=["chown", f"{USER}:{GROUP}", self.workload.paths.keystore],
                 )
 
         except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:

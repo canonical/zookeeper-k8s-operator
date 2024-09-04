@@ -25,6 +25,15 @@ ELECTION_PORT = 3888
 JMX_PORT = 9998
 METRICS_PROVIDER_PORT = 7000
 
+# Unused on k8s, here for compatibility reasons
+# '584788' refers to snap_daemon, which do not exists on the storage-attached hook prior to the
+# snap install.
+# FIXME (24.04): From snapd 2.61 onwards, snap_daemon is being deprecated and replaced with _daemon_,
+# which now possesses a UID of 584792.
+# See https://snapcraft.io/docs/system-usernames.
+USER = 584788
+GROUP = "root"
+
 S3_REL_NAME = "s3-credentials"
 S3_BACKUPS_PATH = "zookeeper_backups"
 
