@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 6
+LIBPATCH = 7
 
 
 logger = logging.getLogger(__name__)
@@ -369,7 +369,7 @@ class ZooKeeperManager:
 
         return all_znode_children
 
-    def create_znode_leader(self, path: str, acls: List[ACL]) -> None:
+    def create_znode_leader(self, path: str, acls: List[ACL] | None = None) -> None:
         """Creates a new zNode on the current quorum leader with given ACLs.
 
         Args:
@@ -388,7 +388,7 @@ class ZooKeeperManager:
         ) as zk:
             zk.create_znode(path=path, acls=acls)
 
-    def set_acls_znode_leader(self, path: str, acls: List[ACL]) -> None:
+    def set_acls_znode_leader(self, path: str, acls: List[ACL] | None = None) -> None:
         """Updates ACLs for an existing zNode on the current quorum leader.
 
         Args:
@@ -577,7 +577,7 @@ class ZooKeeperClient:
             return
         self.client.delete(path, recursive=True)
 
-    def create_znode(self, path: str, acls: List[ACL]) -> None:
+    def create_znode(self, path: str, acls: List[ACL] | None = None) -> None:
         """Create new znode.
 
         Args:
@@ -599,7 +599,7 @@ class ZooKeeperClient:
 
         return acl_list if acl_list else []
 
-    def set_acls(self, path: str, acls: List[ACL]) -> None:
+    def set_acls(self, path: str, acls: List[ACL] | None = None) -> None:
         """Sets acls for a desired znode path.
 
         Args:
