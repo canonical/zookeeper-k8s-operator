@@ -90,6 +90,7 @@ pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workf
 # To be enabled if we are using groups on integration tests
 # pytest-operator-groups = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_groups"}
 pytest-microceph = {git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/microceph"}
+pytest-interface-tester = "^3.1.0"
 
 [tool.poetry.group.format.dependencies]
 pyright = "^1.1.301"
@@ -122,7 +123,7 @@ mccabe.max-complexity = 10
 
 [tool.pyright]
 include = ["src"]
-extraPaths = ["./lib"]
+extraPaths = ["./lib", "src"]
 pythonVersion = "3.10"
 pythonPlatform = "All"
 typeCheckingMode = "basic"

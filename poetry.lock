@@ -1977,6 +1977,23 @@ docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
 testing = ["coverage (>=6.2)", "flaky (>=3.5.0)", "hypothesis (>=5.7.1)", "mypy (>=0.931)", "pytest-trio (>=0.7.0)"]
 
 [[package]]
+name = "pytest-interface-tester"
+version = "3.1.0"
+description = "Pytest plugin for checking charm relation interface protocol compliance."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "pytest_interface_tester-3.1.0-py3-none-any.whl", hash = "sha256:5381a1de7707b14a9e8a30d5b7799fef9c20874a683ec309a50f7fa0945a16d2"},
+    {file = "pytest_interface_tester-3.1.0.tar.gz", hash = "sha256:607414c2f0009bd295915d67b2049b8e9857b89e60c0763e57b6e2721011e382"},
+]
+
+[package.dependencies]
+ops-scenario = ">=5.2"
+pydantic = ">=1.10.7"
+pytest = "*"
+typer = "0.7.0"
+
+[[package]]
 name = "pytest-microceph"
 version = "0.1.0"
 description = ""
@@ -2452,6 +2469,26 @@ docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
 test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,<8.2)", "pytest-mock", "pytest-mypy-testing"]
 
 [[package]]
+name = "typer"
+version = "0.7.0"
+description = "Typer, build great CLIs. Easy to code. Based on Python type hints."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "typer-0.7.0-py3-none-any.whl", hash = "sha256:b5e704f4e48ec263de1c0b3a2387cd405a13767d2f907f44c1a08cbad96f606d"},
+    {file = "typer-0.7.0.tar.gz", hash = "sha256:ff797846578a9f2a201b53442aedeb543319466870fbe1c701eab66dd7681165"},
+]
+
+[package.dependencies]
+click = ">=7.1.1,<9.0.0"
+
+[package.extras]
+all = ["colorama (>=0.4.3,<0.5.0)", "rich (>=10.11.0,<13.0.0)", "shellingham (>=1.3.0,<2.0.0)"]
+dev = ["autoflake (>=1.3.1,<2.0.0)", "flake8 (>=3.8.3,<4.0.0)", "pre-commit (>=2.17.0,<3.0.0)"]
+doc = ["cairosvg (>=2.5.2,<3.0.0)", "mdx-include (>=1.4.1,<2.0.0)", "mkdocs (>=1.1.2,<2.0.0)", "mkdocs-material (>=8.1.4,<9.0.0)", "pillow (>=9.3.0,<10.0.0)"]
+test = ["black (>=22.3.0,<23.0.0)", "coverage (>=6.2,<7.0)", "isort (>=5.0.6,<6.0.0)", "mypy (==0.910)", "pytest (>=4.4.0,<8.0.0)", "pytest-cov (>=2.10.0,<5.0.0)", "pytest-sugar (>=0.9.4,<0.10.0)", "pytest-xdist (>=1.32.0,<4.0.0)", "rich (>=10.11.0,<13.0.0)", "shellingham (>=1.3.0,<2.0.0)"]
+
+[[package]]
 name = "types-awscrt"
 version = "0.21.2"
 description = "Type annotations and code completion for awscrt"
@@ -2641,4 +2678,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "975ada8eea299c9cdfef8490e123d4a407c3612aa43903fb91e459e8eafbe8e1"
+content-hash = "5c22405d5740dae06686197c72c930cf4d1b13f8b9ef4d840646f5397e87ef50"
