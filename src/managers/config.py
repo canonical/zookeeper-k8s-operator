@@ -35,11 +35,12 @@ TLS_PROPERTIES = """
 secureClientPort=2182
 ssl.clientAuth=none
 ssl.quorum.clientAuth=none
-ssl.client.enable=true
 clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
+sslQuorumReloadCertFiles=true
+client.certReload=true
 """
 
 
