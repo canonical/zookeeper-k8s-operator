@@ -132,14 +132,21 @@ def test_multiple_jaas_users_are_added(harness):
 def test_tls_enabled(harness):
     with harness.hooks_disabled():
         harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"tls": "enabled"}
+            harness.charm.state.peer_relation.id,
+            CHARM_KEY,
+            {"tls": "enabled", "quorum": "ssl"},
+        )
+        harness.update_relation_data(
+            harness.charm.state.peer_relation.id,
+            f"{CHARM_KEY}/0",
+            {"certificate": "foo"},
         )
 
-    assert "ssl.client.enable=true" in harness.charm.config_manager.zookeeper_properties
+    assert "sslQuorum=true" in harness.charm.config_manager.zookeeper_properties
 
 
 def test_tls_disabled(harness):
-    assert "ssl.client.enable=true" not in harness.charm.config_manager.zookeeper_properties
+    assert "sslQuorum=true" not in harness.charm.config_manager.zookeeper_properties
 
 
 def test_tls_switching_encryption(harness):
