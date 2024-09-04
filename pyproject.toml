@@ -45,7 +45,10 @@ jsonschema = ">=4.10"
 lightkube = "^0.15.0"
 typing-extensions = "^4.9.0"
 boto3 = "^1.34.159"
-boto3-stubs = {extras = ["s3"], version = "^1.35.8"}
+boto3-stubs = { extras = ["s3"], version = "^1.35.8" }
+
+# data_platform_libs/v0/upgrade.py
+poetry-core = "*"
 
 [tool.poetry.group.fmt]
 optional = true
@@ -68,7 +71,7 @@ optional = true
 
 [tool.poetry.group.unit.dependencies]
 pytest = ">=7.2"
-coverage = {extras = ["toml"], version = ">7.0"}
+coverage = { extras = ["toml"], version = ">7.0" }
 jsonschema = ">=4.10"
 pytest-mock = "^3.11.1"
 ops-scenario = "^6.0.0"
@@ -81,15 +84,15 @@ pytest = ">=7.2"
 # FIXME (libjuju): Unpin once GH#1093 is fixed
 # (impossible to parse storage constraints)
 juju = "^3.2.0,<3.5.2"
-coverage = {extras = ["toml"], version = ">7.0"}
+coverage = { extras = ["toml"], version = ">7.0" }
 pytest-operator = ">0.20"
 requests = ">2.25"
 kazoo = ">=2.8"
 jsonschema = ">=4.10"
-pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/pytest_operator_cache"}
+pytest-operator-cache = { git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/pytest_operator_cache" }
 # To be enabled if we are using groups on integration tests
 # pytest-operator-groups = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_groups"}
-pytest-microceph = {git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/microceph"}
+pytest-microceph = { git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/microceph" }
 pytest-interface-tester = "^3.1.0"
 
 [tool.poetry.group.format.dependencies]
@@ -98,26 +101,26 @@ pyright = "^1.1.301"
 [tool.ruff]
 line-length = 99
 extend-exclude = ["__pycache__", "*.egg_info", "tests/integration/app-charm/lib"]
-target-version="py310"
+target-version = "py310"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "C", "N", "D", "I001"]
 ignore = ["E501", "D107"]
-per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104", "E999"], "src/literals.py" = ["D101"]}
+per-file-ignores = { "tests/*" = ["D100", "D101", "D102", "D103", "D104", "E999"], "src/literals.py" = ["D101"] }
 extend-ignore = [
-    "D203",
-    "D204",
-    "D213",
-    "D215",
-    "D400",
-    "D401",
-    "D404",
-    "D406",
-    "D407",
-    "D408",
-    "D409",
-    "D413",
+  "D203",
+  "D204",
+  "D213",
+  "D215",
+  "D400",
+  "D401",
+  "D404",
+  "D406",
+  "D407",
+  "D408",
+  "D409",
+  "D413",
 ]
 mccabe.max-complexity = 10
 
