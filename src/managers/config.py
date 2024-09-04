@@ -36,6 +36,8 @@ audit.enable=true
 
 TLS_PROPERTIES = """
 secureClientPort=2182
+ssl.clientAuth=none
+ssl.quorum.clientAuth=none
 clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 ssl.trustStore.type=JKS
