@@ -1084,12 +1084,12 @@ def test_update_relation_data(harness):
 
 @pytest.mark.nopatched_version
 def test_workload_version_is_setted(harness, monkeypatch):
-    output_install = (
-        "Zookeeper version: 3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
-    )
-    output_changed = (
-        "Zookeeper version: 3.8.2-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
-    )
+    output_install = """{
+        "version": "3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    }"""
+    output_changed = """{
+        "version": "3.8.2-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    }"""
     monkeypatch.setattr(
         harness.charm.workload,
         "exec",

@@ -10,6 +10,8 @@ from typing import Dict
 from kazoo.client import KazooClient
 from pytest_operator.plugin import OpsTest
 
+from literals import ADMIN_SERVER_PORT
+
 from . import APP_NAME
 
 PEER = "cluster"
@@ -89,29 +91,33 @@ def check_key(host: str, password: str, username: str = "super") -> None:
     raise KeyError
 
 
-def srvr(host: str) -> Dict:
+def srvr(host: str) -> dict:
     """Retrieves attributes returned from the 'srvr' 4lw command.
 
     Specifically for this test, we are interested in the "Mode" of the ZK server,
     which allows checking quorum leadership and follower active status.
     """
     response = check_output(
-        f"echo srvr | nc {host} 2181", stderr=PIPE, shell=True, universal_newlines=True
+        f"curl {host}:{ADMIN_SERVER_PORT}/commands/srvr -m 10",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
     )
 
-    result = {}
-    for item in response.splitlines():
-        k = re.split(": ", item)[0]
-        v = re.split(": ", item)[1]
-        result[k] = v
+    assert response, "ZooKeeper not running"
 
-    return result
+    return json.loads(response)
 
 
 async def ping_servers(ops_test: OpsTest) -> bool:
     for unit in ops_test.model.applications[APP_NAME].units:
         host = unit.public_address
-        mode = srvr(host)["Mode"]
+        srvr_response = srvr(host)
+
+        if srvr_response.get("error", None) is not None:
+            return False
+
+        mode = srvr_response.get("server_stats", {}).get("server_state", "")
         if mode not in ["leader", "follower"]:
             return False
 
