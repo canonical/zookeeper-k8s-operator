@@ -28,6 +28,9 @@ quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
 quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+enforce.auth.enabled=true
+enforce.auth.schemes=sasl
+sessionRequireClientSASLAuth=true
 audit.enable=true
 """
 
@@ -35,11 +38,12 @@ TLS_PROPERTIES = """
 secureClientPort=2182
 ssl.clientAuth=none
 ssl.quorum.clientAuth=none
-ssl.client.enable=true
 clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
 serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
+sslQuorumReloadCertFiles=true
+client.certReload=true
 """
 
 
