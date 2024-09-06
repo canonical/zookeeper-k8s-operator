@@ -46,7 +46,13 @@ def test_client_relation_updated_create_passwords_with_chroot(ctx: Context, base
             new_callable=PropertyMock,
             return_value=Status.ACTIVE,
         ),
+        patch(
+            "core.cluster.ClusterState.all_installed",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
         patch("workload.ZKWorkload.generate_password", return_value=pwd),
+        patch("workload.ZKWorkload.write"),
         patch(
             "managers.config.ConfigManager.current_jaas",
             new_callable=PropertyMock,
