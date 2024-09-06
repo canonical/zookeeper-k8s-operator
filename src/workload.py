@@ -88,9 +88,9 @@ class ZKWorkload(WorkloadBase):
             return False
 
         try:
-            raw = self.exec(["curl", f"localhost:{ADMIN_SERVER_PORT}/commands/ruok", "-m", "10"])
-            logging.error(raw)
-            response = json.loads(raw)
+            response = json.loads(
+                self.exec(["curl", f"localhost:{ADMIN_SERVER_PORT}/commands/ruok", "-m", "10"])
+            )
 
         except (ExecError, CalledProcessError, json.JSONDecodeError):
             return False
