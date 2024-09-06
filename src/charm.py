@@ -190,6 +190,7 @@ class ZooKeeperCharm(CharmBase):
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:
         """Generic handler for all 'something changed, update' events across all relations."""
+        raise RuntimeError("does this even work?")
         # NOTE: k8s specific check, the container needs to be available before moving on
         if not self.workload.container_can_connect:
             self._set_status(Status.CONTAINER_NOT_CONNECTED)
@@ -436,6 +437,7 @@ class ZooKeeperCharm(CharmBase):
                 self.state.cluster.update({"switching-encryption": ""})
                 logger.info(f"ZooKeeper cluster switching to {self.state.cluster.quorum} quorum")
 
+        raise RuntimeError("minus one")
         self.update_client_data()
 
     def update_client_data(self) -> None:
@@ -446,6 +448,8 @@ class ZooKeeperCharm(CharmBase):
         self._set_status(self.state.ready)
         if not isinstance(self.unit.status, ActiveStatus):
             return
+
+        raise RuntimeError("first")
 
         for client in self.state.clients:
             if (
@@ -464,6 +468,7 @@ class ZooKeeperCharm(CharmBase):
                     logger.debug("Client has not component (app|unit) specified, quitting...")
                 continue
 
+            raise RuntimeError("second")
             client.update(
                 {
                     "endpoints": client.endpoints,
