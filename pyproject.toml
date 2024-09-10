@@ -87,10 +87,10 @@ pytest-operator = ">0.20"
 requests = ">2.25"
 kazoo = ">=2.8"
 jsonschema = ">=4.10"
-pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/pytest_operator_cache"}
+pytest-operator-cache = {git = "https://github.com/canonical/data-platform-workflows", tag = "v21.0.1", subdirectory = "python/pytest_plugins/pytest_operator_cache"}
 # To be enabled if we are using groups on integration tests
 # pytest-operator-groups = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_groups"}
-pytest-microceph = {git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/microceph"}
+pytest-microceph = {git = "https://github.com/canonical/data-platform-workflows", tag = "v21.0.1", subdirectory = "python/pytest_plugins/microceph"}
 
 [tool.poetry.group.format.dependencies]
 pyright = "^1.1.301"

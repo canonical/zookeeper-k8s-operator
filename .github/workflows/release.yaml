@@ -30,7 +30,9 @@ jobs:
 
   build:
     name: Build charm
-    uses: canonical/data-platform-workflows/.github/workflows/build_charm_without_cache.yaml@v7
+    uses: canonical/data-platform-workflows/.github/workflows/build_charm.yaml@v21.0.1
+    with:
+      cache: false
 
   release:
     name: Release to Charmhub

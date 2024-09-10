@@ -9,10 +9,9 @@ concurrency:
 on:
   pull_request:
   schedule:
-    - cron: '53 0 * * *' # Daily at 00:53 UTC
+    - cron: "53 0 * * *" # Daily at 00:53 UTC
   # Triggered on push to branch "main" by .github/workflows/release.yaml
   workflow_call:
-
 
 jobs:
   lint:
@@ -42,8 +41,11 @@ jobs:
         run: tox run -e unit
 
   build:
-    name: Build charms
-    uses: canonical/data-platform-workflows/.github/workflows/build_charms_with_cache.yaml@v7
+    name: Build charm
+    uses: canonical/data-platform-workflows/.github/workflows/build_charm.yaml@v21.0.1
+    with:
+      cache: true
+      charmcraft-snap-channel: 3.x/stable
 
   integration-test:
     strategy:
