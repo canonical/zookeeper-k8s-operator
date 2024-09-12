@@ -16,3 +16,6 @@ S3ConnectionInfo = TypedDict(
         "region": str,
     },
 )
+
+
+BackupMetadata = TypedDict("BackupMetadata", {"id": str, "log-sequence-number": int, "path": str})

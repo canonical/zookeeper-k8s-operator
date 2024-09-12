@@ -35,4 +35,4 @@ resume-upgrade:
   description: Resume a rolling upgrade after asserting successful upgrade of a new revision.
 
 create-backup:
-  description: TODO. This action is only used for testing at the moment.
+  description: Create a database backup and send it to an object storage. S3 credentials are retrieved from a relation with the S3 integrator charm.
