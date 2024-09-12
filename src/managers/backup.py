@@ -5,6 +5,7 @@
 """Helpers for managing backups."""
 
 import logging
+import os
 from datetime import datetime
 from io import StringIO
 
@@ -19,7 +20,7 @@ from rich.table import Table
 
 from core.cluster import ClusterState
 from core.stubs import BackupMetadata, S3ConnectionInfo
-from literals import ADMIN_SERVER_PORT
+from literals import ADMIN_SERVER_PORT, S3_BACKUPS_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,13 @@ class BackupManager:
 
     def __init__(self, state: ClusterState) -> None:
         self.state = state
+        self.backups_path = S3_BACKUPS_PATH
 
     @property
     def bucket(self) -> Bucket:
         """S3 bucket to read from and write to."""
         s3_parameters = self.state.cluster.s3_credentials
+        self.backups_path = s3_parameters["path"]
         s3 = boto3.resource(
             "s3",
             aws_access_key_id=s3_parameters["access-key"],
@@ -121,9 +124,14 @@ class BackupManager:
                 "path": snapshot_path,
             }
 
-            self.bucket.upload_fileobj(_StreamingToFileSyncAdapter(response), f"{snapshot_name}/snapshot")  # type: ignore
             self.bucket.put_object(
-                Key=f"{snapshot_name}/metadata.yaml", Body=yaml.dump(metadata, encoding="utf8")
+                Key=os.path.join(self.backups_path, snapshot_name, "metadata.yaml"),
+                Body=yaml.dump(metadata, encoding="utf8"),
+            )
+
+            self.bucket.upload_fileobj(
+                _StreamingToFileSyncAdapter(response),  # type: ignore
+                os.path.join(self.backups_path, snapshot_name, "snapshot"),
             )
 
         return metadata
