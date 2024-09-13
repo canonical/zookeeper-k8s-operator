@@ -310,7 +310,7 @@ class ConfigManager:
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         self._update_environment(
-            env={"SERVER_JVMFLAGS": " ".join(self.server_jvmflags + self.jmx_jvmflags)}
+            env={"SERVER_JVMFLAGS": f'{" ".join(self.server_jvmflags + self.jmx_jvmflags)}'}
         )
 
     def set_zookeeper_properties(self) -> None:
