@@ -43,7 +43,7 @@ DEPENDENCIES = {
         "dependencies": {},
         "name": "zookeeper",
         "upgrade_supported": "^3.6",
-        "version": "3.8.4",
+        "version": "3.9.2",
     },
 }
 

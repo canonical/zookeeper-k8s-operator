@@ -2,14 +2,16 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import dataclasses
 import json
 import logging
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
 from scenario import Container, Context, PeerRelation, Relation, State
+from scenario.state import ActionFailed
 
 from charm import ZooKeeperCharm
 from literals import (
@@ -66,11 +68,11 @@ def test_credentials_changed_not_leader_no_op(ctx: Context, base_state: State):
         remote_app_data={"access-key": "speakfriend", "secret-key": "mellon", "bucket": "moria"},
     )
     cluster_peer = PeerRelation(PEER, PEER, local_app_data={})
-    state_in = base_state.replace(leader=False, relations=[relation_s3, cluster_peer])
+    state_in = dataclasses.replace(base_state, leader=False, relations=[relation_s3, cluster_peer])
 
     # When
     with patch("charms.data_platform_libs.v0.s3.S3Requirer") as patched_requirer:
-        _ = ctx.run(relation_s3.changed_event, state_in)
+        _ = ctx.run(ctx.on.relation_changed(relation_s3), state_in)
 
     # Then
     assert not patched_requirer.get_s3_connection_info.called
@@ -84,11 +86,11 @@ def test_credentials_changed_no_peers_defered(ctx: Context, base_state: State):
         remote_app_name="s3",
         remote_app_data={"access-key": "speakfriend", "secret-key": "mellon", "bucket": "moria"},
     )
-    state_in = base_state.replace(relations=[relation_s3])
+    state_in = dataclasses.replace(base_state, relations=[relation_s3])
 
     # When
     with (patch("charms.data_platform_libs.v0.s3.S3Requirer") as patched_requirer,):
-        state_out = ctx.run(relation_s3.changed_event, state_in)
+        state_out = ctx.run(ctx.on.relation_changed(relation_s3), state_in)
 
     # Then
     assert state_out.unit_status == Status.NO_PEER_RELATION.value.status
@@ -107,10 +109,10 @@ def test_missing_config_status_blocked(ctx: Context, base_state: State):
         remote_app_data={"access-key": "speakfriend", "secret-key": "mellon"},
     )
     cluster_peer = PeerRelation(PEER, PEER, local_app_data={})
-    state_in = base_state.replace(relations=[cluster_peer, relation_s3])
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer, relation_s3])
 
     # When
-    state_out = ctx.run(relation_s3.changed_event, state_in)
+    state_out = ctx.run(ctx.on.relation_changed(relation_s3), state_in)
 
     # Then
     assert state_out.unit_status == Status.MISSING_S3_CONFIG.value.status
@@ -125,11 +127,11 @@ def test_bucket_not_created_status_blocked(ctx: Context, base_state: State):
         remote_app_data={"access-key": "speakfriend", "secret-key": "mellon", "bucket": "moria"},
     )
     cluster_peer = PeerRelation(PEER, PEER, local_app_data={})
-    state_in = base_state.replace(relations=[cluster_peer, relation_s3])
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer, relation_s3])
 
     # When
     with patch("managers.backup.BackupManager.create_bucket", return_value=False):
-        state_out = ctx.run(relation_s3.changed_event, state_in)
+        state_out = ctx.run(ctx.on.relation_changed(relation_s3), state_in)
 
     # Then
     assert state_out.unit_status == Status.BUCKET_NOT_CREATED.value.status
@@ -144,15 +146,59 @@ def test_bucket_created_bag_written(ctx: Context, base_state: State):
         remote_app_data={"access-key": "speakfriend", "secret-key": "mellon", "bucket": "moria"},
     )
     cluster_peer = PeerRelation(PEER, PEER, local_app_data={})
-    state_in = base_state.replace(relations=[cluster_peer, relation_s3])
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer, relation_s3])
 
     # When
     with (
         patch("managers.backup.BackupManager.create_bucket", return_value=True),
         patch("core.models.ZKCluster.update") as patched_state,
     ):
-        _ = ctx.run(relation_s3.changed_event, state_in)
+        _ = ctx.run(ctx.on.relation_changed(relation_s3), state_in)
 
     # Then
     assert patched_state.called
     assert "speakfriend" in patched_state.call_args[0][0].get("s3-credentials", "")
+
+
+def test_action_create_backup_not_leader(ctx: Context, base_state: State):
+    # Given
+    state_in = dataclasses.replace(base_state, leader=False)
+
+    # When
+    # Then
+    with pytest.raises(ActionFailed) as exc_info:
+        _ = ctx.run(ctx.on.action("create-backup"), state_in)
+
+    assert exc_info.value.message == "Action must be ran on the application leader"
+
+
+def test_action_create_backup_unstable(ctx: Context, base_state: State):
+    # Given
+    state_in = base_state
+
+    # When
+    # Then
+    with (
+        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=False),
+        pytest.raises(ActionFailed) as exc_info,
+    ):
+        _ = ctx.run(ctx.on.action("create-backup"), state_in)
+
+    assert exc_info.value.message == "Cluster must be stable before making a backup"
+
+
+def test_action_create_backup_no_creds(ctx: Context, base_state: State):
+    # Given
+    state_in = base_state
+
+    # When
+    # Then
+    with (
+        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        pytest.raises(ActionFailed) as exc_info,
+    ):
+        _ = ctx.run(ctx.on.action("create-backup"), state_in)
+
+    assert (
+        exc_info.value.message == "Cluster needs an access to an object storage to make a backup"
+    )

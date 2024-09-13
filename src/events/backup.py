@@ -32,7 +32,7 @@ class BackupEvents(Object):
         super().__init__(charm, "backup")
         self.charm: "ZooKeeperCharm" = charm
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
-        self.backup_manager = BackupManager(self.charm.state.cluster.s3_credentials)
+        self.backup_manager = BackupManager(self.charm.state)
 
         self.framework.observe(
             self.s3_requirer.on.credentials_changed, self._on_s3_credentials_changed
@@ -90,7 +90,6 @@ class BackupEvents(Object):
         self.charm.state.cluster.update({"s3-credentials": ""})
 
     def _on_create_backup_action(self, event: ActionEvent):
-        # TODO
         failure_conditions = [
             (not self.charm.unit.is_leader(), "Action must be ran on the application leader"),
             (
@@ -110,7 +109,12 @@ class BackupEvents(Object):
                 event.fail(msg)
                 return
 
-        self.backup_manager.write_test_string()
+        backup_metadata = self.backup_manager.create_backup()
+
+        output = self.backup_manager.format_backups_table(
+            [backup_metadata], title="Backup created"
+        )
+        event.log(output)
 
     def _on_list_backups_action(self, _):
         # TODO

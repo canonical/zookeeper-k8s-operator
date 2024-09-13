@@ -103,8 +103,8 @@ async def test_relate_active_bucket_created(ops_test: OpsTest, s3_bucket):
     assert s3_bucket.meta.client.head_bucket(Bucket=s3_bucket.name)
 
 
-@pytest.mark.abort_on_fail
-async def test_write_content(ops_test: OpsTest, s3_bucket: Bucket):
+# @pytest.mark.abort_on_fail
+async def write_content(ops_test: OpsTest, s3_bucket: Bucket):
     # TODO (backup): Remove and replace with ZK snapshot write
 
     for unit in ops_test.model.applications[APP_NAME].units:

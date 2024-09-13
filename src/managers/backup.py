@@ -5,13 +5,22 @@
 """Helpers for managing backups."""
 
 import logging
+import os
+from datetime import datetime
+from io import StringIO
 
 import boto3
+import httpx
+import yaml
 from botocore import loaders, regions
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.service_resource import Bucket
+from rich.console import Console
+from rich.table import Table
 
-from core.stubs import S3ConnectionInfo
+from core.cluster import ClusterState
+from core.stubs import BackupMetadata, S3ConnectionInfo
+from literals import ADMIN_SERVER_PORT, S3_BACKUPS_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +28,23 @@ logger = logging.getLogger(__name__)
 class BackupManager:
     """Manager for all things backup-related."""
 
-    def __init__(self, s3_parameters: S3ConnectionInfo) -> None:
-        self.s3_parameters = s3_parameters
+    def __init__(self, state: ClusterState) -> None:
+        self.state = state
+        self.backups_path = S3_BACKUPS_PATH
 
     @property
     def bucket(self) -> Bucket:
         """S3 bucket to read from and write to."""
+        s3_parameters = self.state.cluster.s3_credentials
+        self.backups_path = s3_parameters["path"]
         s3 = boto3.resource(
             "s3",
-            aws_access_key_id=self.s3_parameters["access-key"],
-            aws_secret_access_key=self.s3_parameters["secret-key"],
-            region_name=self.s3_parameters["region"] if self.s3_parameters["region"] else None,
-            endpoint_url=self._construct_endpoint(self.s3_parameters),
+            aws_access_key_id=s3_parameters["access-key"],
+            aws_secret_access_key=s3_parameters["secret-key"],
+            region_name=s3_parameters["region"] if s3_parameters["region"] else None,
+            endpoint_url=self._construct_endpoint(s3_parameters),
         )
-        return s3.Bucket(self.s3_parameters["bucket"])
+        return s3.Bucket(s3_parameters["bucket"])
 
     def _construct_endpoint(self, s3_parameters: S3ConnectionInfo) -> str:
         """Construct the S3 service endpoint using the region.
@@ -84,6 +96,92 @@ class BackupManager:
 
         return True
 
-    def write_test_string(self) -> None:
-        """Write content in the object storage."""
-        self.bucket.put_object(Key="test_file.txt", Body=b"test string")
+    def create_backup(self) -> BackupMetadata:
+        """Create a snapshot with ZooKeeper admin server and stream it to the object storage."""
+        zk_user = "super"
+        zk_pwd = self.state.cluster.internal_user_credentials.get("super", "")
+        date = datetime.now()
+        snapshot_name = f"{date:%Y-%m-%dT%H:%M:%SZ}"
+        snapshot_path = f"{snapshot_name}/snapshot"
+
+        # It is very likely that the file is fully loaded in memory, because the file-like interface is
+        # not seekable, and I have a strong suspicion that boto uses this to figure out if it can
+        # upload in one go or need to use a multipart request.
+        # We cannot be sure because finding this information in boto code base is time consuming.
+        # If this ever become an issue, we can find a workaround by using the 'content-length' header from
+        # the response. Or write to a temp file as a last resort.
+        with httpx.stream(
+            "GET",
+            f"http://localhost:{ADMIN_SERVER_PORT}/commands/snapshot?streaming=true",
+            headers={"Authorization": f"digest {zk_user}:{zk_pwd}"},
+        ) as response:
+
+            response_headers = response.headers
+            quorum_leader_zxid = int(response_headers["last_zxid"], base=16)
+            metadata: BackupMetadata = {
+                "id": snapshot_name,
+                "log-sequence-number": quorum_leader_zxid,
+                "path": snapshot_path,
+            }
+
+            self.bucket.put_object(
+                Key=os.path.join(self.backups_path, snapshot_name, "metadata.yaml"),
+                Body=yaml.dump(metadata, encoding="utf8"),
+            )
+
+            self.bucket.upload_fileobj(
+                _StreamingToFileSyncAdapter(response),  # type: ignore
+                os.path.join(self.backups_path, snapshot_name, "snapshot"),
+            )
+
+        return metadata
+
+    def format_backups_table(
+        self, backup_entries: list[BackupMetadata], title: str = "Backups"
+    ) -> str:
+        """Format backups metadata into a readable table."""
+        table = Table(title=title)
+
+        table.add_column("Id", no_wrap=True)
+        table.add_column("Log-sequence-number", justify="right")
+        table.add_column("path")
+
+        for meta in backup_entries:
+            table.add_row(meta["id"], str(meta["log-sequence-number"]), meta["path"])
+
+        out_f = StringIO()
+        console = Console(file=out_f, width=79)
+        console.print(table)
+
+        return out_f.getvalue()
+
+
+class _StreamingToFileSyncAdapter:
+    """Wrapper to make httpx.stream behave like a file-like object.
+
+    boto needs a .read method with an optional amount-of-bytes parameter from the file-like object.
+    Taken from https://github.com/encode/httpx/discussions/2296#discussioncomment-6781355
+    """
+
+    def __init__(self, response: httpx.Response):
+        self.streaming_source = response.iter_bytes()
+        self.buffer = b""
+        self.buffer_offset = 0
+
+    def read(self, num_bytes: int = 4096) -> bytes:
+        while len(self.buffer) - self.buffer_offset < num_bytes:
+            try:
+                chunk = next(self.streaming_source)
+                self.buffer += chunk
+            except StopIteration:
+                break
+
+        if len(self.buffer) - self.buffer_offset >= num_bytes:
+            data = self.buffer[self.buffer_offset : self.buffer_offset + num_bytes]
+            self.buffer_offset += num_bytes
+            return data
+        else:
+            data = self.buffer[self.buffer_offset :]
+            self.buffer = b""
+            self.buffer_offset = 0
+            return data

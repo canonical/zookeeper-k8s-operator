@@ -32,6 +32,7 @@ enforce.auth.enabled=true
 enforce.auth.schemes=sasl
 sessionRequireClientSASLAuth=true
 audit.enable=true
+admin.serverAddress=localhost
 """
 
 TLS_PROPERTIES = """
