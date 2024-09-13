@@ -3,6 +3,7 @@
 # See LICENSE file for licensing details.
 
 import asyncio
+import json
 import logging
 import socket
 
@@ -114,4 +115,5 @@ async def test_create_backup(ops_test: OpsTest, s3_bucket: Bucket):
     list_action = await leader_unit.run_action("list-backups")
     response = await list_action.wait()
 
-    assert len(response.results.get("backups", [])) == 1
+    backups = json.loads(response.results.get("backups", "[]"))
+    assert len(backups) == 1
