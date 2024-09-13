@@ -65,4 +65,3 @@ storage:
     description: Directories where snapshot and transaction data is stored
     minimum-size: 10G
     location: /var/lib/zookeeper
-
