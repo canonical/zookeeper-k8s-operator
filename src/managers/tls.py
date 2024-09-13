@@ -177,6 +177,7 @@ class TLSManager:
             self.workload.exec(
                 command=[
                     "rm",
+                    "-rf",
                     self.workload.paths.ca,
                     self.workload.paths.certificate,
                     self.workload.paths.keystore,
