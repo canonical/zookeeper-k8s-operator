@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from unittest.mock import Mock, PropertyMock, patch
 
+import httpx
 import pytest
 import yaml
 from charms.rolling_ops.v0.rollingops import WaitingStatus
@@ -1084,19 +1085,25 @@ def test_update_relation_data(harness):
 
 @pytest.mark.nopatched_version
 def test_workload_version_is_setted(harness, monkeypatch):
-    output_install = (
-        "Zookeeper version: 3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
-    )
-    output_changed = (
-        "Zookeeper version: 3.8.2-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
-    )
+    output_install = {
+        "version": "3.8.1-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    }
+    output_changed = {
+        "version": "3.8.2-ubuntu0-${mvngit.commit.id}, built on 2023-11-21 15:33 UTC"
+    }
+    response_mock = Mock()
+    response_mock.return_value.json.side_effect = [output_install, output_changed]
     monkeypatch.setattr(
-        harness.charm.workload,
-        "exec",
-        Mock(side_effect=[output_install, output_changed]),
+        httpx,
+        "get",
+        response_mock,
     )
     monkeypatch.setattr(harness.charm.workload, "install", Mock(return_value=True))
     monkeypatch.setattr(harness.charm.workload, "healthy", Mock(return_value=True))
+
+    harness.add_relation(PEER, CHARM_KEY)
+    harness.charm.on.install.emit()
+    assert harness.get_workload_version() == "3.8.1"
 
     with (
         patch("charm.ZooKeeperCharm.init_server"),
@@ -1104,16 +1111,8 @@ def test_workload_version_is_setted(harness, monkeypatch):
         patch("managers.config.ConfigManager.config_changed"),
         patch("core.cluster.ClusterState.all_units_related"),
         patch("core.cluster.ClusterState.all_units_declaring_ip"),
-        patch("core.cluster.ClusterState.unit_server"),
-        patch("core.cluster.ClusterState.cluster"),
-        patch(
-            "core.cluster.ClusterState.peer_relation",
-            new_callable=PropertyMock,
-        ),
         patch("events.upgrade.ZKUpgradeEvents.idle", return_value=True),
     ):
-        harness.charm.on.install.emit()
-        assert harness.get_workload_version() == "3.8.1"
         harness.charm.on.config_changed.emit()
 
     assert harness.get_workload_version() == "3.8.2"
