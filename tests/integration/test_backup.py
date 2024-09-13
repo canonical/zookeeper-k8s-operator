@@ -5,7 +5,6 @@
 import asyncio
 import logging
 import socket
-from io import BytesIO
 
 import boto3
 import pytest
@@ -103,19 +102,16 @@ async def test_relate_active_bucket_created(ops_test: OpsTest, s3_bucket):
     assert s3_bucket.meta.client.head_bucket(Bucket=s3_bucket.name)
 
 
-# @pytest.mark.abort_on_fail
-async def write_content(ops_test: OpsTest, s3_bucket: Bucket):
-    # TODO (backup): Remove and replace with ZK snapshot write
-
+@pytest.mark.abort_on_fail
+async def test_create_backup(ops_test: OpsTest, s3_bucket: Bucket):
     for unit in ops_test.model.applications[APP_NAME].units:
         if await unit.is_leader_from_status():
             leader_unit = unit
 
-    write_action = await leader_unit.run_action(
-        "create-backup",
-    )
-    await write_action.wait()
+    create_action = await leader_unit.run_action("create-backup")
+    await create_action.wait()
 
-    f = BytesIO()
-    s3_bucket.download_fileobj("test_file.txt", f)
-    assert f.getvalue() == b"test string"
+    list_action = await leader_unit.run_action("list-backups")
+    response = await list_action.wait()
+
+    assert len(response.results.get("backups", [])) == 1

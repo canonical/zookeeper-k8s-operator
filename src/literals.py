@@ -37,6 +37,7 @@ GROUP = "root"
 
 S3_REL_NAME = "s3-credentials"
 S3_BACKUPS_PATH = "zookeeper_backups"
+S3_BACKUPS_LIMIT = 20
 
 DEPENDENCIES = {
     "service": {

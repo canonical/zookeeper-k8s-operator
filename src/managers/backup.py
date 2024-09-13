@@ -7,7 +7,9 @@
 import logging
 import os
 from datetime import datetime
-from io import StringIO
+from io import BytesIO, StringIO
+from itertools import islice
+from operator import attrgetter
 
 import boto3
 import httpx
@@ -20,7 +22,7 @@ from rich.table import Table
 
 from core.cluster import ClusterState
 from core.stubs import BackupMetadata, S3ConnectionInfo
-from literals import ADMIN_SERVER_PORT, S3_BACKUPS_PATH
+from literals import ADMIN_SERVER_PORT, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +104,6 @@ class BackupManager:
         zk_pwd = self.state.cluster.internal_user_credentials.get("super", "")
         date = datetime.now()
         snapshot_name = f"{date:%Y-%m-%dT%H:%M:%SZ}"
-        snapshot_path = f"{snapshot_name}/snapshot"
 
         # It is very likely that the file is fully loaded in memory, because the file-like interface is
         # not seekable, and I have a strong suspicion that boto uses this to figure out if it can
@@ -121,7 +122,7 @@ class BackupManager:
             metadata: BackupMetadata = {
                 "id": snapshot_name,
                 "log-sequence-number": quorum_leader_zxid,
-                "path": snapshot_path,
+                "path": os.path.join(self.backups_path, snapshot_name, "snapshot"),
             }
 
             self.bucket.put_object(
@@ -136,6 +137,26 @@ class BackupManager:
 
         return metadata
 
+    def list_backups(self) -> list[BackupMetadata]:
+        """List snapshots present in object storage."""
+        backups_metadata: list[BackupMetadata] = []
+
+        # S3 API is limited so we end up with an N+1 query problem. Thus, we limit the
+        # number of backups and fetch the latest modified ones.
+        remote_files = self.bucket.objects.filter(Prefix=self.backups_path)
+        remote_metadata = filter(lambda rfile: rfile.key.endswith(".yaml"), remote_files)
+        sorted_remote_files = sorted(
+            remote_metadata, key=attrgetter("last_modified"), reverse=True
+        )
+
+        for remote_file in islice(sorted_remote_files, S3_BACKUPS_LIMIT):
+            buffer = BytesIO()
+            self.bucket.download_fileobj(remote_file.key, buffer)
+            metadata = yaml.safe_load(buffer.getvalue())
+            backups_metadata.append(metadata)
+
+        return backups_metadata
+
     def format_backups_table(
         self, backup_entries: list[BackupMetadata], title: str = "Backups"
     ) -> str:
@@ -144,7 +165,7 @@ class BackupManager:
 
         table.add_column("Id", no_wrap=True)
         table.add_column("Log-sequence-number", justify="right")
-        table.add_column("path")
+        table.add_column("Path", overflow="fold")
 
         for meta in backup_entries:
             table.add_row(meta["id"], str(meta["log-sequence-number"]), meta["path"])
