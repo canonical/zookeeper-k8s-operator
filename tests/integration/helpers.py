@@ -91,14 +91,14 @@ def check_key(host: str, password: str, username: str = "super") -> None:
     raise KeyError
 
 
-def srvr(host: str) -> dict:
+def srvr(model_full_name: str, unit: str) -> dict:
     """Retrieves attributes returned from the 'srvr' 4lw command.
 
     Specifically for this test, we are interested in the "Mode" of the ZK server,
     which allows checking quorum leadership and follower active status.
     """
     response = check_output(
-        f"curl {host}:{ADMIN_SERVER_PORT}/commands/srvr -m 10",
+        f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'curl localhost:{ADMIN_SERVER_PORT}/commands/srvr -m 10'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
@@ -111,8 +111,7 @@ def srvr(host: str) -> dict:
 
 async def ping_servers(ops_test: OpsTest) -> bool:
     for unit in ops_test.model.applications[APP_NAME].units:
-        host = unit.public_address
-        srvr_response = srvr(host)
+        srvr_response = srvr(ops_test.model_full_name, unit.name)
 
         if srvr_response.get("error", None) is not None:
             return False
@@ -176,8 +175,9 @@ def _get_show_unit_json(model_full_name: str, unit: str) -> Dict:
 
 async def correct_version_running(ops_test: OpsTest, expected_version: str) -> bool:
     for unit in ops_test.model.applications[APP_NAME].units:
-        host = unit.public_address
-        if expected_version not in srvr(host)["Zookeeper version"]:
+        srvr_response = srvr(ops_test.model_full_name, unit.name)
+
+        if expected_version not in srvr_response.get("version", ""):
             return False
 
     return True

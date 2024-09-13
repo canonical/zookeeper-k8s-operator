@@ -49,17 +49,18 @@ async def wait_idle(ops_test, apps: list[str] = [APP_NAME], units: int = 3) -> N
     stop=stop_after_attempt(60),
     reraise=True,
 )
-def srvr(host: str) -> dict:
-    """Calls srvr 4lw command to specified host.
+def srvr(model_full_name: str, unit: str) -> dict:
+    """Calls srvr 4lw command to specified unit.
 
     Args:
-        host: ZooKeeper address to issue srvr 4lw command to
+        model_full_name: Current test model
+        unit: ZooKeeper unit to issue srvr 4lw command to
 
     Returns:
         Dict of srvr command output key/values
     """
     response = subprocess.check_output(
-        f"curl {host}:{ADMIN_SERVER_PORT}/commands/srvr -m 10",
+        f"JUJU_MODEL={model_full_name} juju ssh {unit} sudo -i 'curl localhost:{ADMIN_SERVER_PORT}/commands/srvr -m 10'",
         stderr=subprocess.PIPE,
         shell=True,
         universal_newlines=True,
@@ -162,13 +163,17 @@ def get_leader_name(ops_test: OpsTest, hosts: str, app_name: str = APP_NAME) -> 
         String of unit name of the ZooKeeper quorum leader
     """
     for host in hosts.split(","):
+        unit_name = get_unit_name_from_host(ops_test, host, app_name)
         try:
-            mode = srvr(host.split(":")[0]).get("server_stats", {}).get("server_state", "")
+            mode = (
+                srvr(ops_test.model_full_name, unit_name)
+                .get("server_stats", {})
+                .get("server_state", "")
+            )
         except subprocess.CalledProcessError:  # unit is down
             continue
         if mode == "leader":
-            leader_name = get_unit_name_from_host(ops_test, host, app_name)
-            return leader_name
+            return unit_name
 
     return ""
 

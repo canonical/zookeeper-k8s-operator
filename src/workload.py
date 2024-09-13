@@ -3,14 +3,13 @@
 # See LICENSE file for licensing details.
 
 """Implementation of WorkloadBase for running on K8s."""
-import json
 import logging
 import secrets
 import string
-from subprocess import CalledProcessError
 
+import httpx
 from ops.model import Container
-from ops.pebble import ChangeError, ExecError, Layer
+from ops.pebble import ChangeError, Layer
 from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 from typing_extensions import override
 
@@ -88,14 +87,13 @@ class ZKWorkload(WorkloadBase):
             return False
 
         try:
-            response = json.loads(
-                self.exec(["curl", f"localhost:{ADMIN_SERVER_PORT}/commands/ruok", "-m", "10"])
-            )
+            response = httpx.get(f"http://localhost:{ADMIN_SERVER_PORT}/commands/ruok", timeout=10)
+            response.raise_for_status()
 
-        except (ExecError, CalledProcessError, json.JSONDecodeError):
+        except httpx.HTTPError:
             return False
 
-        if response.get("error", None) is not None:
+        if response.json().get("error", None):
             return False
 
         return True
@@ -123,14 +121,13 @@ class ZKWorkload(WorkloadBase):
             return ""
 
         try:
-            response = json.loads(
-                self.exec(["curl", f"localhost:{ADMIN_SERVER_PORT}/commands/srvr", "-m", "10"])
-            )
+            response = httpx.get(f"http://localhost:{ADMIN_SERVER_PORT}/commands/srvr", timeout=10)
+            response.raise_for_status()
 
-        except (ExecError, CalledProcessError, json.JSONDecodeError):
+        except httpx.HTTPError:
             return ""
 
-        if not (full_version := response.get("version", "")):
+        if not (full_version := response.json().get("version", "")):
             return full_version
         else:
             return full_version.split("-")[0]
