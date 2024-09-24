@@ -45,6 +45,7 @@ ssl.trustStore.type=JKS
 ssl.keyStore.type=PKCS12
 sslQuorumReloadCertFiles=true
 client.certReload=true
+ssl.enabledProtocols=TLSv1.3,TLSv1.2
 """
 
 
