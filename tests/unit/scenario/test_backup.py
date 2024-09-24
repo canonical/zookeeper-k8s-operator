@@ -202,3 +202,32 @@ def test_action_create_backup_no_creds(ctx: Context, base_state: State):
     assert (
         exc_info.value.message == "Cluster needs an access to an object storage to make a backup"
     )
+
+
+def test_action_list_backups_not_leader(ctx: Context, base_state: State):
+    # Given
+    state_in = dataclasses.replace(base_state, leader=False)
+
+    # When
+    # Then
+    with pytest.raises(ActionFailed) as exc_info:
+        _ = ctx.run(ctx.on.action("list-backups"), state_in)
+
+    assert exc_info.value.message == "Action must be ran on the application leader"
+
+
+def test_action_list_backups_no_creds(ctx: Context, base_state: State):
+    # Given
+    state_in = base_state
+
+    # When
+    # Then
+    with (
+        patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
+        pytest.raises(ActionFailed) as exc_info,
+    ):
+        _ = ctx.run(ctx.on.action("list-backups"), state_in)
+
+    assert (
+        exc_info.value.message == "Cluster needs an access to an object storage to make a backup"
+    )

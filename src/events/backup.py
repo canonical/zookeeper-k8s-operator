@@ -40,7 +40,7 @@ class BackupEvents(Object):
         self.framework.observe(self.s3_requirer.on.credentials_gone, self._on_s3_credentials_gone)
 
         self.framework.observe(self.charm.on.create_backup_action, self._on_create_backup_action)
-        # self.framework.observe(self.charm.on.list_backups_action, self._on_list_backups_action)
+        self.framework.observe(self.charm.on.list_backups_action, self._on_list_backups_action)
         # self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
 
     def _on_s3_credentials_changed(self, event: CredentialsChangedEvent):
@@ -116,9 +116,26 @@ class BackupEvents(Object):
         )
         event.log(output)
 
-    def _on_list_backups_action(self, _):
-        # TODO
-        pass
+    def _on_list_backups_action(self, event: ActionEvent):
+        failure_conditions = [
+            (not self.charm.unit.is_leader(), "Action must be ran on the application leader"),
+            (
+                not self.charm.state.cluster.s3_credentials,
+                "Cluster needs an access to an object storage to make a backup",
+            ),
+        ]
+
+        for check, msg in failure_conditions:
+            if check:
+                logging.error(msg)
+                event.set_results({"error": msg})
+                event.fail(msg)
+                return
+
+        backups_metadata = self.backup_manager.list_backups()
+        output = self.backup_manager.format_backups_table(backups_metadata)
+        event.log(output)
+        event.set_results({"backups": json.dumps(backups_metadata)})
 
     def _on_restore_action(self, _):
         # TODO
