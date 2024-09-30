@@ -497,6 +497,7 @@ def test_init_server_sets_blocked_if_not_alive(harness, monkeypatch):
         patch("managers.config.ConfigManager.set_zookeeper_dynamic_properties"),
         patch("managers.config.ConfigManager.set_zookeeper_properties"),
         patch("managers.config.ConfigManager.set_jaas_config"),
+        patch("managers.config.ConfigManager.set_client_jaas_config"),
         patch("workload.ZKWorkload.start"),
         patch("workload.ZKWorkload.alive", new_callable=PropertyMock, return_value=False),
     ):
@@ -540,6 +541,9 @@ def test_init_server_calls_necessary_methods(harness, monkeypatch):
         ) as zookeeper_dynamic_properties,
         patch("managers.config.ConfigManager.set_zookeeper_properties") as zookeeper_properties,
         patch("managers.config.ConfigManager.set_jaas_config") as zookeeper_jaas_config,
+        patch(
+            "managers.config.ConfigManager.set_client_jaas_config"
+        ) as zookeeper_client_jaas_config,
         patch("managers.tls.TLSManager.set_private_key") as patched_private_key,
         patch("managers.tls.TLSManager.set_ca") as patched_ca,
         patch("managers.tls.TLSManager.set_certificate") as patched_certificate,
@@ -554,6 +558,7 @@ def test_init_server_calls_necessary_methods(harness, monkeypatch):
         zookeeper_dynamic_properties.assert_called_once()
         zookeeper_properties.assert_called_once()
         zookeeper_jaas_config.assert_called_once()
+        zookeeper_client_jaas_config.assert_called_once()
         patched_private_key.assert_called_once()
         patched_ca.assert_called_once()
         patched_certificate.assert_called_once()

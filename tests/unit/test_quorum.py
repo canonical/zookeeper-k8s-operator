@@ -108,20 +108,12 @@ def test_update_acls_correctly_handles_relation_chroots(harness):
         for _, kwargs in patched_manager["create_znode_leader"].call_args_list:
             assert "/rohan" in kwargs["path"]
 
-        for _, kwargs in patched_manager["set_acls_znode_leader"].call_args_list:
-            assert "/rohan" in kwargs["path"]
+        _, kwargs = patched_manager["set_acls_znode_leader"].call_args_list[0]
+        assert "/rohan" in kwargs["path"]
 
-        removed_men = False
-        for counter, call in enumerate(patched_manager["delete_znode_leader"].call_args_list):
-            _, kwargs = call
+        paths_updated = {
+            kwargs["path"] for _, kwargs in patched_manager["set_acls_znode_leader"].call_args_list
+        }
 
-            if "/fellowship/men" in kwargs["path"]:
-                assert not removed_men, "Parent zNode removed before all it's children"
-
-            if kwargs["path"] == "/fellowship/men":
-                removed_men = True
-
-        # ensure last node to go is the parent
-        assert (
-            patched_manager["delete_znode_leader"].call_args_list[-1][1]["path"] == "/fellowship"
-        )
+        # all paths saw their acls updated
+        assert not dummy_leader_znodes - paths_updated

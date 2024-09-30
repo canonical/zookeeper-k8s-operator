@@ -354,6 +354,9 @@ class ClusterState(Object):
         if self.stale_quorum:
             return Status.STALE_QUORUM
 
+        if self.cluster.id_to_restore:
+            return Status.ONGOING_RESTORE
+
         if not self.all_servers_added:
             return Status.NOT_ALL_ADDED
 

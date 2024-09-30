@@ -231,3 +231,96 @@ def test_action_list_backups_no_creds(ctx: Context, base_state: State):
     assert (
         exc_info.value.message == "Cluster needs an access to an object storage to make a backup"
     )
+
+
+def test_action_restore_not_leader(ctx: Context, base_state: State):
+    # Given
+    state_in = dataclasses.replace(base_state, leader=False)
+
+    # When
+    # Then
+    with pytest.raises(ActionFailed) as exc_info:
+        _ = ctx.run(ctx.on.action("restore"), state_in)
+
+    assert exc_info.value.message == "Action must be ran on the application leader"
+
+
+def test_action_restore_no_creds(ctx: Context, base_state: State):
+    # Given
+    state_in = base_state
+
+    # When
+    # Then
+    with pytest.raises(ActionFailed) as exc_info:
+        _ = ctx.run(ctx.on.action("restore"), state_in)
+
+    assert (
+        exc_info.value.message == "Cluster needs an access to an object storage to make a backup"
+    )
+
+
+def test_action_restore_no_id_param(ctx: Context, base_state: State):
+    # Given
+    s3_params = {
+        "access-key": "speakfriend",
+        "secret-key": "mellon",
+        "bucket": "moria",
+        "region": "",
+    }
+    state_in = base_state
+
+    # When
+    # Then
+    with (
+        pytest.raises(ActionFailed) as exc_info,
+        patch("core.models.ZKCluster.s3_credentials", new_callable=PropertyMock, value=s3_params),
+        patch("managers.backup.BackupManager.is_snapshot_in_bucket", side_effect=[False]),
+    ):
+        _ = ctx.run(ctx.on.action("restore"), state_in)
+
+    assert exc_info.value.message == "No backup id to restore provided"
+
+
+def test_action_restore_snapshot_not_found(ctx: Context, base_state: State):
+    # Given
+    s3_params = {
+        "access-key": "speakfriend",
+        "secret-key": "mellon",
+        "bucket": "moria",
+        "region": "",
+    }
+    state_in = base_state
+
+    # When
+    # Then
+    with (
+        pytest.raises(ActionFailed) as exc_info,
+        patch("core.models.ZKCluster.s3_credentials", new_callable=PropertyMock, value=s3_params),
+        patch("managers.backup.BackupManager.is_snapshot_in_bucket", side_effect=[False]),
+    ):
+        _ = ctx.run(ctx.on.action("restore", params={"backup-id": "notfound"}), state_in)
+
+    assert exc_info.value.message == "Backup id not found in storage object"
+
+
+def test_action_restore_ongoing_restore(ctx: Context, base_state: State):
+    # Given
+    s3_params = {
+        "access-key": "speakfriend",
+        "secret-key": "mellon",
+        "bucket": "moria",
+        "region": "",
+    }
+    restore_peer = PeerRelation(PEER, PEER, local_app_data={"id-to-restore": "ongoing-backup-id"})
+    state_in = dataclasses.replace(base_state, relations=[restore_peer])
+
+    # When
+    # Then
+    with (
+        pytest.raises(ActionFailed) as exc_info,
+        patch("core.models.ZKCluster.s3_credentials", new_callable=PropertyMock, value=s3_params),
+        patch("managers.backup.BackupManager.is_snapshot_in_bucket", side_effect=[True]),
+    ):
+        _ = ctx.run(ctx.on.action("restore", params={"backup-id": "new-backup-id"}), state_in)
+
+    assert exc_info.value.message == "A snapshot restore is currently ongoing"

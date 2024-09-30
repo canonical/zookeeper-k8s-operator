@@ -207,6 +207,7 @@ def test_config_changed_updates_properties_jaas_hosts(harness):
         ),
         patch("managers.config.ConfigManager.static_properties", return_value="gandalf=grey"),
         patch("managers.config.ConfigManager.set_jaas_config"),
+        patch("managers.config.ConfigManager.set_client_jaas_config"),
         patch("managers.config.ConfigManager.set_zookeeper_properties") as set_props,
         patch("managers.config.ConfigManager.set_server_jvmflags"),
     ):
@@ -218,10 +219,12 @@ def test_config_changed_updates_properties_jaas_hosts(harness):
         patch("workload.ZKWorkload.read", return_value=["gandalf=grey"]),
         patch("managers.config.ConfigManager.set_zookeeper_properties"),
         patch("managers.config.ConfigManager.set_jaas_config") as set_jaas,
+        patch("managers.config.ConfigManager.set_client_jaas_config") as set_client_jaas,
         patch("managers.config.ConfigManager.set_server_jvmflags"),
     ):
         harness.charm.config_manager.config_changed()
         set_jaas.assert_called_once()
+        set_client_jaas.assert_called_once()
 
 
 def test_update_environment(harness):

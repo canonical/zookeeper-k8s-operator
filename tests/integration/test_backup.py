@@ -14,12 +14,13 @@ from mypy_boto3_s3.service_resource import Bucket
 from pytest_operator.plugin import OpsTest
 
 from . import ZOOKEEPER_IMAGE
-from .helpers import APP_NAME
+from .helpers import APP_NAME, check_key, get_address, get_user_password, write_key
 
 logger = logging.getLogger(__name__)
 
 S3_INTEGRATOR = "s3-integrator"
 S3_CHANNEL = "latest/stable"
+APP_TO_RESTORE = "restored"
 
 
 @pytest.fixture(scope="session")
@@ -109,6 +110,10 @@ async def test_create_backup(ops_test: OpsTest, s3_bucket: Bucket):
         if await unit.is_leader_from_status():
             leader_unit = unit
 
+    super_password = await get_user_password(ops_test, "super")
+    host = await get_address(ops_test, APP_NAME, leader_unit.name.split("/")[-1])
+    write_key(host=host, password=super_password)
+
     create_action = await leader_unit.run_action("create-backup")
     await create_action.wait()
 
@@ -117,3 +122,41 @@ async def test_create_backup(ops_test: OpsTest, s3_bucket: Bucket):
 
     backups = json.loads(response.results.get("backups", "[]"))
     assert len(backups) == 1
+
+
+@pytest.mark.abort_on_fail
+async def test_restore_backup_new_app(ops_test: OpsTest, s3_bucket: Bucket, zk_charm):
+
+    await ops_test.model.deploy(
+        zk_charm,
+        application_name=APP_TO_RESTORE,
+        num_units=3,
+    )
+    await ops_test.model.wait_for_idle(
+        apps=[APP_TO_RESTORE],
+        status="active",
+        timeout=1000,
+    )
+    await ops_test.model.add_relation(APP_TO_RESTORE, S3_INTEGRATOR)
+    await ops_test.model.wait_for_idle(
+        apps=[APP_TO_RESTORE, S3_INTEGRATOR], status="active", timeout=1000, raise_on_error=False
+    )
+    for unit in ops_test.model.applications[APP_TO_RESTORE].units:
+        if await unit.is_leader_from_status():
+            leader_unit = unit
+
+    list_action = await leader_unit.run_action("list-backups")
+    response = await list_action.wait()
+
+    backups = json.loads(response.results.get("backups", "[]"))
+    backup_to_restore = backups[0]["id"]
+    list_action = await leader_unit.run_action("restore", **{"backup-id": backup_to_restore})
+
+    await ops_test.model.wait_for_idle(
+        apps=[APP_TO_RESTORE, S3_INTEGRATOR], status="active", timeout=1000, idle_period=30
+    )
+    super_password = await get_user_password(ops_test, "super")
+
+    for unit in ops_test.model.applications[APP_TO_RESTORE].units:
+        host = await get_address(ops_test, APP_NAME, unit.name.split("/")[-1])
+        check_key(host=host, password=super_password)
