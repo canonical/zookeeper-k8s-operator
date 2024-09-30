@@ -234,8 +234,6 @@ class BackupEvents(Object):
             (unit.restore_progress is current_instruction for unit in self.charm.state.servers)
         ):
             payload = {"restore-instruction": next_instruction.value}
-            if current_instruction is RestoreStep.NOT_STARTED:
-                self.charm.disconnect_clients()
             if current_instruction is RestoreStep.CLEAN:
                 payload = payload | {"id-to-restore": "", "to_restore": ""}
                 # Update ACLs for already related clients and trigger a relation-changed
