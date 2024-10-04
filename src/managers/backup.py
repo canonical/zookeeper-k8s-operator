@@ -3,7 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Helpers for managing backups."""
-from __future__ import annotations
 
 import logging
 import os
@@ -12,7 +11,6 @@ from io import BytesIO, StringIO
 from itertools import islice
 from operator import attrgetter
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import boto3
 import httpx
@@ -23,12 +21,10 @@ from mypy_boto3_s3.service_resource import Bucket
 from rich.console import Console
 from rich.table import Table
 
+from core.cluster import ClusterState
 from core.stubs import BackupMetadata, S3ConnectionInfo
 from literals import ADMIN_SERVER_PORT, PATHS, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH, USER
-
-if TYPE_CHECKING:
-    from core.cluster import ClusterState
-    from workload import ZKWorkload
+from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
 
@@ -186,19 +182,14 @@ class BackupManager:
     def is_snapshot_in_bucket(self, backup_id: str) -> bool:
         """Check whether the requested snapshot to restore is in the object storage."""
         try:
-            bucket = self.bucket
-        except KeyError:
-            return False
-
-        try:
-            content = bucket.meta.client.head_object(
-                Bucket=bucket.name, Key=os.path.join(self.backups_path, backup_id, "snapshot")
+            content = self.bucket.meta.client.head_object(
+                Bucket=self.bucket.name, Key=os.path.join(self.backups_path, backup_id, "snapshot")
             )
         except ClientError as ex:
             if "(404)" in ex.args[0]:
                 return False
             raise
-        return content.get("ResponseMetadata", None) is not None
+        return bool(content.get("ResponseMetadata", None))
 
     def restore_snapshot(self, backup_id: str, workload: ZKWorkload) -> None:
         """Download and restore a snapshot.

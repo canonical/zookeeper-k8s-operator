@@ -134,9 +134,7 @@ async def test_restore_backup_new_app(ops_test: OpsTest, s3_bucket: Bucket, zk_c
         resources={"zookeeper-image": ZOOKEEPER_IMAGE},
     )
     await ops_test.model.wait_for_idle(
-        apps=[APP_TO_RESTORE],
-        status="active",
-        timeout=1000,
+        apps=[APP_TO_RESTORE], status="active", timeout=1000, raise_on_error=False
     )
     await ops_test.model.add_relation(APP_TO_RESTORE, S3_INTEGRATOR)
     await ops_test.model.wait_for_idle(

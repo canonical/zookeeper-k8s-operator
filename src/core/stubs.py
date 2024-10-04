@@ -3,8 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Types module."""
-from __future__ import annotations
-
 from enum import Enum
 from typing import TypedDict
 
@@ -33,7 +31,7 @@ class RestoreStep(str, Enum):
     RESTART = "restart"
     CLEAN = "clean"
 
-    def next_step(self) -> RestoreStep:
+    def next_step(self) -> "RestoreStep":
         """Get the next logical restore flow step."""
         match self:
             case RestoreStep.NOT_STARTED:

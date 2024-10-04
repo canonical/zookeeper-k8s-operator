@@ -3,8 +3,6 @@
 # See LICENSE file for licensing details.
 
 """Event handlers for creating and restoring backups."""
-from __future__ import annotations
-
 import json
 import logging
 from typing import TYPE_CHECKING, cast
@@ -36,7 +34,7 @@ class BackupEvents(Object):
 
     def __init__(self, charm):
         super().__init__(charm, "backup")
-        self.charm: ZooKeeperCharm = charm
+        self.charm: "ZooKeeperCharm" = charm
         self.s3_requirer = S3Requirer(self.charm, S3_REL_NAME)
         self.backup_manager = BackupManager(self.charm.state)
 
@@ -160,28 +158,32 @@ class BackupEvents(Object):
         - cleanup leftover files
         - notify clients
         """
+        id_to_restore = event.params.get("backup-id", "")
         failure_conditions = [
-            (not self.charm.unit.is_leader(), "Action must be ran on the application leader"),
             (
-                not self.charm.state.cluster.s3_credentials,
+                lambda: not self.charm.unit.is_leader(),
+                "Action must be ran on the application leader",
+            ),
+            (
+                lambda: not self.charm.state.cluster.s3_credentials,
                 "Cluster needs an access to an object storage to make a backup",
             ),
             (
-                not (id_to_restore := event.params.get("backup-id", "")),
+                lambda: not id_to_restore,
                 "No backup id to restore provided",
             ),
             (
-                not self.backup_manager.is_snapshot_in_bucket(id_to_restore),
+                lambda: not self.backup_manager.is_snapshot_in_bucket(id_to_restore),
                 "Backup id not found in storage object",
             ),
             (
-                bool(self.charm.state.cluster.id_to_restore),
+                lambda: bool(self.charm.state.cluster.is_restore_in_progress),
                 "A snapshot restore is currently ongoing",
             ),
         ]
 
         for check, msg in failure_conditions:
-            if check:
+            if check():
                 logging.error(msg)
                 event.set_results({"error": msg})
                 event.fail(msg)
@@ -199,11 +201,8 @@ class BackupEvents(Object):
 
     def _restore_event_dispatch(self, event: RelationEvent):
         """Dispatch restore event to the proper method."""
-        cluster_state = self.charm.state.cluster
-        unit_state = self.charm.state.unit_server
-
-        if not cluster_state.id_to_restore:
-            if unit_state.restore_progress is not RestoreStep.NOT_STARTED:
+        if not self.charm.state.cluster.is_restore_in_progress:
+            if self.charm.state.unit_server.restore_progress is not RestoreStep.NOT_STARTED:
                 self.charm.state.unit_server.update(
                     {"restore-progress": RestoreStep.NOT_STARTED.value}
                 )
@@ -213,7 +212,7 @@ class BackupEvents(Object):
         if self.charm.unit.is_leader():
             self._maybe_progress_step()
 
-        match cluster_state.restore_instruction, unit_state.restore_progress:
+        match self.charm.state.cluster.restore_instruction, self.charm.state.unit_server.restore_progress:
             case RestoreStep.STOP_WORKFLOW, RestoreStep.NOT_STARTED:
                 self._stop_workflow()
             case RestoreStep.RESTORE, RestoreStep.STOP_WORKFLOW:
@@ -230,9 +229,7 @@ class BackupEvents(Object):
         current_instruction = self.charm.state.cluster.restore_instruction
         next_instruction = current_instruction.next_step()
 
-        if all(
-            (unit.restore_progress is current_instruction for unit in self.charm.state.servers)
-        ):
+        if self.charm.state.is_next_restore_step_possible:
             payload = {"restore-instruction": next_instruction.value}
             if current_instruction is RestoreStep.CLEAN:
                 payload = payload | {"id-to-restore": "", "to_restore": ""}

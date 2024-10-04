@@ -299,6 +299,11 @@ class ZKCluster(RelationState):
         """Current restore flow step to go through."""
         return RestoreStep(self.relation_data.get("restore-instruction", ""))
 
+    @property
+    def is_restore_in_progress(self) -> bool:
+        """Is the cluster undergoing a restore?"""
+        return bool(self.id_to_restore)
+
 
 class ZKServer(RelationState):
     """State collection metadata for a charm unit."""

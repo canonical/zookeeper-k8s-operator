@@ -232,11 +232,7 @@ class QuorumManager:
         restricted_acl = make_acl(
             scheme="sasl",
             credential="super",
-            read=True,
-            write=True,
-            create=True,
-            delete=True,
-            admin=True,
+            all=True,
         )
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
             if not self._is_child_of(chroot, requested_chroots):

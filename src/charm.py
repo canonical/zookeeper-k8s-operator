@@ -201,7 +201,7 @@ class ZooKeeperCharm(CharmBase):
             self._set_status(Status.NO_PEER_RELATION)
             return
 
-        if self.state.cluster.id_to_restore:
+        if self.state.cluster.is_restore_in_progress:
             # Ongoing backup restore, we can early return here since the
             # chain of events is only relevant to the backup event handler
             return

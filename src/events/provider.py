@@ -49,7 +49,7 @@ class ProviderEvents(Object):
         Future `client_relation_changed` events called on non-leader units checks passwords before
             restarting.
         """
-        if not self.charm.unit.is_leader() or self.charm.state.cluster.id_to_restore:
+        if not self.charm.unit.is_leader() or self.charm.state.cluster.is_restore_in_progress:
             return
 
         if not self.charm.state.stable:
