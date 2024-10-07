@@ -224,8 +224,17 @@ class QuorumManager:
             logger.debug(f"UPDATE CHROOT - {client.database}")
             self.client.set_acls_znode_leader(path=client.database, acls=[generated_acl])
 
+            subnodes = self.client.leader_znodes(path=client.database)
+            for node in subnodes:
+                self.client.set_acls_znode_leader(path=node, acls=[generated_acl])
+
         # Looks for applications no longer in the relation but still in config
+        restricted_acl = make_acl(
+            scheme="sasl",
+            credential="super",
+            all=True,
+        )
         for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
             if not self._is_child_of(chroot, requested_chroots):
-                logger.info(f"DROP CHROOT - {chroot}")
-                self.client.delete_znode_leader(path=chroot)
+                logger.info(f"RESET ACLS CHROOT - {chroot}")
+                self.client.set_acls_znode_leader(path=chroot, acls=[restricted_acl])

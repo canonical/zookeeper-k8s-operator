@@ -13,7 +13,7 @@ from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, Dat
 from ops.model import Application, Relation, Unit
 from typing_extensions import deprecated, override
 
-from core.stubs import S3ConnectionInfo
+from core.stubs import RestoreStep, S3ConnectionInfo
 from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SECRETS_APP, SERVER_PORT
 
 logger = logging.getLogger(__name__)
@@ -289,6 +289,21 @@ class ZKCluster(RelationState):
         # This is checked in events.backup actions
         return json.loads(self.relation_data.get("s3-credentials", "{}"))
 
+    @property
+    def id_to_restore(self) -> str:
+        """Backup id to restore."""
+        return self.relation_data.get("id-to-restore", "")
+
+    @property
+    def restore_instruction(self) -> RestoreStep:
+        """Current restore flow step to go through."""
+        return RestoreStep(self.relation_data.get("restore-instruction", ""))
+
+    @property
+    def is_restore_in_progress(self) -> bool:
+        """Is the cluster undergoing a restore?"""
+        return bool(self.id_to_restore)
+
 
 class ZKServer(RelationState):
     """State collection metadata for a charm unit."""
@@ -440,3 +455,8 @@ class ZKServer(RelationState):
             "sans_ip": [self.ip],
             "sans_dns": [self.hostname, self.fqdn],
         }
+
+    @property
+    def restore_progress(self) -> RestoreStep:
+        """Latest restore flow step the unit went through."""
+        return RestoreStep(self.relation_data.get("restore-progress", ""))

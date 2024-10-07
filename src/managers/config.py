@@ -4,6 +4,7 @@
 
 """Manager for for handling configuration building + writing."""
 import logging
+from textwrap import dedent
 
 from ops.model import ConfigData
 
@@ -138,7 +139,8 @@ class ConfigManager:
         """
         users = "\n".join(self.jaas_users) or ""
 
-        return f"""
+        return dedent(
+            f"""
             QuorumServer {{
                 org.apache.zookeeper.server.auth.DigestLoginModule required
                 user_sync="{self.state.cluster.internal_user_credentials.get('sync', '')}";
@@ -156,6 +158,20 @@ class ConfigManager:
                 user_super="{self.state.cluster.internal_user_credentials.get('super', '')}";
             }};
         """
+        )
+
+    @property
+    def client_jaas_config(self) -> str:
+        """Build the client JAAS config."""
+        return dedent(
+            f"""
+            Client {{
+                org.apache.zookeeper.server.auth.DigestLoginModule required
+                username="super"
+                password="{self.state.cluster.internal_user_credentials.get('super', '')}";
+            }};
+            """
+        )
 
     @property
     def zookeeper_properties(self) -> list[str]:
@@ -309,6 +325,10 @@ class ConfigManager:
         """Sets the ZooKeeper JAAS config."""
         self.workload.write(content=self.jaas_config, path=self.workload.paths.jaas)
 
+    def set_client_jaas_config(self) -> None:
+        """Sets the ZooKeeper client JAAS config."""
+        self.workload.write(content=self.client_jaas_config, path=self.workload.paths.client_jaas)
+
     def set_server_jvmflags(self) -> None:
         """Sets the env-vars needed for SASL auth to /etc/environment on the unit."""
         self._update_environment(
@@ -388,6 +408,7 @@ class ConfigManager:
                 )
             )
             self.set_jaas_config()
+            self.set_client_jaas_config()
 
         if log_level_changed:
             logger.info(

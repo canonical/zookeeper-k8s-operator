@@ -188,7 +188,7 @@ class ZooKeeperCharm(CharmBase):
 
         self.unit.set_workload_version(self.workload.get_version())
 
-    def _on_cluster_relation_changed(self, event: EventBase) -> None:
+    def _on_cluster_relation_changed(self, event: EventBase) -> None:  # noqa: C901
         """Generic handler for all 'something changed, update' events across all relations."""
         # NOTE: k8s specific check, the container needs to be available before moving on
         if not self.workload.container_can_connect:
@@ -199,6 +199,11 @@ class ZooKeeperCharm(CharmBase):
         # not all methods called
         if not self.state.peer_relation:
             self._set_status(Status.NO_PEER_RELATION)
+            return
+
+        if self.state.cluster.is_restore_in_progress:
+            # Ongoing backup restore, we can early return here since the
+            # chain of events is only relevant to the backup event handler
             return
 
         # don't want to prematurely set config using outdated/missing relation data
@@ -354,6 +359,7 @@ class ZooKeeperCharm(CharmBase):
         logger.debug("setting properties and jaas")
         self.config_manager.set_zookeeper_properties()
         self.config_manager.set_jaas_config()
+        self.config_manager.set_client_jaas_config()
 
         # during pod-reschedules (e.g upgrades or otherwise) we lose all files
         # need to manually add-back key/truststores
@@ -437,6 +443,14 @@ class ZooKeeperCharm(CharmBase):
                 logger.info(f"ZooKeeper cluster switching to {self.state.cluster.quorum} quorum")
 
         self.update_client_data()
+
+    def disconnect_clients(self) -> None:
+        """Remove a necessary part of the client databag, acting as a logical disconnect."""
+        if not self.unit.is_leader():
+            return
+
+        for client in self.state.clients:
+            client.update({"endpoints": ""})
 
     def update_client_data(self) -> None:
         """Writes necessary relation data to all related applications."""

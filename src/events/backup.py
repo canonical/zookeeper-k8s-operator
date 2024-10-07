@@ -12,10 +12,14 @@ from charms.data_platform_libs.v0.s3 import (
     CredentialsGoneEvent,
     S3Requirer,
 )
-from ops import ActionEvent
+from ops import (
+    ActionEvent,
+    RelationEvent,
+)
 from ops.framework import Object
+from tenacity import retry, retry_if_result, stop_after_attempt, wait_fixed
 
-from core.stubs import S3ConnectionInfo
+from core.stubs import RestoreStep, S3ConnectionInfo
 from literals import S3_BACKUPS_PATH, S3_REL_NAME, Status
 from managers.backup import BackupManager
 
@@ -41,7 +45,11 @@ class BackupEvents(Object):
 
         self.framework.observe(self.charm.on.create_backup_action, self._on_create_backup_action)
         self.framework.observe(self.charm.on.list_backups_action, self._on_list_backups_action)
-        # self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
+        self.framework.observe(self.charm.on.restore_action, self._on_restore_action)
+
+        self.framework.observe(
+            getattr(self.charm.on, "cluster_relation_changed"), self._restore_event_dispatch
+        )
 
     def _on_s3_credentials_changed(self, event: CredentialsChangedEvent):
         if not self.charm.unit.is_leader():
@@ -137,6 +145,127 @@ class BackupEvents(Object):
         event.log(output)
         event.set_results({"backups": json.dumps(backups_metadata)})
 
-    def _on_restore_action(self, _):
-        # TODO
-        pass
+    def _on_restore_action(self, event: ActionEvent):
+        """Restore a snapshot referenced by its id.
+
+        Steps:
+        - stop client traffic
+        - stop all units
+        - backup local state so that we can rollback if anything goes wrong (manual op)
+        - wipe data folders
+        - get snapshot from object storage, save in data folder
+        - restart units
+        - cleanup leftover files
+        - notify clients
+        """
+        id_to_restore = event.params.get("backup-id", "")
+        failure_conditions = [
+            (
+                lambda: not self.charm.unit.is_leader(),
+                "Action must be ran on the application leader",
+            ),
+            (
+                lambda: not self.charm.state.cluster.s3_credentials,
+                "Cluster needs an access to an object storage to make a backup",
+            ),
+            (
+                lambda: not id_to_restore,
+                "No backup id to restore provided",
+            ),
+            (
+                lambda: not self.backup_manager.is_snapshot_in_bucket(id_to_restore),
+                "Backup id not found in storage object",
+            ),
+            (
+                lambda: bool(self.charm.state.cluster.is_restore_in_progress),
+                "A snapshot restore is currently ongoing",
+            ),
+        ]
+
+        for check, msg in failure_conditions:
+            if check():
+                logging.error(msg)
+                event.set_results({"error": msg})
+                event.fail(msg)
+                return
+
+        self.charm.state.cluster.update(
+            {
+                "id-to-restore": id_to_restore,
+                "restore-instruction": RestoreStep.NOT_STARTED.value,
+            }
+        )
+        self.charm.disconnect_clients()
+
+        event.log(f"Beginning restore flow for snapshot {id_to_restore}")
+
+    def _restore_event_dispatch(self, event: RelationEvent):
+        """Dispatch restore event to the proper method."""
+        if not self.charm.state.cluster.is_restore_in_progress:
+            if self.charm.state.unit_server.restore_progress is not RestoreStep.NOT_STARTED:
+                self.charm.state.unit_server.update(
+                    {"restore-progress": RestoreStep.NOT_STARTED.value}
+                )
+                self.charm._set_status(self.charm.state.ready)
+            return
+
+        if self.charm.unit.is_leader():
+            self._maybe_progress_step()
+
+        match self.charm.state.cluster.restore_instruction, self.charm.state.unit_server.restore_progress:
+            case RestoreStep.STOP_WORKFLOW, RestoreStep.NOT_STARTED:
+                self._stop_workflow()
+            case RestoreStep.RESTORE, RestoreStep.STOP_WORKFLOW:
+                self._download_and_restore()
+            case RestoreStep.RESTART, RestoreStep.RESTORE:
+                self._restart_workflow()
+            case RestoreStep.CLEAN, RestoreStep.RESTART:
+                self._cleaning()
+            case _:
+                pass
+
+    def _maybe_progress_step(self):
+        """Check that all units are done with the current instruction and move to the next if applicable."""
+        current_instruction = self.charm.state.cluster.restore_instruction
+        next_instruction = current_instruction.next_step()
+
+        if self.charm.state.is_next_restore_step_possible:
+            payload = {"restore-instruction": next_instruction.value}
+            if current_instruction is RestoreStep.CLEAN:
+                payload = payload | {"id-to-restore": "", "to_restore": ""}
+                # Update ACLs for already related clients and trigger a relation-changed
+                # on their side to enable them to reconnect.
+                self.charm.update_client_data()
+                self.charm.quorum_manager.update_acls()
+
+            self.charm.state.cluster.update(payload)
+
+    def _stop_workflow(self) -> None:
+        self.charm._set_status(Status.ONGOING_RESTORE)
+        logger.info("Restoring - stopping workflow")
+        self.charm.workload.stop()
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.STOP_WORKFLOW.value})
+
+    def _download_and_restore(self) -> None:
+        logger.info("Restoring - restore snapshot")
+        self.backup_manager.restore_snapshot(
+            self.charm.state.cluster.id_to_restore, self.charm.workload
+        )
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.RESTORE.value})
+
+    def _restart_workflow(self) -> None:
+        logger.info("Restoring - restarting workflow")
+        self.charm.workload.restart()
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.RESTART.value})
+
+    @retry(
+        wait=wait_fixed(5),
+        stop=stop_after_attempt(3),
+        retry=retry_if_result(lambda res: res is False),
+    )
+    def _cleaning(self) -> bool | None:
+        if not self.charm.workload.healthy:
+            return False
+        logger.info("Restoring - cleaning files")
+        self.backup_manager.cleanup_leftover_files(self.charm.workload)
+        self.charm.state.unit_server.update({"restore-progress": RestoreStep.CLEAN.value})

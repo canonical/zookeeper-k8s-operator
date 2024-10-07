@@ -10,11 +10,12 @@ from datetime import datetime
 from io import BytesIO, StringIO
 from itertools import islice
 from operator import attrgetter
+from pathlib import Path
 
 import boto3
 import httpx
 import yaml
-from botocore import loaders, regions
+from botocore import config, loaders, regions
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.service_resource import Bucket
 from rich.console import Console
@@ -22,7 +23,8 @@ from rich.table import Table
 
 from core.cluster import ClusterState
 from core.stubs import BackupMetadata, S3ConnectionInfo
-from literals import ADMIN_SERVER_PORT, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH
+from literals import ADMIN_SERVER_PORT, PATHS, S3_BACKUPS_LIMIT, S3_BACKUPS_PATH, USER
+from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,7 @@ class BackupManager:
             aws_secret_access_key=s3_parameters["secret-key"],
             region_name=s3_parameters["region"] if s3_parameters["region"] else None,
             endpoint_url=self._construct_endpoint(s3_parameters),
+            config=config.Config(retries={"mode": "standard", "max_attempts": 3}),
         )
         return s3.Bucket(s3_parameters["bucket"])
 
@@ -175,6 +178,50 @@ class BackupManager:
         console.print(table)
 
         return out_f.getvalue()
+
+    def is_snapshot_in_bucket(self, backup_id: str) -> bool:
+        """Check whether the requested snapshot to restore is in the object storage."""
+        try:
+            content = self.bucket.meta.client.head_object(
+                Bucket=self.bucket.name, Key=os.path.join(self.backups_path, backup_id, "snapshot")
+            )
+        except ClientError as ex:
+            if "(404)" in ex.args[0]:
+                return False
+            raise
+        return bool(content.get("ResponseMetadata", None))
+
+    def restore_snapshot(self, backup_id: str, workload: ZKWorkload) -> None:
+        """Download and restore a snapshot.
+
+        Restoring requires removing the previous files on disk. In this step, we move them to a backup folder,
+        so that we can manually restore them if something goes wrong.
+        """
+        data_dir = Path(PATHS["DATA"]) / "data" / "version-2"
+        data_log_dir = Path(PATHS["DATA"]) / "data-log" / "version-2"
+
+        workload.exec(["bash", "-c", f"cp -rp {data_dir} {data_dir.parent / 'version-2.bak'}"])
+        workload.exec(
+            ["bash", "-c", f"cp -rp {data_log_dir} {data_log_dir.parent / 'version-2.bak'}"]
+        )
+
+        workload.exec(["bash", "-c", f"rm -rf {data_dir / '*'}"])
+        workload.exec(["bash", "-c", f"rm -rf {data_log_dir / '*'}"])
+
+        restored_snapshot = data_dir / "snapshot.0"
+        self.bucket.Object(os.path.join(self.backups_path, backup_id, "snapshot")).download_file(
+            f"{restored_snapshot}"
+        )
+
+        workload.exec(["bash", "-c", f"chown {USER}:{USER} {restored_snapshot}"])
+
+    def cleanup_leftover_files(self, workload: ZKWorkload) -> None:
+        """Cleanup the files previously stored in the data and data-log directories."""
+        data_dir = Path(PATHS["DATA"]) / "data" / "version-2.bak"
+        data_log_dir = Path(PATHS["DATA"]) / "data-log" / "version-2.bak"
+
+        workload.exec(["bash", "-c", f"rm -rf {data_dir}"])
+        workload.exec(["bash", "-c", f"rm -rf {data_log_dir}"])
 
 
 class _StreamingToFileSyncAdapter:

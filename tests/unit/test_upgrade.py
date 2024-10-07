@@ -174,6 +174,7 @@ def test_run_password_rotation_while_upgrading(harness, mocker, upgrade_stack):
         mocker.patch.object(ConfigManager, "set_zookeeper_dynamic_properties"),
         mocker.patch.object(ConfigManager, "set_zookeeper_properties"),
         mocker.patch.object(ConfigManager, "set_jaas_config"),
+        mocker.patch.object(ConfigManager, "set_client_jaas_config"),
         patch("charm.ZooKeeperCharm.update_quorum"),
     ):
         harness.charm.password_action_events._set_password_action(mock_event)

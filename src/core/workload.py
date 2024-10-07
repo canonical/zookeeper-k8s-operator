@@ -58,6 +58,14 @@ class ZKPaths:
         return f"{self.conf_path}/zookeeper-jaas.cfg"
 
     @property
+    def client_jaas(self) -> str:
+        """The client-jaas.cfg filepath.
+
+        Contains internal user credentials used in SASL auth.
+        """
+        return f"{self.conf_path}/client-jaas.cfg"
+
+    @property
     def jmx_prometheus_javaagent(self) -> str:
         """The JMX exporter JAR filepath.
 

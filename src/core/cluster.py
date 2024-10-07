@@ -354,6 +354,9 @@ class ClusterState(Object):
         if self.stale_quorum:
             return Status.STALE_QUORUM
 
+        if self.cluster.is_restore_in_progress:
+            return Status.ONGOING_RESTORE
+
         if not self.all_servers_added:
             return Status.NOT_ALL_ADDED
 
@@ -372,3 +375,9 @@ class ClusterState(Object):
             return Status.ALL_UNIFIED
 
         return self.stable
+
+    @property
+    def is_next_restore_step_possible(self) -> bool:
+        """Are all units done with the current restore instruction?"""
+        current_instruction = self.cluster.restore_instruction
+        return all((unit.restore_progress is current_instruction for unit in self.servers))
