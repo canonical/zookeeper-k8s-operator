@@ -10,8 +10,8 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
+from ops.testing import ActionFailed
 from scenario import Container, Context, PeerRelation, Relation, State
-from scenario.state import ActionFailed
 
 from charm import ZooKeeperCharm
 from literals import (
