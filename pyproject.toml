@@ -32,7 +32,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
-ops = "^2.4.1"
+ops = "^2.17.0"
 kazoo = ">=2.8.0,<2.10.0"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
@@ -49,6 +49,18 @@ boto3 = "^1.34.159"
 boto3-stubs = {extras = ["s3"], version = "^1.35.8"}
 httpx = "^0.27.2"
 rich = "^13.8.1"
+
+[tool.poetry.group.charm-libs.dependencies]
+# data_platform_libs/v0/data_interfaces.py
+ops = ">=2.0.0"
+# data_platform_libs/v0/upgrade.py
+# grafana_agent/v0/cos_agent.py requires pydantic <2
+poetry-core = "*"
+pydantic = "^1.10, <2"
+# tls_certificates_interface/v1/tls_certificates.py
+# tls_certificates lib uses a feature only available in cryptography >=42.0.5
+cryptography = ">=42.0.5"
+jsonschema = "*"
 
 [tool.poetry.group.fmt]
 optional = true
@@ -89,10 +101,10 @@ pytest-operator = ">0.20"
 requests = ">2.25"
 kazoo = ">=2.8"
 jsonschema = ">=4.10"
-pytest-operator-cache = { git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/pytest_operator_cache" }
+pytest-operator-cache = { git = "https://github.com/canonical/data-platform-workflows", tag = "v22.0.0", subdirectory = "python/pytest_plugins/pytest_operator_cache" }
 # To be enabled if we are using groups on integration tests
 # pytest-operator-groups = {git = "https://github.com/canonical/data-platform-workflows", tag = "v6.1.1", subdirectory = "python/pytest_plugins/pytest_operator_groups"}
-pytest-microceph = { git = "https://github.com/canonical/data-platform-workflows", tag = "v20.0.2", subdirectory = "python/pytest_plugins/microceph" }
+pytest-microceph = { git = "https://github.com/canonical/data-platform-workflows", tag = "v22.0.0", subdirectory = "python/pytest_plugins/microceph" }
 
 [tool.poetry.group.format.dependencies]
 pyright = "^1.1.301"
