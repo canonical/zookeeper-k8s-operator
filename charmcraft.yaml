@@ -4,14 +4,22 @@
 type: charm
 parts:
   charm:
+    build-snaps:
+      - rustup
     charm-binary-python-packages:
       - setuptools
     build-packages:
       - pkg-config
       - libffi-dev
       - libssl-dev
-      - rustc
-      - cargo
+    override-build: |
+      rustup default stable
+      # Convert subset of uv.lock to requirements.txt
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      /root/.cargo/bin/uv export --extra charm-libs --output-file requirements.txt --frozen
+
+      craftctl default
+    charm-requirements: [requirements.txt]
 bases:
   - build-on:
       - name: "ubuntu"
