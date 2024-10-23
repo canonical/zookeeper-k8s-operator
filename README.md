@@ -8,7 +8,7 @@ Proof of concept:
   - [x] Workflow dependencies
   - [ ] Development dependencies with groups
 - [x] Task runner with tox
-- [.] Build (not yet working with strict deps)
+- [x] Build (not yet working with strict deps)
 - [ ] CI
 
 ## uv integration with standard tooling and common operations
