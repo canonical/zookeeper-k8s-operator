@@ -36,6 +36,7 @@ charm-libs = [
   "cryptography >=42.0.5",
   "jsonschema",
 ]
+other = ["textual==0.83"]  # Just to demonstrate renovate with extras
 
 [tool.uv]
 # FIXME: wait for PEP 735 to land

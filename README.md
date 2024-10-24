@@ -7,6 +7,7 @@ Proof of concept:
   - [x] Charm-lib
   - [x] Workflow dependencies
   - [ ] Development dependencies with groups
+  - [x] Renovate rule for charm-libs
 - [x] Task runner with tox
 - [x] Build (not yet working with strict deps)
 - [ ] CI
@@ -80,3 +81,13 @@ lint = [
 ```
 
 Note that the constraint syntax is not the same. In particular: ~ and ~= do not mean the same for [poetry](https://python-poetry.org/docs/dependency-specification/#tilde-requirements) and [uv](https://docs.astral.sh/uv/concepts/dependencies/#pep-508).
+
+## Renovate
+
+Make sure you have a local `renovate` (minimum 38.114.0 to get the new "matchJsonata" rule).
+
+```shell
+RENOVATE_CONFIG_FILE=./renovate.json5 LOG_LEVEL=debug renovate --plaform=local --onboarding=false
+```
+
+Then, you can assert that the charm-libs dependencies are properly matched and disabled according to our rules.
