@@ -13,8 +13,6 @@ The ZooKeeper K8s Operator can be found on [Charmhub](https://charmhub.io/zookee
 - Server-Server and Client-Server authentication both enabled by default
 - Access control management supported with user-provided ACL lists.
 
-The ZooKeeper K8s Operator uses the latest upstream ZooKeeper binaries released by The Apache Software Foundation, made available using the [`dataplatformoci/zookeeper` OCI image](https://registry.hub.docker.com/r/dataplatformoci/zookeeper) distributed by Canonical.
-
 Apache ZooKeeper is a free, open source software project by the Apache Software Foundation. Users can find out more at the [ZooKeeper project page](https://zookeeper.apache.org/).
 
 ## Requirements
