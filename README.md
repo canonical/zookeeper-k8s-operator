@@ -10,7 +10,7 @@ Proof of concept:
   - [x] Renovate rule for charm-libs
 - [x] Task runner with tox
 - [x] Build (not yet working with strict deps)
-- [ ] CI
+- [x] CI
 
 ## uv integration with standard tooling and common operations
 

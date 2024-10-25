@@ -42,9 +42,10 @@ jobs:
       - name: Run tests
         run: tox run -e unit
 
-  # build:
-  #   name: Build charms
-  #   uses: canonical/data-platform-workflows/.github/workflows/build_charm.yaml@v22.0.0
+  build:
+    name: Build charms
+    uses: canonical/data-platform-workflows/.github/workflows/build_charm.yaml@v22.0.0
+
   #   with:
   #     cache: true
   #     path-to-charm-directory: ${{ matrix.path }}
