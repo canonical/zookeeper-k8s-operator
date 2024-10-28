@@ -1056,8 +1056,8 @@ other = [
     { name = "textual" },
 ]
 
-[package.dev-dependencies]
-dev = [
+[package.dependency-groups]
+dev-dependencies = [
     { name = "black" },
     { name = "codespell" },
     { name = "coverage", extra = ["toml"] },
@@ -1068,6 +1068,16 @@ dev = [
     { name = "pytest-microceph" },
     { name = "pytest-mock" },
     { name = "pytest-operator-cache" },
+    { name = "ruff" },
+]
+format = [
+    { name = "black" },
+    { name = "ruff" },
+]
+lint = [
+    { name = "black" },
+    { name = "codespell" },
+    { name = "pyright" },
     { name = "ruff" },
 ]
 
@@ -1097,8 +1107,8 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.9.0" },
 ]
 
-[package.metadata.requires-dev]
-dev = [
+[package.metadata.dependency-groups]
+dev-dependencies = [
     { name = "black", specifier = ">=22.3.0,<23.0.0" },
     { name = "codespell", specifier = ">=2.3.0" },
     { name = "coverage", extras = ["toml"], specifier = ">=7.0" },
@@ -1109,5 +1119,15 @@ dev = [
     { name = "pytest-microceph", git = "https://github.com/canonical/data-platform-workflows?subdirectory=python%2Fpytest_plugins%2Fmicroceph&tag=v22.0.0" },
     { name = "pytest-mock", specifier = ">=3.11.1" },
     { name = "pytest-operator-cache", git = "https://github.com/canonical/data-platform-workflows?subdirectory=python%2Fpytest_plugins%2Fpytest_operator_cache&tag=v22.0.0" },
+    { name = "ruff", specifier = ">=0.7.0" },
+]
+format = [
+    { name = "black", specifier = ">=22.3.0,<23.0.0" },
+    { name = "ruff", specifier = ">=0.7.0" },
+]
+lint = [
+    { name = "black", specifier = ">=22.3.0,<23.0.0" },
+    { name = "codespell", specifier = ">=2.3.0" },
+    { name = "pyright", specifier = ">=1.1.318" },
     { name = "ruff", specifier = ">=0.7.0" },
 ]

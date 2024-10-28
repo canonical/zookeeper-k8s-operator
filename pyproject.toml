@@ -39,8 +39,17 @@ charm-libs = [
 ]
 other = ["textual==0.83"]  # Just to demonstrate renovate with extras
 
-[tool.uv]
-# FIXME: wait for PEP 735 to land
+[dependency-groups]
+format = [
+   "black >=22.3.0,<23.0.0",
+  "ruff >= 0.7.0",
+]
+lint = [
+  "black >=22.3.0,<23.0.0",
+  "ruff >= 0.7.0",
+  "codespell>=2.3.0",
+  "pyright >=1.1.318",
+]
 dev-dependencies = [
   # format + lint
   "black >=22.3.0,<23.0.0",

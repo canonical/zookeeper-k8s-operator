@@ -27,4 +27,5 @@
       "rangeStrategy": "bump",
       "groupName": "Python dependencies"
     },
+    ]
 }
