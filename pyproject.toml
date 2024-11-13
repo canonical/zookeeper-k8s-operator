@@ -44,7 +44,7 @@ jsonschema = ">=4.10"
 lightkube = "^0.15.0"
 typing-extensions = "^4.9.0"
 boto3 = "^1.34.159"
-boto3-stubs = {extras = ["s3"], version = "^1.35.8"}
+boto3-stubs = { extras = ["s3"], version = "^1.35.8" }
 httpx = "^0.27.2"
 rich = "^13.8.1"
 
@@ -94,6 +94,8 @@ pytest = ">=7.2"
 # FIXME (libjuju): Unpin once GH#1093 is fixed
 # (impossible to parse storage constraints)
 juju = "^3.2.0,<3.5.2"
+# FIXME (libjuju): Once we have libjuju 3.5.2.1
+websockets = "<14.0"
 coverage = { extras = ["toml"], version = ">7.0" }
 pytest-operator = ">0.20"
 requests = ">2.25"
