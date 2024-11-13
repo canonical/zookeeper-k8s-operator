@@ -36,8 +36,6 @@ ops = "^2.17.0"
 kazoo = ">=2.8.0,<2.10.0"
 tenacity = ">=8.0.1"
 pure-sasl = ">=0.6.2"
-# FIXME: Unpin once rustc 1.76 is available at build time
-rpds-py = "<0.19"
 cryptography = ">42.0.0"
 cosl = ">=0.0.5"
 pydantic = "^1.10.7"
@@ -86,7 +84,7 @@ pytest = ">=7.2"
 coverage = { extras = ["toml"], version = ">7.0" }
 jsonschema = ">=4.10"
 pytest-mock = "^3.11.1"
-ops-scenario = "^7.0.0"
+ops = { extras = ["testing"], version = "^2.17.0" }
 
 [tool.poetry.group.integration]
 optional = true
