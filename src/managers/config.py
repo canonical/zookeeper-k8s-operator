@@ -33,7 +33,7 @@ enforce.auth.enabled=true
 enforce.auth.schemes=sasl
 sessionRequireClientSASLAuth=true
 audit.enable=true
-admin.serverAddress=localhost
+admin.serverAddress=127.0.0.1
 """
 
 TLS_PROPERTIES = """
