@@ -2,313 +2,478 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import dataclasses
 import logging
 import re
 from pathlib import Path
+from typing import cast
+from unittest.mock import patch
 
 import pytest
 import yaml
-from ops.testing import Harness
+from ops.testing import Container, Context, PeerRelation, State
 
 from charm import ZooKeeperCharm
-from literals import CHARM_KEY, PEER
+from literals import CONTAINER, PEER, SUBSTRATE
 
 logger = logging.getLogger(__name__)
 
-CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
-ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
-METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
+CONFIG = yaml.safe_load(Path("./config.yaml").read_text())
+ACTIONS = yaml.safe_load(Path("./actions.yaml").read_text())
+METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 
 
-@pytest.fixture
-def harness():
-    harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
-    harness.add_relation("restart", CHARM_KEY)
-    peer_rel_id = harness.add_relation(PEER, CHARM_KEY)
-    harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
-    harness.update_relation_data(
-        peer_rel_id, f"{CHARM_KEY}/0", {"ip": "123", "hostname": "treebeard"}
+@pytest.fixture()
+def base_state():
+
+    if SUBSTRATE == "k8s":
+        state = State(leader=True, containers=[Container(name=CONTAINER, can_connect=True)])
+
+    else:
+        state = State(leader=True)
+
+    return state
+
+
+@pytest.fixture()
+def ctx() -> Context:
+    ctx = Context(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS, unit_id=0)
+    return ctx
+
+
+def test_servers_contains_unit(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER, peers_data={1: {}})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert len(charm.state.servers) == 2
+
+
+def test_client_port_changes_for_tls(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER, peers_data={1: {}})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        current_port = charm.state.client_port
+
+    cluster_peer = dataclasses.replace(cluster_peer, local_app_data={"tls": "enabled"})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.client_port != current_port
+
+
+def test_started_units_ignores_ready_units(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        peers_data={
+            1: {"state": "ready"},
+            2: {"state": "started"},
+            3: {"state": "started"},
+        },
     )
-    harness.begin()
-    return harness
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
 
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
 
-def test_servers_contains_unit(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
+        # Then
+        assert len(charm.state.started_servers) == 2
 
-    assert len(harness.charm.state.servers) == 2
 
+def test_all_units_related_fails_new_units(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER, local_unit_data={}, peers_data={})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
 
-def test_client_port_changes_for_tls(harness):
-    current_port = harness.charm.state.client_port
+    # When
+    with patch("workload.ZKWorkload.write"), ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
 
-    with harness.hooks_disabled():
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"tls": "enabled"}
-        )
+        # Then
+        assert charm.state.all_units_related
 
-    assert harness.charm.state.client_port != current_port
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
 
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
 
-def test_started_units_ignores_ready_units(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1", {"state": "ready"}
-        )
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2", {"state": "started"}
-        )
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/3")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/3", {"state": "started"}
-        )
+        # Then
+        assert not charm.state.all_units_related
 
-    assert len(harness.charm.state.started_servers) == 2
 
+def test_all_servers_added_fails(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER, local_app_data={"0": "added"}, peers_data={})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
 
-def test_all_units_related_fails_new_units(harness):
-    harness.set_planned_units(1)
-    assert harness.charm.state.all_units_related
+    # When
+    with patch("workload.ZKWorkload.write"), ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
 
-    harness.set_planned_units(2)
-    assert not harness.charm.state.all_units_related
+        # Then
+        assert charm.state.all_servers_added
 
+    cluster_peer = PeerRelation(
+        PEER, PEER, local_app_data={"0": "added"}, local_unit_data={}, peers_data={1: {}}
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
 
-def test_all_servers_added_fails(harness):
-    with harness.hooks_disabled():
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"0": "added"}
-        )
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
 
-    assert harness.charm.state.all_servers_added
+        # Then
+        assert not charm.state.all_servers_added
 
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
 
-    assert not harness.charm.state.all_servers_added
+def test_lowest_unit_id_returns_none(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER, peers_data={1: {}, 2: {}})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=4)
 
+    # When
+    with ctx(ctx.on.relation_changed(cluster_peer), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        state_out = manager.run()
 
-def test_lowest_unit_id_returns_none(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")
+        # Then
+        assert charm.state.lowest_unit_id == None  # noqa: E711
 
-    harness.set_planned_units(4)
+    state_in = dataclasses.replace(state_out, relations=[cluster_peer], planned_units=3)
 
-    assert harness.charm.state.lowest_unit_id == None  # noqa: E711
+    # When
+    with ctx(ctx.on.relation_changed(cluster_peer), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        manager.run()
 
-    harness.set_planned_units(3)
+        # Then
+        assert charm.state.lowest_unit_id == 0
 
-    assert harness.charm.state.lowest_unit_id == 0
 
+def test_init_leader(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={},
+        local_unit_data={},
+        peers_data={1: {}, 2: {}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=3)
 
-def test_init_leader(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")
+    # When
+    with ctx(ctx.on.relation_changed(cluster_peer), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        state_out = manager.run()
 
-    harness.set_planned_units(3)
+        # Then
+        assert charm.state.init_leader.unit_id == 0
 
-    assert harness.charm.state.init_leader.unit_id == 0
-
-    with harness.hooks_disabled():
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"0": "added"}
-        )
-
-    assert harness.charm.state.init_leader == None  # noqa: E711
-
-
-def test_next_server_succeeds_scaleup(harness):
-    with harness.hooks_disabled():
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}",
-            {"0": "added"},
-        )
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-
-    harness.set_planned_units(2)
-    assert harness.charm.state.next_server.unit_id == 1
-
-
-def test_next_server_succeeds_failover(harness):
-    with harness.hooks_disabled():
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}",
-            {"0": "added", "1": "added", "2": "added", "3": "added"},
-        )
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/3")
-
-    harness.set_planned_units(4)
-    assert harness.charm.state.next_server.unit_id == 0
-
-
-def test_next_server_fails_failover(harness):
-    with harness.hooks_disabled():
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}",
-            {"0": "added", "1": "added", "2": "added", "3": "added"},
-        )
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/3")
-
-    harness.set_planned_units(4)
-    assert not harness.charm.state.next_server.unit_id == 3
-
-
-def test_startup_servers_defaults_to_init_leader(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.set_planned_units(2)
-
-    assert harness.charm.state.startup_servers
-    assert "participant" in harness.charm.state.startup_servers
-
-
-def test_startup_servers_succeeds_failover_after_init(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/2")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}",
-            {"0": "added", "1": "added"},
-        )
-        harness.set_planned_units(3)
-
-    assert len(re.findall("participant", harness.charm.state.startup_servers)) == 2
-    assert len(re.findall("observer", harness.charm.state.startup_servers)) == 1
-
-
-def test_stale_quorum_not_all_related(harness):
-    assert harness.charm.state.stale_quorum
-
-
-def test_stale_quorum_unit_departed(harness):
-    with harness.hooks_disabled():
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"0": "added", "1": "removed"}
-        )
-
-    assert not harness.charm.state.stale_quorum
-
-
-def test_stale_quorum_new_unit(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.set_planned_units(2)
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"0": "added", "1": ""}
-        )
-
-    assert harness.charm.state.stale_quorum
-
-
-def test_stale_quorum_all_added(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.set_planned_units(2)
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"0": "added", "1": "added"}
-        )
-
-    assert not harness.charm.state.stale_quorum
-
-
-def test_all_rotated_fails(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
-        )
-
-    assert not harness.charm.state.all_rotated
-
-
-def test_all_rotated_succeeds(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1", {"password-rotated": "true"}
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"password-rotated": "true"}
-        )
-
-    assert harness.charm.state.all_rotated
-
-
-def test_all_units_unified_fails(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"state": "started"}
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}/1",
-            {"unified": "true", "state": "started"},
-        )
-
-    assert not harness.charm.state.all_units_unified
-
-
-def test_all_units_unified_succeeds(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}/0",
-            {"unified": "true", "state": "started"},
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id,
-            f"{CHARM_KEY}/1",
-            {"unified": "true", "state": "started"},
-        )
-
-    assert harness.charm.state.all_units_unified
-
-
-def test_all_units_quorum_fails_wrong_quorum(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"quorum": "non-ssl"}
-        )
-
-        assert not harness.charm.state.all_units_quorum
-
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"quorum": "ssl"}
-        )
-
-        assert not harness.charm.state.all_units_quorum
-
-
-def test_all_units_quorum_succeeds(harness):
-    with harness.hooks_disabled():
-        harness.add_relation_unit(harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1")
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, CHARM_KEY, {"quorum": "ssl"}
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/1", {"quorum": "ssl"}
-        )
-        harness.update_relation_data(
-            harness.charm.state.peer_relation.id, f"{CHARM_KEY}/0", {"quorum": "ssl"}
-        )
-
-    assert harness.charm.state.all_units_quorum
+    cluster_peer = dataclasses.replace(cluster_peer, local_app_data={"0": "added"})
+    state_in = dataclasses.replace(state_out, relations=[cluster_peer])
+
+    # When
+    with ctx(ctx.on.relation_changed(cluster_peer), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.init_leader == None  # noqa: E711
+
+
+def test_next_server_succeeds_scaleup(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER, local_app_data={"0": "added"}, peers_data={1: {}})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with ctx(ctx.on.relation_changed(cluster_peer), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        manager.run()
+
+        # Then
+        assert charm.state.next_server.unit_id == 1
+
+
+def test_next_server_succeeds_failover(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={"0": "added", "1": "added", "2": "added", "3": "added"},
+        local_unit_data={},
+        peers_data={1: {}, 2: {}, 3: {}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=4)
+
+    # When
+    with ctx(ctx.on.relation_changed(cluster_peer), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        manager.run()
+
+        # Then
+        assert charm.state.next_server.unit_id == 0
+
+
+def test_next_server_fails_failover(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={"0": "added", "1": "added", "2": "added", "3": "added"},
+        local_unit_data={},
+        peers_data={1: {}, 2: {}, 3: {}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=4)
+
+    # When
+    with ctx(ctx.on.relation_changed(cluster_peer), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        manager.run()
+
+        # Then
+        assert not charm.state.next_server.unit_id == 3
+
+
+def test_startup_servers_defaults_to_init_leader(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER, PEER, local_app_data={}, local_unit_data={}, peers_data={1: {}}
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.startup_servers
+        assert "participant" in charm.state.startup_servers
+
+
+def test_startup_servers_succeeds_failover_after_init(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={"0": "added", "1": "added"},
+        local_unit_data={},
+        peers_data={1: {}, 2: {}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=3)
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+
+        assert len(re.findall("participant", charm.state.startup_servers)) == 2
+        assert len(re.findall("observer", charm.state.startup_servers)) == 1
+
+
+def test_stale_quorum_not_all_related(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER, local_app_data={}, local_unit_data={}, peers_data={})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    # When
+    with patch("workload.ZKWorkload.write"), ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.stale_quorum
+
+
+def test_stale_quorum_unit_departed(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={"0": "added", "1": "removed"},
+        local_unit_data={},
+        peers_data={},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    # When
+    with patch("workload.ZKWorkload.write"), ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert not charm.state.stale_quorum
+
+
+def test_stale_quorum_new_unit(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={"0": "added", "1": ""},
+        local_unit_data={},
+        peers_data={1: {}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.stale_quorum
+
+
+def test_stale_quorum_all_added(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={"0": "added", "1": "added"},
+        local_unit_data={},
+        peers_data={1: {}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert not charm.state.stale_quorum
+
+
+def test_all_rotated_fails(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={},
+        local_unit_data={"password-rotated": "true"},
+        peers_data={1: {}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert not charm.state.all_rotated
+
+
+def test_all_rotated_succeeds(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={},
+        local_unit_data={"password-rotated": "true"},
+        peers_data={1: {"password-rotated": "true"}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.all_rotated
+
+
+def test_all_units_unified_fails(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={},
+        local_unit_data={"state": "started"},
+        peers_data={1: {"unified": "true", "state": "started"}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert not charm.state.all_units_unified
+
+
+def test_all_units_unified_succeeds(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={},
+        local_unit_data={"unified": "true", "state": "started"},
+        peers_data={1: {"unified": "true", "state": "started"}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.all_units_unified
+
+
+def test_all_units_quorum_fails_wrong_quorum(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_unit_data={"quorum": "non-ssl"},
+        peers_data={1: {"quorum": "ssl"}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with patch("workload.ZKWorkload.write"), ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert not charm.state.all_units_quorum
+
+    cluster_peer = dataclasses.replace(cluster_peer, local_app_data={"quorum": "ssl"})
+    state_in = dataclasses.replace(state_in, relations=[cluster_peer])
+
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert not charm.state.all_units_quorum
+
+
+def test_all_units_quorum_succeeds(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        local_app_data={"quorum": "ssl"},
+        local_unit_data={"quorum": "ssl"},
+        peers_data={1: {"quorum": "ssl"}},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer], planned_units=2)
+
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.state.all_units_quorum

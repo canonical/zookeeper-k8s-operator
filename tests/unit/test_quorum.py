@@ -2,37 +2,47 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import dataclasses
 import logging
 from pathlib import Path
+from typing import cast
 from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
 import yaml
-from ops.testing import Harness
+from ops.testing import Container, Context, PeerRelation, Relation, State
 
 from charm import ZooKeeperCharm
-from literals import CHARM_KEY, PEER, REL_NAME
+from literals import CONTAINER, PEER, REL_NAME, SUBSTRATE
 
 logger = logging.getLogger(__name__)
 
-CONFIG = str(yaml.safe_load(Path("./config.yaml").read_text()))
-ACTIONS = str(yaml.safe_load(Path("./actions.yaml").read_text()))
-METADATA = str(yaml.safe_load(Path("./metadata.yaml").read_text()))
+CONFIG = yaml.safe_load(Path("./config.yaml").read_text())
+ACTIONS = yaml.safe_load(Path("./actions.yaml").read_text())
+METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 
 
-@pytest.fixture
-def harness():
-    harness = Harness(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS)
-    upgrade_rel_id = harness.add_relation("upgrade", CHARM_KEY)
-    harness.add_relation("restart", CHARM_KEY)
-    harness.update_relation_data(upgrade_rel_id, f"{CHARM_KEY}/0", {"state": "idle"})
-    harness.add_relation(PEER, CHARM_KEY)
-    harness._update_config({"init-limit": 5, "sync-limit": 2, "tick-time": 2000})
-    harness.begin()
-    return harness
+@pytest.fixture()
+def base_state():
+
+    if SUBSTRATE == "k8s":
+        state = State(leader=True, containers=[Container(name=CONTAINER, can_connect=True)])
+
+    else:
+        state = State(leader=True)
+
+    return state
 
 
-def test_get_updated_servers(harness):
+@pytest.fixture()
+def ctx() -> Context:
+    ctx = Context(ZooKeeperCharm, meta=METADATA, config=CONFIG, actions=ACTIONS, unit_id=0)
+    return ctx
+
+
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="Explicit removal not possible on vm")
+def test_get_updated_servers_explicit_removal(ctx: Context, base_state: State) -> None:
+    # Given
     added_servers = [
         "server.2=gandalf.the.grey",
     ]
@@ -40,45 +50,99 @@ def test_get_updated_servers(harness):
         "server.2=gandalf.the.grey",
         "server.3=in.a.hole.in.the.ground.there.lived.a:hobbit",
     ]
-    updated_servers = harness.charm.quorum_manager._get_updated_servers(
-        add=added_servers, remove=removed_servers
-    )
+    state_in = base_state
 
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        updated_servers = charm.quorum_manager._get_updated_servers(
+            add=added_servers, remove=removed_servers
+        )
+
+    # Then
     assert updated_servers == {"2": "removed", "1": "added"}
 
 
-def test_is_child_of(harness):
+@pytest.mark.skipif(SUBSTRATE == "k8s", reason="Implicit removal only on vm")
+def test_get_updated_servers_implicit_removal(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(
+        PEER, PEER, local_app_data={"0": "added", "3": "removed", "4": "added"}
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+    added_servers = [
+        "server.2=gandalf.the.grey",
+    ]
+
+    # When
+    with ctx(ctx.on.config_changed(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        # at this stage, we have only 1 peer unit-0, and have 'lost' unit-4, which was 'added' but not yet removed
+        # we add unit-1 below, and expect the leader to set unit-1 to 'added', and unit-4 to 'removed'
+
+        updated_servers = charm.quorum_manager._get_updated_servers(add=added_servers)
+
+    assert updated_servers == {"1": "added", "4": "removed"}
+
+
+def test_is_child_of(ctx: Context, base_state: State) -> None:
+    # Given
     chroot = "/gandalf/the/white"
     chroots = {"/gandalf", "/saruman"}
+    state_in = base_state
 
-    assert harness.charm.quorum_manager._is_child_of(path=chroot, chroots=chroots)
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+
+        # Then
+        assert charm.quorum_manager._is_child_of(path=chroot, chroots=chroots)
 
 
-def test_is_child_of_not(harness):
+def test_is_child_of_not(ctx: Context, base_state: State) -> None:
+    # Given
     chroot = "/the/one/ring"
     chroots = {"/gandalf", "/saruman"}
+    state_in = base_state
 
-    assert not harness.charm.quorum_manager._is_child_of(path=chroot, chroots=chroots)
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
 
-
-def test_update_acls_does_not_add_empty_chroot(harness):
-    with harness.hooks_disabled():
-        harness.add_relation(REL_NAME, "application")
-
-    with patch.multiple(
-        "charms.zookeeper.v0.client.ZooKeeperManager",
-        get_leader=DEFAULT,
-        leader_znodes=MagicMock(return_value={"/"}),
-        create_znode_leader=DEFAULT,
-        set_acls_znode_leader=DEFAULT,
-        delete_znode_leader=DEFAULT,
-    ) as patched_manager:
-        harness.charm.quorum_manager.update_acls()
-
-        patched_manager["create_znode_leader"].assert_not_called()
+        # Then
+        assert not charm.quorum_manager._is_child_of(path=chroot, chroots=chroots)
 
 
-def test_update_acls_correctly_handles_relation_chroots(harness):
+def test_update_acls_does_not_add_empty_chroot(ctx: Context, base_state: State) -> None:
+    # Given
+    cluster_peer = PeerRelation(PEER, PEER)
+    client_relation = Relation(
+        REL_NAME,
+        "application",
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer, client_relation])
+
+    # When
+    with (
+        patch.multiple(
+            "charms.zookeeper.v0.client.ZooKeeperManager",
+            get_leader=DEFAULT,
+            leader_znodes=MagicMock(return_value={"/"}),
+            create_znode_leader=DEFAULT,
+            set_acls_znode_leader=DEFAULT,
+            delete_znode_leader=DEFAULT,
+        ) as patched_manager,
+        ctx(ctx.on.start(), state_in) as manager,
+    ):
+        charm = cast(ZooKeeperCharm, manager.charm)
+        charm.quorum_manager.update_acls()
+
+    # Then
+    patched_manager["create_znode_leader"].assert_not_called()
+
+
+def test_update_acls_correctly_handles_relation_chroots(ctx: Context, base_state: State) -> None:
+    # Given
     dummy_leader_znodes = {
         "/fellowship",
         "/fellowship/men",
@@ -89,22 +153,26 @@ def test_update_acls_correctly_handles_relation_chroots(harness):
         "/fellowship/dwarves/gimli",
         "/fellowship/men/aragorn/anduril",
     }
+    cluster_peer = PeerRelation(PEER, PEER)
+    client_relation = Relation(REL_NAME, "application", remote_app_data={"database": "/rohan"})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer, client_relation])
 
-    with harness.hooks_disabled():
-        app_id = harness.add_relation(REL_NAME, "application")
-        harness.update_relation_data(app_id, "application", {"database": "/rohan"})
-        harness.set_leader(True)
+    # When
+    with (
+        patch.multiple(
+            "charms.zookeeper.v0.client.ZooKeeperManager",
+            get_leader=DEFAULT,
+            leader_znodes=MagicMock(return_value=dummy_leader_znodes),
+            create_znode_leader=DEFAULT,
+            set_acls_znode_leader=DEFAULT,
+            delete_znode_leader=DEFAULT,
+        ) as patched_manager,
+        ctx(ctx.on.start(), state_in) as manager,
+    ):
+        charm = cast(ZooKeeperCharm, manager.charm)
+        charm.quorum_manager.update_acls()
 
-    with patch.multiple(
-        "charms.zookeeper.v0.client.ZooKeeperManager",
-        get_leader=DEFAULT,
-        leader_znodes=MagicMock(return_value=dummy_leader_znodes),
-        create_znode_leader=DEFAULT,
-        set_acls_znode_leader=DEFAULT,
-        delete_znode_leader=DEFAULT,
-    ) as patched_manager:
-        harness.charm.quorum_manager.update_acls()
-
+        # Then
         for _, kwargs in patched_manager["create_znode_leader"].call_args_list:
             assert "/rohan" in kwargs["path"]
 
