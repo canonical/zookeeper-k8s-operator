@@ -6,9 +6,8 @@
 import logging
 from textwrap import dedent
 
-from ops.model import ConfigData
-
 from core.cluster import SUBSTRATES, ClusterState
+from core.structured_config import CharmConfig
 from core.workload import WorkloadBase
 from literals import JMX_PORT, METRICS_PROVIDER_PORT
 
@@ -58,7 +57,7 @@ class ConfigManager:
         state: ClusterState,
         workload: WorkloadBase,
         substrate: SUBSTRATES,
-        config: ConfigData,
+        config: CharmConfig,
     ):
         self.state = state
         self.workload = workload
@@ -72,15 +71,7 @@ class ConfigManager:
         Returns:
             String with these possible values: DEBUG, INFO, WARN, ERROR
         """
-        # FIXME: use pydantic config models for this validation instead
-        permitted_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
         config_log_level = self.config["log-level"]
-
-        if config_log_level not in permitted_levels:
-            logger.error(
-                f"Invalid log-level config value of {config_log_level}. Must be one of {','.join(permitted_levels)}. Defaulting to 'INFO'"
-            )
-            config_log_level = "INFO"
 
         # Remapping to WARN that is generally used in Java applications based on log4j and logback.
         if config_log_level == "WARNING":

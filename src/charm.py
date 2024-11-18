@@ -7,13 +7,13 @@
 import logging
 import time
 
+from charms.data_platform_libs.v0.data_models import TypedCharmBase
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops import (
     ActiveStatus,
-    CharmBase,
     EventBase,
     InstallEvent,
     LeaderElectedEvent,
@@ -28,6 +28,7 @@ from ops.pebble import Layer, LayerDict
 from tenacity import RetryError
 
 from core.cluster import ClusterState
+from core.structured_config import CharmConfig
 from events.backup import BackupEvents
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
@@ -56,8 +57,10 @@ from workload import ZKWorkload
 logger = logging.getLogger(__name__)
 
 
-class ZooKeeperCharm(CharmBase):
+class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
     """Charmed Operator for ZooKeeper K8s."""
+
+    config_type = CharmConfig
 
     def __init__(self, *args):
         super().__init__(*args)
