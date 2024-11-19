@@ -22,8 +22,8 @@ from ops import (
     SecretChangedEvent,
     StatusBase,
     WaitingStatus,
+    main,
 )
-from ops.main import main
 from ops.pebble import Layer, LayerDict
 from tenacity import RetryError
 
