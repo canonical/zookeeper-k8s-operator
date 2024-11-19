@@ -28,7 +28,7 @@ from ops.pebble import Layer, LayerDict
 from tenacity import RetryError
 
 from core.cluster import ClusterState
-from core.structured_config import CharmConfig
+from core.structured_config import CharmConfig, ExposeExternal
 from events.backup import BackupEvents
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
@@ -50,11 +50,14 @@ from literals import (
     Status,
 )
 from managers.config import ConfigManager
+from managers.k8s import K8sManager
 from managers.quorum import QuorumManager
 from managers.tls import TLSManager
 from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
@@ -91,6 +94,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         self.config_manager = ConfigManager(
             state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
         )
+        self.k8s_manager = K8sManager(app_name=self.app.name, namespace=self.model.name)
 
         # --- LIB EVENT HANDLERS ---
 
@@ -171,6 +175,21 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         }
         return Layer(layer_config)
 
+    def update_external_services(self) -> None:
+        """Attempts to update any external Kubernetes services."""
+        if not SUBSTRATE == "k8s" or not self.unit.is_leader():
+            return
+
+        # if service already exists/is already removed, will silently continue
+        match self.config.expose_external:
+            case ExposeExternal.FALSE:
+                self.k8s_manager.remove_service(service_name=self.k8s_manager.exposer_service_name)
+
+            case ExposeExternal.NODEPORT:
+                self.k8s_manager.apply_service(service=self.k8s_manager.build_nodeport_service())
+
+            # TODO(lb): Add loadbalancer branch
+
     # --- CORE EVENT HANDLERS ---
 
     def _on_install(self, event: InstallEvent) -> None:
@@ -190,6 +209,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
             self.state.cluster.update({"quorum": "default - non-ssl"})
 
         self.unit.set_workload_version(self.workload.get_version())
+        self.update_external_services()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:  # noqa: C901
         """Generic handler for all 'something changed, update' events across all relations."""
@@ -218,6 +238,8 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         # attempt startup of server
         if not self.state.unit_server.started:
             self.init_server()
+
+        self.update_external_services()
 
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)
