@@ -45,6 +45,7 @@ class QuorumManager:
             client_port=CLIENT_PORT,
             username=admin_username,
             password=admin_password,
+            read_only=False,
         )
 
     @dataclass

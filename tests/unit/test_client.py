@@ -97,7 +97,7 @@ def test_is_ready():
 def test_init_raises_if_leader_not_found():
     with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient(follower=True)):
         with pytest.raises(QuorumLeaderNotFoundError):
-            ZooKeeperManager(hosts=["host"], username="", password="")
+            ZooKeeperManager(hosts=["host"], username="", password="", read_only=False)
 
 
 def test_init_finds_leader():

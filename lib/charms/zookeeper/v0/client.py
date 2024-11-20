@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 7
+LIBPATCH = 7  # TODO: Update
 
 
 logger = logging.getLogger(__name__)
@@ -114,6 +114,7 @@ class ZooKeeperManager:
         keyfile_path: Optional[str] = "",
         keyfile_password: Optional[str] = "",
         certfile_path: Optional[str] = "",
+        read_only: bool = True,
     ):
         self.hosts = hosts
         self.username = username
@@ -124,9 +125,10 @@ class ZooKeeperManager:
         self.keyfile_password = keyfile_password
         self.certfile_path = certfile_path
         self.leader = ""
+        self.read_only = read_only
 
         try:
-            self.leader = self.get_leader()
+            self.leader = self.get_leader(check_for_strict_leadership=not read_only)
         except RetryError:
             raise QuorumLeaderNotFoundError("quorum leader not found")
 
@@ -135,7 +137,7 @@ class ZooKeeperManager:
         stop=stop_after_attempt(2),
         retry=retry_if_not_result(lambda result: True if result else False),
     )
-    def get_leader(self) -> str:
+    def get_leader(self, check_for_strict_leadership: bool) -> str:
         """Attempts to find the current ZK quorum leader.
 
         In the case when there is a leadership election, this may fail.
@@ -148,6 +150,7 @@ class ZooKeeperManager:
             tenacity.RetryError: if the leader can't be found during the retry conditions
         """
         leader = None
+        host = ""
         for host in self.hosts:
             try:
                 with ZooKeeperClient(
@@ -166,9 +169,13 @@ class ZooKeeperManager:
                         break
             except KazooTimeoutError:  # in the case of having a dead unit in relation data
                 logger.debug(f"TIMEOUT - {host}")
+                host = ""
                 continue
 
-        return leader or ""
+        if check_for_strict_leadership:
+            return leader or ""
+
+        return leader or host
 
     @property
     def server_members(self) -> Set[str]:
