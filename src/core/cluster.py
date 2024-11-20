@@ -4,6 +4,7 @@
 
 """Collection of global cluster state for the ZooKeeper quorum."""
 import logging
+from ipaddress import IPv4Address, IPv6Address
 from typing import TYPE_CHECKING, Set
 
 from charms.data_platform_libs.v0.data_interfaces import (
@@ -145,6 +146,16 @@ class ClusterState(Object):
         return clients
 
     # --- CLUSTER INIT ---
+
+    @property
+    def bind_address(self) -> IPv4Address | IPv6Address | str:
+        """The network binding address from the peer relation."""
+        bind_address = None
+        if self.peer_relation:
+            if binding := self.model.get_binding(self.peer_relation):
+                bind_address = binding.network.bind_address
+
+        return bind_address or ""
 
     @property
     def client_port(self) -> int:

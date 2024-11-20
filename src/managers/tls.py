@@ -4,7 +4,9 @@
 
 """Manager for building necessary files for Java TLS auth."""
 import logging
+import socket
 import subprocess
+from typing import TypedDict
 
 import ops.pebble
 
@@ -14,6 +16,8 @@ from literals import GROUP, USER
 
 logger = logging.getLogger(__name__)
 
+Sans = TypedDict("Sans", {"sans_ip": list[str], "sans_dns": list[str]})
+
 
 class TLSManager:
     """Manager for building necessary files for Java TLS auth."""
@@ -22,6 +26,32 @@ class TLSManager:
         self.state = state
         self.workload = workload
         self.substrate = substrate
+
+    def build_sans(self) -> Sans:
+        """Builds a SAN dict of DNS names and IPs for the unit."""
+        if self.substrate == "vm":
+            return {
+                "sans_ip": [
+                    self.state.unit_server.host,
+                ],
+                "sans_dns": [self.state.unit_server.unit.name, socket.getfqdn()],
+            }
+        else:
+            return {
+                "sans_ip": sorted(
+                    [
+                        str(self.state.bind_address),
+                        self.state.unit_server.node_ip,
+                    ]
+                ),
+                "sans_dns": sorted(
+                    [
+                        self.state.unit_server.internal_address.split(".")[0],
+                        self.state.unit_server.internal_address,
+                        socket.getfqdn(),
+                    ]
+                ),
+            }
 
     def set_private_key(self) -> None:
         """Sets the unit private-key."""

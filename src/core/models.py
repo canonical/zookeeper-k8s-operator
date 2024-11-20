@@ -466,7 +466,7 @@ class ZKServer(RelationState):
             return {}
 
         return {
-            "sans_ip": [self.ip],
+            "sans_ip": [self.ip, self.node_ip],
             "sans_dns": [self.hostname, self.fqdn],
         }
 
