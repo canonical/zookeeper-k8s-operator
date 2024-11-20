@@ -4,6 +4,7 @@
 
 """Manager for handling ZooKeeper Kubernetes resources."""
 import logging
+from typing import Literal
 
 from lightkube.core.client import Client
 from lightkube.core.exceptions import ApiError
@@ -11,7 +12,7 @@ from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Node, Pod, Service
 
-from literals import CLIENT_PORT, NODEPORT_PORT_OFFSET, SECURE_CLIENT_PORT
+from literals import CLIENT_PORT, SECURE_CLIENT_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +76,12 @@ class K8sManager:
                 port=CLIENT_PORT,
                 targetPort=CLIENT_PORT,
                 name=f"{self.exposer_service_name}-plain",
-                nodePort=CLIENT_PORT + NODEPORT_PORT_OFFSET,
             ),
             ServicePort(
                 protocol="TCP",
                 port=SECURE_CLIENT_PORT,
                 targetPort=SECURE_CLIENT_PORT,
                 name=f"{self.exposer_service_name}-tls",
-                nodePort=SECURE_CLIENT_PORT + NODEPORT_PORT_OFFSET,
             ),
         ]
 
@@ -101,11 +100,18 @@ class K8sManager:
             ),
         )
 
-    def get_pod(self, pod_name):
+    def get_pod(self, pod_name: str) -> Pod:
         """Gets the Pod via the K8s API."""
         return self.client.get(
             res=Pod,
             name=pod_name,
+        )
+
+    def get_service(self, service_name: str) -> Service:
+        """Gets the Service via the K8s API."""
+        return self.client.get(
+            res=Service,
+            name=service_name,
         )
 
     def get_node(self, pod_name: str) -> Node:
@@ -130,3 +136,17 @@ class K8sManager:
                 return addresses.address
 
         return ""
+
+    def get_nodeport(self, auth: Literal["plain", "tls"]) -> int:
+        """Gets the NodePort number for the service via the K8s API."""
+        if not (service := self.get_service(self.exposer_service_name)):
+            raise Exception("Unable to find Service")
+
+        if not service.spec or not service.spec.ports:
+            raise Exception("Could not find Service spec or ports")
+
+        for port in service.spec.ports:
+            if str(port.name).endswith(auth):
+                return port.nodePort
+
+        raise Exception(f"Unable to find NodePort using {auth} for the {service} service")

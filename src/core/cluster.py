@@ -12,14 +12,15 @@ from charms.data_platform_libs.v0.data_interfaces import (
     DataPeerOtherUnitData,
     DataPeerUnitData,
 )
+from lightkube.core.exceptions import ApiError as LightKubeApiError
 from ops.framework import Object
 from ops.model import Relation, Unit
+from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
 from core.structured_config import ExposeExternal
 from literals import (
     CLIENT_PORT,
-    NODEPORT_PORT_OFFSET,
     PEER,
     REL_NAME,
     SECRETS_UNIT,
@@ -135,12 +136,8 @@ class ClusterState(Object):
                     substrate=self.substrate,
                     local_app=self.cluster.app,
                     password=self.cluster.client_passwords.get(f"relation-{relation.id}", ""),
-                    uris=",".join(
-                        [f"{endpoint}:{self.client_port}" for endpoint in self.endpoints]
-                    ),
-                    endpoints=",".join(
-                        [f"{endpoint}:{self.client_port}" for endpoint in self.endpoints]
-                    ),
+                    uris=self.endpoints,
+                    endpoints=self.endpoints,
                     tls="enabled" if self.cluster.tls else "disabled",
                 )
             )
@@ -159,35 +156,54 @@ class ClusterState(Object):
                 2182 if TLS is enabled
         """
         port = SECURE_CLIENT_PORT if self.cluster.tls else CLIENT_PORT
-        if self.config.expose_external is not ExposeExternal.FALSE:
-            port += NODEPORT_PORT_OFFSET
 
         return port
 
     @property
-    def endpoints_external(self) -> list[str]:
-        """The external connection uris for all started ZooKeeper units.
-
-        Returns:
-            List of unit addresses
-        """
-        return sorted({server.host for server in self.servers})
+    @retry(
+        wait=wait_fixed(5),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_cause_type(LightKubeApiError),
+        reraise=True,
+    )
+    def endpoints_external(self) -> str:
+        """Comma-delimited string of connection uris for all started ZooKeeper unit, for external access."""
+        auth = "plain" if not self.cluster.tls else "tls"
+        return ",".join(
+            sorted(
+                {
+                    f"{server.node_ip}:{self.unit_server.k8s.get_nodeport(auth)}"
+                    for server in self.servers
+                }
+            )
+        )
 
     @property
-    def endpoints(self) -> list[str]:
+    def endpoints(self) -> str:
         """The connection uris for all started ZooKeeper units.
 
         Returns:
             List of unit addresses
         """
         if self.config.expose_external is not ExposeExternal.FALSE:
-            return self.endpoints_external
+            try:
+                return self.endpoints_external
+            except LightKubeApiError as e:
+                # TODO: Push maintenance status
+                logger.debug(e)
+                return ""
 
-        return sorted(
-            [
-                server.internal_address if self.substrate == "k8s" else server.ip
-                for server in self.servers
-            ]
+        return ",".join(
+            sorted(
+                [
+                    (
+                        f"{server.internal_address}:{self.client_port}"
+                        if self.substrate == "k8s"
+                        else server.ip
+                    )
+                    for server in self.servers
+                ]
+            )
         )
 
     @property
