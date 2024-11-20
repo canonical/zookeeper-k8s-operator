@@ -7,6 +7,8 @@ import pytest
 from ops import JujuVersion
 from tests.unit.test_charm import PropertyMock
 
+from literals import SUBSTRATE
+
 
 @pytest.fixture(autouse=True)
 def patched_idle(mocker, request):
@@ -70,4 +72,29 @@ def patched_version(mocker, request):
 def patched_k8s_client(monkeypatch):
     with monkeypatch.context() as m:
         m.setattr("lightkube.core.client.GenericSyncClient", Mock())
+        yield
+
+
+@pytest.fixture(autouse=True)
+def patched_node_ip():
+    if SUBSTRATE == "k8s":
+        with patch(
+            "core.models.ZKServer.node_ip",
+            new_callable=PropertyMock,
+            return_value="111.111.111.111",
+        ) as patched_node_ip:
+            yield patched_node_ip
+    else:
+        yield
+
+
+@pytest.fixture(autouse=True)
+def patched_node_port():
+    if SUBSTRATE == "k8s":
+        with patch(
+            "managers.k8s.K8sManager.get_nodeport",
+            return_value=30000,
+        ) as patched_node_port:
+            yield patched_node_port
+    else:
         yield
