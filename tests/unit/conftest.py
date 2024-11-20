@@ -1,7 +1,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from ops import JujuVersion
@@ -64,3 +64,10 @@ def patched_version(mocker, request):
         yield
     else:
         yield mocker.patch("workload.ZKWorkload.get_version", return_value=""),
+
+
+@pytest.fixture(autouse=True)
+def patched_k8s_client(monkeypatch):
+    with monkeypatch.context() as m:
+        m.setattr("lightkube.core.client.GenericSyncClient", Mock())
+        yield
