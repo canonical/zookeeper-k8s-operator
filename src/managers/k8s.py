@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class K8sManager:
-    """Manager for handling ZooKeeper Kubernetes ressources."""
+    """Manager for handling ZooKeeper Kubernetes resources."""
 
     def __init__(self, pod_name: str, namespace: str) -> None:
         self.pod_name = pod_name
