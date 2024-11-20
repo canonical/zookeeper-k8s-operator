@@ -37,13 +37,18 @@ class TLSManager:
                 "sans_dns": [self.state.unit_server.unit.name, socket.getfqdn()],
             }
         else:
-            return {
-                "sans_ip": sorted(
+            if nodeip := self.state.unit_server.node_ip:
+                sans_ip = sorted(
                     [
                         str(self.state.bind_address),
-                        self.state.unit_server.node_ip,
+                        nodeip,
                     ]
-                ),
+                )
+            else:
+                sans_ip = [str(self.state.bind_address)]
+
+            sans: Sans = {
+                "sans_ip": sans_ip,
                 "sans_dns": sorted(
                     [
                         self.state.unit_server.internal_address.split(".")[0],
@@ -52,6 +57,8 @@ class TLSManager:
                     ]
                 ),
             }
+
+            return sans
 
     def set_private_key(self) -> None:
         """Sets the unit private-key."""

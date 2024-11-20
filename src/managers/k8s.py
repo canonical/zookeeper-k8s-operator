@@ -127,7 +127,13 @@ class K8sManager:
 
     def get_node_ip(self, pod_name: str) -> str:
         """Gets the IP Address of the Node of a given Pod via the K8s API."""
-        node = self.get_node(pod_name)
+        try:
+            node = self.get_node(pod_name)
+        except ApiError as e:
+            if e.status.code == 403:
+                # logger.error("Could not apply service, application needs `juju trust`")
+                return ""
+
         if not node.status or not node.status.addresses:
             raise Exception(f"No status found for {node}")
 
