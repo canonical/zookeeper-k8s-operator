@@ -94,7 +94,9 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         self.config_manager = ConfigManager(
             state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
         )
-        self.k8s_manager = K8sManager(app_name=self.app.name, namespace=self.model.name)
+        self.k8s_manager = K8sManager(
+            pod_name=self.state.unit_server.pod_name, namespace=self.model.name
+        )
 
         # --- LIB EVENT HANDLERS ---
 
@@ -168,7 +170,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
                     "override": "replace",
                     "level": "alive",
                     "exec": {
-                        "command": f"echo ruok | nc {self.state.unit_server.host} {CLIENT_PORT}"
+                        "command": f"echo ruok | nc {self.state.unit_server.internal_address} {CLIENT_PORT}"
                     },
                 }
             },

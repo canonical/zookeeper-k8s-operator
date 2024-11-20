@@ -38,7 +38,7 @@ class QuorumManager:
         """Cached client manager application for performing ZK commands."""
         admin_username = "super"
         admin_password = self.state.cluster.internal_user_credentials.get(admin_username, "")
-        active_hosts = [server.host for server in self.state.started_servers]
+        active_hosts = [server.internal_address for server in self.state.started_servers]
 
         return ZooKeeperManager(
             hosts=active_hosts,

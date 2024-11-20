@@ -4,7 +4,7 @@
 
 """Collection of global cluster state for the ZooKeeper quorum."""
 import logging
-from typing import Set
+from typing import TYPE_CHECKING, Set
 
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseProviderData,
@@ -12,11 +12,23 @@ from charms.data_platform_libs.v0.data_interfaces import (
     DataPeerOtherUnitData,
     DataPeerUnitData,
 )
-from ops.framework import Framework, Object
+from ops.framework import Object
 from ops.model import Relation, Unit
 
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
-from literals import CLIENT_PORT, PEER, REL_NAME, SECRETS_UNIT, SECURE_CLIENT_PORT, Status
+from core.structured_config import ExposeExternal
+from literals import (
+    CLIENT_PORT,
+    NODEPORT_PORT_OFFSET,
+    PEER,
+    REL_NAME,
+    SECRETS_UNIT,
+    SECURE_CLIENT_PORT,
+    Status,
+)
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +36,7 @@ logger = logging.getLogger(__name__)
 class ClusterState(Object):
     """Collection of global cluster state for Framework/Object."""
 
-    def __init__(self, charm: Framework | Object, substrate: SUBSTRATES):
+    def __init__(self, charm: "ZooKeeperCharm", substrate: SUBSTRATES):
         super().__init__(parent=charm, key="charm_state")
         self.substrate: SUBSTRATES = substrate
 
@@ -34,6 +46,7 @@ class ClusterState(Object):
         )
         self.client_provider_interface = DatabaseProviderData(self.model, relation_name=REL_NAME)
         self._servers_data = {}
+        self.config = charm.config
 
     # --- RAW RELATION ---
 
@@ -125,7 +138,9 @@ class ClusterState(Object):
                     uris=",".join(
                         [f"{endpoint}:{self.client_port}" for endpoint in self.endpoints]
                     ),
-                    endpoints=",".join(self.endpoints),
+                    endpoints=",".join(
+                        [f"{endpoint}:{self.client_port}" for endpoint in self.endpoints]
+                    ),
                     tls="enabled" if self.cluster.tls else "disabled",
                 )
             )
@@ -143,10 +158,20 @@ class ClusterState(Object):
                 2181 if TLS is not enabled
                 2182 if TLS is enabled
         """
-        if self.cluster.tls:
-            return SECURE_CLIENT_PORT
+        port = SECURE_CLIENT_PORT if self.cluster.tls else CLIENT_PORT
+        if self.config.expose_external is not ExposeExternal.FALSE:
+            port += NODEPORT_PORT_OFFSET
 
-        return CLIENT_PORT
+        return port
+
+    @property
+    def endpoints_external(self) -> list[str]:
+        """The external connection uris for all started ZooKeeper units.
+
+        Returns:
+            List of unit addresses
+        """
+        return sorted({server.host for server in self.servers})
 
     @property
     def endpoints(self) -> list[str]:
@@ -155,8 +180,14 @@ class ClusterState(Object):
         Returns:
             List of unit addresses
         """
+        if self.config.expose_external is not ExposeExternal.FALSE:
+            return self.endpoints_external
+
         return sorted(
-            [server.host if self.substrate == "k8s" else server.ip for server in self.servers]
+            [
+                server.internal_address if self.substrate == "k8s" else server.ip
+                for server in self.servers
+            ]
         )
 
     @property

@@ -95,7 +95,7 @@ class TLSEvents(Object):
 
         csr = generate_csr(
             private_key=self.charm.state.unit_server.private_key.encode("utf-8"),
-            subject=self.charm.state.unit_server.host,
+            subject=self.charm.state.unit_server.internal_address,
             sans_ip=self.charm.state.unit_server.sans.get("sans_ip", []),
             sans_dns=self.charm.state.unit_server.sans.get("sans_dns", []),
         )
@@ -130,7 +130,7 @@ class TLSEvents(Object):
 
         new_csr = generate_csr(
             private_key=self.charm.state.unit_server.private_key.encode("utf-8"),
-            subject=self.charm.state.unit_server.host,
+            subject=self.charm.state.unit_server.internal_address,
             sans_ip=self.charm.state.unit_server.sans["sans_ip"],
             sans_dns=self.charm.state.unit_server.sans["sans_dns"],
         )

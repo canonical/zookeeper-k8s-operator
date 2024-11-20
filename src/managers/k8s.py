@@ -9,22 +9,21 @@ from lightkube.core.client import Client
 from lightkube.core.exceptions import ApiError
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
-from lightkube.resources.core_v1 import Pod, Service
+from lightkube.resources.core_v1 import Node, Pod, Service
 
-from literals import CLIENT_PORT, SECURE_CLIENT_PORT
+from literals import CLIENT_PORT, NODEPORT_PORT_OFFSET, SECURE_CLIENT_PORT
 
 logger = logging.getLogger(__name__)
-
-NODEPORT_OFFSET = 30_000
 
 
 class K8sManager:
     """Manager for handling ZooKeeper Kubernetes ressources."""
 
-    def __init__(self, app_name: str, namespace: str) -> None:
-        self.app_name = app_name
+    def __init__(self, pod_name: str, namespace: str) -> None:
+        self.pod_name = pod_name
+        self.app_name, _, _ = pod_name.rpartition("-")
         self.namespace = namespace
-        self.exposer_service_name = f"{app_name}-exposer"
+        self.exposer_service_name = f"{self.app_name}-exposer"
 
     @property
     def client(self) -> Client:
@@ -51,7 +50,7 @@ class K8sManager:
     def remove_service(self, service_name: str) -> None:
         """Remove the exposer service."""
         try:
-            self.client.delete(Service, name=self.exposer_service_name)
+            self.client.delete(Service, name=service_name)
         except ApiError as e:
             if e.status.code == 403:
                 logger.error("Could not apply service, application needs `juju trust`")
@@ -76,14 +75,14 @@ class K8sManager:
                 port=CLIENT_PORT,
                 targetPort=CLIENT_PORT,
                 name=f"{self.exposer_service_name}-plain",
-                nodePort=CLIENT_PORT + NODEPORT_OFFSET,
+                nodePort=CLIENT_PORT + NODEPORT_PORT_OFFSET,
             ),
             ServicePort(
                 protocol="TCP",
                 port=SECURE_CLIENT_PORT,
                 targetPort=SECURE_CLIENT_PORT,
                 name=f"{self.exposer_service_name}-tls",
-                nodePort=SECURE_CLIENT_PORT + NODEPORT_OFFSET,
+                nodePort=SECURE_CLIENT_PORT + NODEPORT_PORT_OFFSET,
             ),
         ]
 
@@ -108,3 +107,26 @@ class K8sManager:
             res=Pod,
             name=pod_name,
         )
+
+    def get_node(self, pod_name: str) -> Node:
+        """Gets the Node the Pod is running on via the K8s API."""
+        pod = self.get_pod(pod_name)
+        if not pod.spec or not pod.spec.nodeName:
+            raise Exception("Could not find podSpec or nodeName")
+
+        return self.client.get(
+            Node,
+            name=pod.spec.nodeName,
+        )
+
+    def get_node_ip(self, pod_name: str) -> str:
+        """Gets the IP Address of the Node of a given Pod via the K8s API."""
+        node = self.get_node(pod_name)
+        if not node.status or not node.status.addresses:
+            raise Exception(f"No status found for {node}")
+
+        for addresses in node.status.addresses:
+            if addresses.type in ["ExternalIP", "InternalIP", "Hostname"]:
+                return addresses.address
+
+        return ""
