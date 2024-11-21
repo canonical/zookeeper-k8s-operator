@@ -60,6 +60,37 @@ class TLSManager:
 
             return sans
 
+    def get_current_sans(self) -> Sans | None:
+        """Gets the current SANs for the unit cert."""
+        if not self.state.unit_server.certificate:
+            return
+
+        command = ["openssl", "x509", "-noout", "-ext", "subjectAltName", "-in", "server.pem"]
+
+        try:
+            sans_lines = self.workload.exec(
+                command=command, working_dir=self.workload.paths.conf_path
+            ).splitlines()
+        except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
+            logger.error(e.stdout)
+            raise e
+
+        for line in sans_lines:
+            if "DNS" in line and "IP" in line:
+                break
+
+        sans_ip = []
+        sans_dns = []
+        for item in line.split(", "):
+            san_type, san_value = item.split(":")
+
+            if san_type.strip() == "DNS":
+                sans_dns.append(san_value)
+            if san_type.strip() == "IP Address":
+                sans_ip.append(san_value)
+
+        return {"sans_ip": sorted(sans_ip), "sans_dns": sorted(sans_dns)}
+
     def set_private_key(self) -> None:
         """Sets the unit private-key."""
         if not self.state.unit_server.private_key:

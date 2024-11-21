@@ -19,6 +19,8 @@ async def test_deploy_active(ops_test: OpsTest, zk_charm):
         num_units=3,
         resources={"zookeeper-image": helpers.ZOOKEEPER_IMAGE},
         series=helpers.SERIES,
+        trust=True,
+        config={"expose-external": "nodeport"},
     )
     await helpers.wait_idle(ops_test)
 

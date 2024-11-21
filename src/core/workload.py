@@ -147,7 +147,7 @@ class WorkloadBase(ABC):
         ...
 
     @abstractmethod
-    def exec(self, command: list[str], working_dir: str | None = None) -> None:
+    def exec(self, command: list[str], working_dir: str | None = None) -> str:
         """Runs a command on the workload substrate."""
         ...
 

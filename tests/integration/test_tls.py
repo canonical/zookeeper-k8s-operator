@@ -26,7 +26,8 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
             num_units=3,
             resources={"zookeeper-image": ZOOKEEPER_IMAGE},
             series=SERIES,
-            # trust=True,
+            trust=True,
+            config={"expose-external": "nodeport"},
         ),
         ops_test.model.deploy(
             TLS_NAME,

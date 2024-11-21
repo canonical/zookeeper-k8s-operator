@@ -6,6 +6,7 @@
 
 import logging
 import time
+from datetime import datetime
 
 from charms.data_platform_libs.v0.data_models import TypedCharmBase
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
@@ -17,6 +18,7 @@ from ops import (
     EventBase,
     InstallEvent,
     LeaderElectedEvent,
+    MaintenanceStatus,
     ModelError,
     RelationDepartedEvent,
     SecretChangedEvent,
@@ -186,11 +188,14 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         match self.config.expose_external:
             case ExposeExternal.FALSE:
                 self.k8s_manager.remove_service(service_name=self.k8s_manager.exposer_service_name)
+                return
 
             case ExposeExternal.NODEPORT:
                 self.k8s_manager.apply_service(service=self.k8s_manager.build_nodeport_service())
 
             # TODO(lb): Add loadbalancer branch
+
+        self.unit.status = MaintenanceStatus("waiting for service")
 
     # --- CORE EVENT HANDLERS ---
 
@@ -241,7 +246,40 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         if not self.state.unit_server.started:
             self.init_server()
 
+        # create services if we expose the charm, no op if not
         self.update_external_services()
+
+        # if we were already using tls while a network change comes up, we need to expire
+        # existing certificates
+        current_sans = self.tls_manager.get_current_sans()
+
+        current_sans_ip = set(current_sans["sans_ip"]) if current_sans else set()
+        expected_sans_ip = set(self.tls_manager.build_sans()["sans_ip"]) if current_sans else set()
+        sans_ip_changed = current_sans_ip ^ expected_sans_ip
+
+        current_sans_dns = set(current_sans["sans_dns"]) if current_sans else set()
+        expected_sans_dns = (
+            set(self.tls_manager.build_sans()["sans_dns"]) if current_sans else set()
+        )
+        sans_dns_changed = current_sans_dns ^ expected_sans_dns
+
+        if sans_ip_changed or sans_dns_changed:
+            logger.info(
+                (
+                    f'SERVER {self.unit.name.split("/")[1]} updating certificate SANs - '
+                    f"OLD SANs = {current_sans_ip - expected_sans_ip}, "
+                    f"NEW SANs = {expected_sans_ip - current_sans_ip}"
+                )
+            )
+            self.tls_events.certificates.on.certificate_expiring.emit(
+                certificate=self.state.unit_server.certificate,
+                expiry=datetime.now().isoformat(),
+            )  # new cert will eventually be dynamically loaded by the broker
+            self.state.unit_server.update(
+                {"certificate": ""}
+            )  # ensures only single requested new certs, will be replaced on new certificate-available event
+
+            return  # early return here to ensure new node cert arrives before updating advertised.listeners
 
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)
