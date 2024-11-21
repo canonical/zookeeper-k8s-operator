@@ -281,6 +281,13 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
 
             return  # early return here to ensure new node cert arrives before updating advertised.listeners
 
+        # since the next step will 1. update the unit status to active and 2. update the clients,
+        # we want to check if the external access is all good before proceeding
+        if not self.state.endpoints:
+            self.disconnect_clients()
+            event.defer()
+            return
+
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)
 
