@@ -184,9 +184,9 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         if not SUBSTRATE == "k8s" or not self.unit.is_leader():
             return
 
-        # if service already exists/is already removed, will silently continue
         match self.config.expose_external:
             case ExposeExternal.FALSE:
+                # if is already removed, will silently continue
                 self.k8s_manager.remove_service(service_name=self.k8s_manager.exposer_service_name)
                 return
 
@@ -290,12 +290,12 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
             self.tls_events.certificates.on.certificate_expiring.emit(
                 certificate=self.state.unit_server.certificate,
                 expiry=datetime.now().isoformat(),
-            )  # new cert will eventually be dynamically loaded by the broker
+            )  # new cert will eventually be dynamically loaded by the server
             self.state.unit_server.update(
                 {"certificate": ""}
             )  # ensures only single requested new certs, will be replaced on new certificate-available event
 
-            return  # early return here to ensure new node cert arrives before updating advertised.listeners
+            return  # early return here to ensure new node cert arrives before updating the clients
 
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)
