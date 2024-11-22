@@ -742,6 +742,7 @@ def test_init_server_calls_necessary_methods(ctx: Context, base_state: State) ->
         patch("managers.tls.TLSManager.set_truststore") as patched_truststore,
         patch("managers.tls.TLSManager.set_p12_keystore") as patched_keystore,
         patch("workload.ZKWorkload.start") as start,
+        patch("managers.tls.TLSManager.get_current_sans", return_value=""),
         patch(
             "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock",
             autospec=True,
