@@ -8,7 +8,7 @@ from typing import Literal
 
 from lightkube.core.client import Client
 from lightkube.core.exceptions import ApiError
-from lightkube.models.core_v1 import ServicePort, ServiceSpec
+from lightkube.models.core_v1 import LoadBalancerIngress, ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Node, Pod, Service
 
@@ -100,6 +100,45 @@ class K8sManager:
             ),
         )
 
+    def build_loadbalancer_service(self) -> Service:
+        """Build the exposer service for 'loadbalancer' configuration option."""
+        # Pods are incrementally added to the StatefulSet, so we will always have a "0".
+        # Even if the "0" unit is not the leader, we just want a reference to the StatefulSet
+        # which owns the "0" pod.
+        pod = self.get_pod(f"{self.app_name}-0")
+        if not pod.metadata:
+            raise Exception(f"Could not find metadata for {pod}")
+
+        ports = [
+            ServicePort(
+                protocol="TCP",
+                port=CLIENT_PORT,
+                targetPort=CLIENT_PORT,
+                name=f"{self.exposer_service_name}-plain",
+            ),
+            ServicePort(
+                protocol="TCP",
+                port=SECURE_CLIENT_PORT,
+                targetPort=SECURE_CLIENT_PORT,
+                name=f"{self.exposer_service_name}-tls",
+            ),
+        ]
+
+        return Service(
+            metadata=ObjectMeta(
+                name=self.exposer_service_name,
+                namespace=self.namespace,
+                # owned by the StatefulSet
+                ownerReferences=pod.metadata.ownerReferences,
+            ),
+            spec=ServiceSpec(
+                externalTrafficPolicy="Local",
+                type="LoadBalancer",
+                selector={"app.kubernetes.io/name": self.app_name},
+                ports=ports,
+            ),
+        )
+
     def get_pod(self, pod_name: str) -> Pod:
         """Gets the Pod via the K8s API."""
         return self.client.get(
@@ -131,7 +170,6 @@ class K8sManager:
             node = self.get_node(pod_name)
         except ApiError as e:
             if e.status.code == 403:
-                # logger.error("Could not apply service, application needs `juju trust`")
                 return ""
 
         if not node.status or not node.status.addresses:
@@ -156,3 +194,22 @@ class K8sManager:
                 return port.nodePort
 
         raise Exception(f"Unable to find NodePort using {auth} for the {service} service")
+
+    def get_loadbalancer(self) -> str:
+        """Gets the LoadBalancer address for the service via the K8s API."""
+        if not (service := self.get_service(self.exposer_service_name)):
+            raise Exception("Unable to find Service")
+
+        if (
+            not service.status
+            or not (lb_status := service.status.loadBalancer)
+            or not lb_status.ingress
+        ):
+            raise Exception("Could not find Service status or LoadBalancer")
+
+        lb: LoadBalancerIngress
+        for lb in lb_status.ingress:
+            if lb.ip is not None:
+                return lb.ip
+
+        raise Exception(f"Unable to find LoadBalancer ingress for the {service} service")

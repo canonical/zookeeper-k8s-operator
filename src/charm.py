@@ -193,6 +193,11 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
             case ExposeExternal.NODEPORT:
                 self.k8s_manager.apply_service(service=self.k8s_manager.build_nodeport_service())
 
+            case ExposeExternal.LOADBALANCER:
+                self.k8s_manager.apply_service(
+                    service=self.k8s_manager.build_loadbalancer_service()
+                )
+
             # TODO(lb): Add loadbalancer branch
 
         self.unit.status = MaintenanceStatus("waiting for service")
@@ -249,6 +254,13 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         # create services if we expose the charm, no op if not
         self.update_external_services()
 
+        # since the next steps will 1. update the unit status to active and 2. update the clients,
+        # we want to check if the external access is all good before proceeding
+        if not self.state.endpoints:
+            self.disconnect_clients()
+            event.defer()
+            return
+
         # if we were already using tls while a network change comes up, we need to expire
         # existing certificates
         current_sans = self.tls_manager.get_current_sans()
@@ -280,13 +292,6 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
             )  # ensures only single requested new certs, will be replaced on new certificate-available event
 
             return  # early return here to ensure new node cert arrives before updating advertised.listeners
-
-        # since the next step will 1. update the unit status to active and 2. update the clients,
-        # we want to check if the external access is all good before proceeding
-        if not self.state.endpoints:
-            self.disconnect_clients()
-            event.defer()
-            return
 
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)

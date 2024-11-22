@@ -178,29 +178,33 @@ class ClusterState(Object):
         reraise=True,
     )
     def endpoints_external(self) -> str:
-        """Comma-delimited string of connection uris for all started ZooKeeper unit, for external access."""
+        """Comma-separated string of connection uris for all started ZooKeeper unit, for external access.
+
+        K8s only.
+        """
         auth = "plain" if not self.cluster.tls else "tls"
-        return ",".join(
-            sorted(
-                {
-                    f"{server.node_ip}:{self.unit_server.k8s.get_nodeport(auth)}"
-                    for server in self.servers
-                }
+        if self.config.expose_external is ExposeExternal.NODEPORT:
+            # We might have several of them if we run on multiple k8s nodes
+            return ",".join(
+                sorted(
+                    {
+                        f"{server.node_ip}:{self.unit_server.k8s.get_nodeport(auth)}"
+                        for server in self.servers
+                    }
+                )
             )
-        )
+        else:
+            # ExposeExternal.LOADBALANCER only remaining possibility
+            # There should be only one host
+            return f"{next(iter(self.servers)).loadbalancer_ip}:{self.client_port}"
 
     @property
     def endpoints(self) -> str:
-        """The connection uris for all started ZooKeeper units.
-
-        Returns:
-            List of unit addresses
-        """
+        """Comma-separated string of connection uris for all started ZooKeeper units."""
         if self.config.expose_external is not ExposeExternal.FALSE:
             try:
                 return self.endpoints_external
             except LightKubeApiError as e:
-                # TODO: Push maintenance status
                 logger.debug(e)
                 return ""
 

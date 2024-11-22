@@ -9,6 +9,8 @@ import subprocess
 from typing import TypedDict
 
 import ops.pebble
+from lightkube.core.exceptions import ApiError as LightKubeApiError
+from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.cluster import SUBSTRATES, ClusterState
 from core.workload import WorkloadBase
@@ -27,6 +29,12 @@ class TLSManager:
         self.workload = workload
         self.substrate = substrate
 
+    @retry(
+        wait=wait_fixed(5),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_cause_type(LightKubeApiError),
+        reraise=True,
+    )
     def build_sans(self) -> Sans:
         """Builds a SAN dict of DNS names and IPs for the unit."""
         if self.substrate == "vm":
@@ -37,18 +45,18 @@ class TLSManager:
                 "sans_dns": [self.state.unit_server.unit.name, socket.getfqdn()],
             }
         else:
-            if nodeip := self.state.unit_server.node_ip:
-                sans_ip = sorted(
-                    [
-                        str(self.state.bind_address),
-                        nodeip,
-                    ]
-                )
-            else:
-                sans_ip = [str(self.state.bind_address)]
+            sans_ip = [str(self.state.bind_address)]
+            if node_ip := self.state.unit_server.node_ip:
+                sans_ip.append(node_ip)
+
+            try:
+                if lb_ip := self.state.unit_server.loadbalancer_ip:
+                    sans_ip.append(lb_ip)
+            except Exception:
+                pass
 
             sans: Sans = {
-                "sans_ip": sans_ip,
+                "sans_ip": sorted(sans_ip),
                 "sans_dns": sorted(
                     [
                         self.state.unit_server.internal_address.split(".")[0],

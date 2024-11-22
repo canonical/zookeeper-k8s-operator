@@ -26,8 +26,7 @@ class ExposeExternal(str, Enum):
 
     FALSE = "false"
     NODEPORT = "nodeport"
-    # TODO(lb): Uncomment
-    # LOADBALANCER = "loadbalancer"
+    LOADBALANCER = "loadbalancer"
 
 
 class CharmConfig(BaseConfigModel):

@@ -20,7 +20,6 @@ options:
     type: string
     default: "INFO"
   expose-external:
-    description: "String to determine how to expose the ZooKeeper cluster externally from the Kubernetes cluster. Possible values: 'nodeport', 'false'"
+    description: "String to determine how to expose the ZooKeeper cluster externally from the Kubernetes cluster. Possible values: 'nodeport', 'loadbalancer', 'false'"
     type: string
     default: "false"
-    # TODO(lb): Document 'loadbalancer'

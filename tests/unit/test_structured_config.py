@@ -67,7 +67,7 @@ def test_incorrect_log_level():
 
 
 def test_incorrect_expose_external():
-    erroneus_values = ["", "something_else", "false,nodeport"]
-    valid_values = ["false", "nodeport"]
+    erroneus_values = ["", "something_else", "false,nodeport", "load_balancer"]
+    valid_values = ["false", "nodeport", "loadbalancer"]
     check_invalid_values("expose_external", erroneus_values)
     check_valid_values("expose_external", valid_values)
