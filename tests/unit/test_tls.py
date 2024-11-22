@@ -17,7 +17,6 @@ import yaml
 from ops.testing import Container, Context, PeerRelation, Relation, Secret, State
 
 from charm import ZooKeeperCharm
-from core.structured_config import ExposeExternal
 from literals import CERTS_REL_NAME, CHARM_KEY, CONTAINER, PEER, SUBSTRATE, Status
 
 CONFIG = yaml.safe_load(Path("./config.yaml").read_text())
@@ -595,7 +594,7 @@ def test_sans_external_access(
             ctx(ctx.on.config_changed(), state_in) as manager,
         ):
             charm = cast(ZooKeeperCharm, manager.charm)
-            built_sans = charm.tls_manager.build_sans(ExposeExternal[expose_external.upper()])
+            built_sans = charm.tls_manager.build_sans()
 
         # Then
         assert sorted(built_sans["sans_dns"]) == sorted(

@@ -13,7 +13,6 @@ from lightkube.core.exceptions import ApiError as LightKubeApiError
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.cluster import SUBSTRATES, ClusterState
-from core.structured_config import ExposeExternal
 from core.workload import WorkloadBase
 from literals import GROUP, USER
 
@@ -36,7 +35,7 @@ class TLSManager:
         retry=retry_if_exception_cause_type(LightKubeApiError),
         reraise=True,
     )
-    def build_sans(self, expose_external: ExposeExternal = ExposeExternal.FALSE) -> Sans:
+    def build_sans(self) -> Sans:
         """Builds a SAN dict of DNS names and IPs for the unit."""
         if self.substrate == "vm":
             return {
@@ -48,13 +47,13 @@ class TLSManager:
         else:
             sans_ip = [str(self.state.bind_address)]
 
-            if expose_external is not ExposeExternal.FALSE:
+            if node_ip := self.state.unit_server.node_ip:
+                sans_ip.append(node_ip)
 
-                if node_ip := self.state.unit_server.node_ip:
-                    sans_ip.append(node_ip)
-
-            if expose_external is ExposeExternal.LOADBALANCER:
+            try:
                 sans_ip.append(self.state.unit_server.loadbalancer_ip)
+            except Exception:
+                pass
 
             sans: Sans = {
                 "sans_ip": sorted(sans_ip),
