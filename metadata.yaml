@@ -1,7 +1,7 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 name: zookeeper-k8s
-display-name: Apache Zookeeper - K8s
+display-name: Charmed Apache Zookeeper - K8s
 description: |
   ZooKeeper is a centralized service for maintaining configuration information, naming,
   providing distributed synchronization, and providing group services.
