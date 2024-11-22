@@ -53,8 +53,8 @@ class TLSManager:
                 if node_ip := self.state.unit_server.node_ip:
                     sans_ip.append(node_ip)
 
-                if lb_ip := self.state.unit_server.loadbalancer_ip:
-                    sans_ip.append(lb_ip)
+            if expose_external is ExposeExternal.LOADBALANCER:
+                sans_ip.append(self.state.unit_server.loadbalancer_ip)
 
             sans: Sans = {
                 "sans_ip": sorted(sans_ip),
