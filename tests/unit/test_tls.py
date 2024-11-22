@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import socket
+from ipaddress import IPv4Address
 from pathlib import Path
 from typing import cast
 from unittest.mock import DEFAULT, Mock, PropertyMock, patch
@@ -15,7 +17,8 @@ import yaml
 from ops.testing import Container, Context, PeerRelation, Relation, Secret, State
 
 from charm import ZooKeeperCharm
-from literals import CERTS_REL_NAME, CONTAINER, PEER, SUBSTRATE, Status
+from core.structured_config import ExposeExternal
+from literals import CERTS_REL_NAME, CHARM_KEY, CONTAINER, PEER, SUBSTRATE, Status
 
 CONFIG = yaml.safe_load(Path("./config.yaml").read_text())
 ACTIONS = yaml.safe_load(Path("./actions.yaml").read_text())
@@ -36,6 +39,12 @@ def base_state():
         state = State(leader=True)
 
     return state
+
+
+@pytest.fixture()
+def charm_configuration():
+    """Enable direct mutation on configuration dict."""
+    return json.loads(json.dumps(CONFIG))
 
 
 @pytest.fixture()
@@ -541,3 +550,65 @@ def test_set_tls_private_key(ctx: Context, base_state: State) -> None:
 
         # Then
         assert charm.state.unit_server.csr != "csr"
+
+
+@pytest.mark.parametrize("expose_external", ["false", "nodeport", "loadbalancer"])
+def test_sans_external_access(
+    charm_configuration: dict, base_state: State, expose_external: str
+) -> None:
+    # Given
+    charm_configuration["options"]["expose-external"]["default"] = expose_external
+    ctx = Context(
+        ZooKeeperCharm, meta=METADATA, config=charm_configuration, actions=ACTIONS, unit_id=0
+    )
+    cluster_peer = PeerRelation(
+        PEER, PEER, local_unit_data={"private-address": "treebeard"}, peers_data={}
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+    sock_dns = socket.getfqdn()
+
+    # When
+    if SUBSTRATE == "vm":
+        with ctx(ctx.on.config_changed(), state_in) as manager:
+            charm = cast(ZooKeeperCharm, manager.charm)
+            built_sans = charm.tls_manager.build_sans()
+
+        # Then
+        assert built_sans == {
+            "sans_ip": ["treebeard"],
+            "sans_dns": [f"{CHARM_KEY}/0", sock_dns],
+        }
+
+    # When
+    if SUBSTRATE == "k8s":
+        with (
+            patch(
+                "core.cluster.ClusterState.bind_address",
+                new_callable=PropertyMock,
+                return_value=IPv4Address("2.2.2.2"),
+            ),
+            patch(
+                "core.models.ZKServer.loadbalancer_ip",
+                new_callable=PropertyMock,
+                return_value="3.3.3.3",
+            ),
+            ctx(ctx.on.config_changed(), state_in) as manager,
+        ):
+            charm = cast(ZooKeeperCharm, manager.charm)
+            built_sans = charm.tls_manager.build_sans(ExposeExternal[expose_external.upper()])
+
+        # Then
+        assert sorted(built_sans["sans_dns"]) == sorted(
+            [
+                f"{CHARM_KEY}-0",
+                f"{CHARM_KEY}-0.{CHARM_KEY}-endpoints",
+                sock_dns,
+            ]
+        )
+        assert "2.2.2.2" in "".join(built_sans["sans_ip"])
+
+        if expose_external == "nodeport":
+            assert "111.111.111.111" in "".join(built_sans["sans_ip"])
+
+        if expose_external == "loadbalancer":
+            assert "3.3.3.3" in "".join(built_sans["sans_ip"])
