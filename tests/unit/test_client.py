@@ -103,7 +103,7 @@ def test_init_raises_if_leader_not_found():
 def test_init_finds_leader():
     with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         zk = ZooKeeperManager(hosts=["host"], username="", password="")
-        assert zk.leader == "host"
+        assert zk.zk_host == "host"
 
 
 def test_members_syncing():
@@ -134,7 +134,7 @@ def test_add_members_correct_args(reconfig):
 def test_add_members_runs_on_leader(_):
     with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()) as client:
         zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], username="", password="")
-        zk.leader = "leader"
+        zk.zk_host = "leader"
         zk.add_members(["server.2=sam.gamgee"])
 
         calls = client.call_args_list
@@ -197,7 +197,7 @@ def test_remove_members_handles_zeroes(reconfig):
 def test_remove_members_runs_on_leader(_):
     with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()) as client:
         zk = ZooKeeperManager(hosts=["server.1=bilbo.baggins"], username="", password="")
-        zk.leader = "leader"
+        zk.zk_host = "leader"
         zk.remove_members(["server.2=sam.gamgee"])
 
         calls = client.call_args_list
@@ -220,7 +220,7 @@ def test_remove_members_runs_on_leader(_):
 def test_get_version(_):
     with patch("charms.zookeeper.v0.client.KazooClient", return_value=DummyClient()):
         zk = ZooKeeperManager(hosts=["server"], username="", password="")
-        zk.leader = "leader"
+        zk.zk_host = "leader"
 
         version = zk.get_version()
 
