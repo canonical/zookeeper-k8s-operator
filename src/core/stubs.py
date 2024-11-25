@@ -3,8 +3,35 @@
 # See LICENSE file for licensing details.
 
 """Types module."""
+from dataclasses import dataclass
 from enum import Enum
 from typing import TypedDict
+
+
+class LogLevel(str, Enum):
+    """Enum for the `log-level` field."""
+
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    DEBUG = "DEBUG"
+
+
+class ExposeExternal(str, Enum):
+    """Enum for the `expose-external` field."""
+
+    FALSE = "false"
+    NODEPORT = "nodeport"
+    LOADBALANCER = "loadbalancer"
+
+
+@dataclass
+class SANs:
+    """Subject Alternative Name (SAN)s used to create multi-domains certificates."""
+
+    sans_ip: list[str]
+    sans_dns: list[str]
+
 
 S3ConnectionInfo = TypedDict(
     "S3ConnectionInfo",

@@ -597,17 +597,17 @@ def test_sans_external_access(
             built_sans = charm.tls_manager.build_sans()
 
         # Then
-        assert sorted(built_sans["sans_dns"]) == sorted(
+        assert sorted(built_sans.sans_dns) == sorted(
             [
                 f"{CHARM_KEY}-0",
                 f"{CHARM_KEY}-0.{CHARM_KEY}-endpoints",
                 sock_dns,
             ]
         )
-        assert "2.2.2.2" in "".join(built_sans["sans_ip"])
+        assert "2.2.2.2" in "".join(built_sans.sans_ip)
 
         if expose_external == "nodeport":
-            assert "111.111.111.111" in "".join(built_sans["sans_ip"])
+            assert "111.111.111.111" in "".join(built_sans.sans_ip)
 
         if expose_external == "loadbalancer":
-            assert "3.3.3.3" in "".join(built_sans["sans_ip"])
+            assert "3.3.3.3" in "".join(built_sans.sans_ip)

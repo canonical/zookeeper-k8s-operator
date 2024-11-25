@@ -4,29 +4,13 @@
 
 """Structured configuration for the ZooKeeper charm."""
 import logging
-from enum import Enum
 
 from charms.data_platform_libs.v0.data_models import BaseConfigModel
 from pydantic import Field
 
+from core.stubs import ExposeExternal, LogLevel
+
 logger = logging.getLogger(__name__)
-
-
-class LogLevel(str, Enum):
-    """Enum for the `log-level` field."""
-
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    DEBUG = "DEBUG"
-
-
-class ExposeExternal(str, Enum):
-    """Enum for the `expose-external` field."""
-
-    FALSE = "false"
-    NODEPORT = "nodeport"
-    LOADBALANCER = "loadbalancer"
 
 
 class CharmConfig(BaseConfigModel):

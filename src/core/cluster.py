@@ -19,7 +19,7 @@ from ops.model import Relation, Unit
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
-from core.structured_config import ExposeExternal
+from core.stubs import ExposeExternal
 from literals import (
     CLIENT_PORT,
     PEER,

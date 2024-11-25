@@ -102,8 +102,8 @@ class TLSEvents(Object):
         csr = generate_csr(
             private_key=self.charm.state.unit_server.private_key.encode("utf-8"),
             subject=subject,
-            sans_ip=sans["sans_ip"],
-            sans_dns=sans["sans_dns"],
+            sans_ip=sans.sans_ip,
+            sans_dns=sans.sans_dns,
         )
 
         self.charm.state.unit_server.update({"csr": csr.decode("utf-8").strip()})
@@ -142,8 +142,8 @@ class TLSEvents(Object):
         new_csr = generate_csr(
             private_key=self.charm.state.unit_server.private_key.encode("utf-8"),
             subject=subject,
-            sans_ip=sans["sans_ip"],
-            sans_dns=sans["sans_dns"],
+            sans_ip=sans.sans_ip,
+            sans_dns=sans.sans_dns,
         )
 
         self.certificates.request_certificate_renewal(

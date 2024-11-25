@@ -6,19 +6,17 @@
 import logging
 import socket
 import subprocess
-from typing import TypedDict
 
 import ops.pebble
 from lightkube.core.exceptions import ApiError as LightKubeApiError
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.cluster import SUBSTRATES, ClusterState
+from core.stubs import SANs
 from core.workload import WorkloadBase
 from literals import GROUP, USER
 
 logger = logging.getLogger(__name__)
-
-Sans = TypedDict("Sans", {"sans_ip": list[str], "sans_dns": list[str]})
 
 
 class TLSManager:
@@ -35,15 +33,13 @@ class TLSManager:
         retry=retry_if_exception_cause_type(LightKubeApiError),
         reraise=True,
     )
-    def build_sans(self) -> Sans:
-        """Builds a SAN dict of DNS names and IPs for the unit."""
+    def build_sans(self) -> SANs:
+        """Builds a SAN structure of DNS names and IPs for the unit."""
         if self.substrate == "vm":
-            return {
-                "sans_ip": [
-                    self.state.unit_server.host,
-                ],
-                "sans_dns": [self.state.unit_server.unit.name, socket.getfqdn()],
-            }
+            return SANs(
+                sans_ip=[self.state.unit_server.host],
+                sans_dns=[self.state.unit_server.unit.name, socket.getfqdn()],
+            )
         else:
             sans_ip = [str(self.state.bind_address)]
 
@@ -55,20 +51,18 @@ class TLSManager:
             except Exception:
                 pass
 
-            sans: Sans = {
-                "sans_ip": sorted(sans_ip),
-                "sans_dns": sorted(
+            return SANs(
+                sans_ip=sorted(sans_ip),
+                sans_dns=sorted(
                     [
                         self.state.unit_server.internal_address.split(".")[0],
                         self.state.unit_server.internal_address,
                         socket.getfqdn(),
                     ]
                 ),
-            }
+            )
 
-            return sans
-
-    def get_current_sans(self) -> Sans | None:
+    def get_current_sans(self) -> SANs | None:
         """Gets the current SANs for the unit cert."""
         if not self.state.unit_server.certificate:
             return
@@ -97,7 +91,7 @@ class TLSManager:
             if san_type.strip() == "IP Address":
                 sans_ip.append(san_value)
 
-        return {"sans_ip": sorted(sans_ip), "sans_dns": sorted(sans_dns)}
+        return SANs(sans_ip=sorted(sans_ip), sans_dns=sorted(sans_dns))
 
     def set_private_key(self) -> None:
         """Sets the unit private-key."""
