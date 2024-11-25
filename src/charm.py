@@ -275,8 +275,10 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
             logger.info(
                 (
                     f'SERVER {self.unit.name.split("/")[1]} updating certificate SANs - '
-                    f"OLD SANs = {current_sans_ip - expected_sans_ip}, "
-                    f"NEW SANs = {expected_sans_ip - current_sans_ip}"
+                    f"OLD SANs IP = {current_sans_ip - expected_sans_ip}, "
+                    f"NEW SANs IP = {expected_sans_ip - current_sans_ip}, "
+                    f"OLD SANs DNS = {current_sans_dns - expected_sans_dns}, "
+                    f"NEW SANs DNS = {expected_sans_dns - current_sans_dns}"
                 )
             )
             self.tls_events.certificates.on.certificate_expiring.emit(
