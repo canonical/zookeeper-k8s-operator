@@ -18,7 +18,6 @@ from ops import (
     EventBase,
     InstallEvent,
     LeaderElectedEvent,
-    MaintenanceStatus,
     ModelError,
     RelationDepartedEvent,
     SecretChangedEvent,
@@ -192,14 +191,14 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
                 return
 
             case ExposeExternal.NODEPORT:
+                self._set_status(Status.SERVICE_UNAVAILABLE)
                 self.k8s_manager.apply_service(service=self.k8s_manager.build_nodeport_service())
 
             case ExposeExternal.LOADBALANCER:
+                self._set_status(Status.SERVICE_UNAVAILABLE)
                 self.k8s_manager.apply_service(
                     service=self.k8s_manager.build_loadbalancer_service()
                 )
-
-        self.unit.status = MaintenanceStatus("waiting for service")
 
     # --- CORE EVENT HANDLERS ---
 
