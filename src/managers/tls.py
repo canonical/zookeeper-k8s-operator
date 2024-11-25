@@ -37,7 +37,7 @@ class TLSManager:
         """Builds a SAN structure of DNS names and IPs for the unit."""
         if self.substrate == "vm":
             return SANs(
-                sans_ip=[self.state.unit_server.host],
+                sans_ip=[self.state.unit_server.internal_address],
                 sans_dns=[self.state.unit_server.unit.name, socket.getfqdn()],
             )
         else:

@@ -220,7 +220,6 @@ def test_certificates_joined_creates_new_key_trust_store_password(
     with (
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("core.models.ZKCluster.tls", new_callable=PropertyMock, return_value=True),
-        patch("core.models.ZKServer.host", new_callable=PropertyMock, return_value="host"),
         ctx(ctx.on.relation_joined(tls_relation), state_in) as manager,
     ):
         charm = cast(ZooKeeperCharm, manager.charm)

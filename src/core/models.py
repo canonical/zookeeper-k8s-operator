@@ -387,14 +387,6 @@ class ZKServer(RelationState):
         return host
 
     @property
-    def host(self) -> str:
-        """The hostname for the unit."""
-        if self.substrate == "vm":
-            return self.internal_address
-        else:
-            return self.node_ip or self.internal_address
-
-    @property
     def server_string(self) -> str:
         """The server string for the ZooKeeper server."""
         return f"server.{self.server_id}={self.internal_address}:{SERVER_PORT}:{ELECTION_PORT}:participant;0.0.0.0:{CLIENT_PORT}"
