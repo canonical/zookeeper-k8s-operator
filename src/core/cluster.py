@@ -166,9 +166,7 @@ class ClusterState(Object):
                 2181 if TLS is not enabled
                 2182 if TLS is enabled
         """
-        port = SECURE_CLIENT_PORT if self.cluster.tls else CLIENT_PORT
-
-        return port
+        return SECURE_CLIENT_PORT if self.cluster.tls else CLIENT_PORT
 
     @property
     @retry(
@@ -183,7 +181,8 @@ class ClusterState(Object):
         K8s only.
         """
         auth = "plain" if not self.cluster.tls else "tls"
-        if self.config.expose_external is ExposeExternal.NODEPORT:
+        expose = self.config.expose_external
+        if expose is ExposeExternal.NODEPORT:
             # We might have several of them if we run on multiple k8s nodes
             return ",".join(
                 sorted(
@@ -193,10 +192,14 @@ class ClusterState(Object):
                     }
                 )
             )
-        else:
-            # ExposeExternal.LOADBALANCER only remaining possibility
+
+        elif expose is ExposeExternal.LOADBALANCER:
             # There should be only one host
             return f"{next(iter(self.servers)).loadbalancer_ip}:{self.client_port}"
+
+        else:  # pragma: nocover
+            # ExposeExternal.FALSE already covered
+            raise ValueError(f"{expose} not recognized.")
 
     @property
     def endpoints(self) -> str:
