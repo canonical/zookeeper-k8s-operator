@@ -460,17 +460,6 @@ class ZKServer(RelationState):
         return self.relation_data.get("ca-cert", self.ca)
 
     @property
-    def sans(self) -> dict[str, list[str]]:
-        """The Subject Alternative Name for the unit's TLS certificates."""
-        if not all([self.ip, self.hostname, self.fqdn]):
-            return {}
-
-        return {
-            "sans_ip": [self.ip, self.node_ip],
-            "sans_dns": [self.hostname, self.fqdn],
-        }
-
-    @property
     def restore_progress(self) -> RestoreStep:
         """Latest restore flow step the unit went through."""
         return RestoreStep(self.relation_data.get("restore-progress", ""))
