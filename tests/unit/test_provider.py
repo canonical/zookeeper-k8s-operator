@@ -221,6 +221,7 @@ def test_client_relation_broken_removes_passwords(ctx: Context, base_state: Stat
         assert not charm.state.cluster.client_passwords
 
 
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="K8s services not used on VM charms")
 def test_expose_external_service_down_disconnect_clients(
     charm_configuration: dict, base_state: State
 ) -> None:

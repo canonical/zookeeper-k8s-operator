@@ -17,6 +17,7 @@ import yaml
 from ops.testing import Container, Context, PeerRelation, Relation, Secret, State
 
 from charm import ZooKeeperCharm
+from core.stubs import SANs
 from literals import CERTS_REL_NAME, CHARM_KEY, CONTAINER, PEER, SUBSTRATE, Status
 
 CONFIG = yaml.safe_load(Path("./config.yaml").read_text())
@@ -220,6 +221,11 @@ def test_certificates_joined_creates_new_key_trust_store_password(
     with (
         patch("core.cluster.ClusterState.stable", new_callable=PropertyMock, return_value=True),
         patch("core.models.ZKCluster.tls", new_callable=PropertyMock, return_value=True),
+        patch(
+            "core.models.ZKServer.internal_address",
+            new_callable=PropertyMock,
+            return_value="1.1.1.1",
+        ),
         ctx(ctx.on.relation_joined(tls_relation), state_in) as manager,
     ):
         charm = cast(ZooKeeperCharm, manager.charm)
@@ -567,15 +573,15 @@ def test_sans_external_access(
 
     # When
     if SUBSTRATE == "vm":
-        with ctx(ctx.on.config_changed(), state_in) as manager:
+        with patch("workload.ZKWorkload.write"), ctx(ctx.on.config_changed(), state_in) as manager:
             charm = cast(ZooKeeperCharm, manager.charm)
             built_sans = charm.tls_manager.build_sans()
 
         # Then
-        assert built_sans == {
-            "sans_ip": ["treebeard"],
-            "sans_dns": [f"{CHARM_KEY}/0", sock_dns],
-        }
+        assert built_sans == SANs(
+            sans_ip=["treebeard"],
+            sans_dns=[f"{CHARM_KEY}/0", sock_dns],
+        )
 
     # When
     if SUBSTRATE == "k8s":

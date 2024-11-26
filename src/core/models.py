@@ -377,7 +377,7 @@ class ZKServer(RelationState):
         """The hostname for the unit, for internal communication."""
         host = ""
         if self.substrate == "vm":
-            for key in ["hostname", "ip", "private-address"]:
+            for key in ["ip", "hostname", "private-address"]:
                 if host := self.relation_data.get(key, ""):
                     break
 

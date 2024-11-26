@@ -1233,6 +1233,7 @@ def test_port_updates_if_tls(ctx: Context, base_state: State) -> None:
         PEER,
         local_app_data={"quorum": "ssl", "relation-0": "mellon", "tls": "enabled"},
         local_unit_data={"private-address": "treebeard", "state": "started"},
+        peers_data={},
     )
     client_relation = Relation(REL_NAME, "application", remote_app_data={"database": "app"})
     state_in = dataclasses.replace(base_state, relations=[cluster_peer, client_relation])

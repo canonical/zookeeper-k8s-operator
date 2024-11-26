@@ -204,7 +204,7 @@ class ClusterState(Object):
     @property
     def endpoints(self) -> str:
         """Comma-separated string of connection uris for all started ZooKeeper units."""
-        if self.config.expose_external is not ExposeExternal.FALSE:
+        if self.substrate == "k8s" and self.config.expose_external is not ExposeExternal.FALSE:
             try:
                 return self.endpoints_external
             except LightKubeApiError as e:
@@ -217,7 +217,7 @@ class ClusterState(Object):
                     (
                         f"{server.internal_address}:{self.client_port}"
                         if self.substrate == "k8s"
-                        else server.ip
+                        else f"{server.internal_address}:{self.client_port}"
                     )
                     for server in self.servers
                 ]
