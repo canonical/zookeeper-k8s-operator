@@ -297,13 +297,17 @@ def test_certificates_available_succeeds(ctx: Context, base_state: State) -> Non
     )
 
     # When
-    with patch.multiple(
-        "managers.tls.TLSManager",
-        set_private_key=DEFAULT,
-        set_ca=DEFAULT,
-        set_certificate=DEFAULT,
-        set_truststore=DEFAULT,
-        set_p12_keystore=DEFAULT,
+    with (
+        patch.multiple(
+            "managers.tls.TLSManager",
+            set_private_key=DEFAULT,
+            set_ca=DEFAULT,
+            set_certificate=DEFAULT,
+            set_truststore=DEFAULT,
+            set_p12_keystore=DEFAULT,
+            get_current_sans=lambda _: None,
+        ),
+        patch("workload.ZKWorkload.write"),
     ):
         state_out = ctx.run(ctx.on.relation_changed(tls_relation), state_in)
 
@@ -346,13 +350,17 @@ def test_renew_certificates_auto_reload(ctx: Context, base_state: State) -> None
     state_in = dataclasses.replace(base_state, relations=[cluster_peer, tls_relation])
 
     # When
-    with patch.multiple(
-        "managers.tls.TLSManager",
-        set_private_key=DEFAULT,
-        set_ca=DEFAULT,
-        set_certificate=DEFAULT,
-        set_truststore=DEFAULT,
-        set_p12_keystore=DEFAULT,
+    with (
+        patch.multiple(
+            "managers.tls.TLSManager",
+            set_private_key=DEFAULT,
+            set_ca=DEFAULT,
+            set_certificate=DEFAULT,
+            set_truststore=DEFAULT,
+            set_p12_keystore=DEFAULT,
+            get_current_sans=lambda _: None,
+        ),
+        patch("workload.ZKWorkload.write"),
     ):
         state_out = ctx.run(ctx.on.relation_changed(tls_relation), state_in)
 
@@ -384,6 +392,7 @@ def test_certificates_available_halfway_through_upgrade_succeeds(
             set_certificate=DEFAULT,
             set_truststore=DEFAULT,
             set_p12_keystore=DEFAULT,
+            get_current_sans=lambda _: None,
         ),
         ctx(ctx.on.relation_changed(tls_relation), state_in) as manager,
     ):
