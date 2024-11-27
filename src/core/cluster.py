@@ -207,7 +207,7 @@ class ClusterState(Object):
         if self.substrate == "k8s" and self.config.expose_external is not ExposeExternal.FALSE:
             try:
                 return self.endpoints_external
-            except LightKubeApiError as e:
+            except Exception as e:
                 logger.debug(e)
                 return ""
 

@@ -127,6 +127,7 @@ class TLSEvents(Object):
         self.charm.tls_manager.set_certificate()
         self.charm.tls_manager.set_truststore()
         self.charm.tls_manager.set_p12_keystore()
+        self.charm.on.config_changed.emit()
 
     def _on_certificate_expiring(self, _: EventBase) -> None:
         """Handler for `certificates_expiring` event when certs need renewing."""

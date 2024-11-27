@@ -255,6 +255,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         # since the next steps will 1. update the unit status to active and 2. update the clients,
         # we want to check if the external access is all good before proceeding
         if not self.state.endpoints:
+            logger.info("Endpoints not yet known, deferring")
             self.disconnect_clients()
             event.defer()
             return
