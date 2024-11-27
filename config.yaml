@@ -16,10 +16,14 @@ options:
     type: int
     default: 2000
   log-level:
-    description: 'Level of logging for the different components operated by the charm. Possible values: ERROR, WARNING, INFO, DEBUG'
+    description: "Level of logging for the different components operated by the charm. Possible values: ERROR, WARNING, INFO, DEBUG"
     type: string
     default: "INFO"
   expose-external:
     description: "String to determine how to expose the ZooKeeper cluster externally from the Kubernetes cluster. Possible values: 'nodeport', 'loadbalancer', 'false'"
     type: string
     default: "false"
+  loadbalancer-extra-annotations:
+    description: "String in json format to describe extra configuration for load balancers. Needed for some cloud providers or services."
+    type: string
+    default: ""
