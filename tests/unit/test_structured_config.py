@@ -67,7 +67,16 @@ def test_incorrect_log_level():
 
 
 def test_incorrect_expose_external():
+    """Accepted expose-external values must be part of the defined enumeration and uppercase."""
     erroneus_values = ["", "something_else", "false,nodeport", "load_balancer"]
     valid_values = ["false", "nodeport", "loadbalancer"]
     check_invalid_values("expose_external", erroneus_values)
     check_valid_values("expose_external", valid_values)
+
+
+def test_enforce_sasl():
+    """Accepted enforce-sasl values must be booleans."""
+    erroneus_values = ["something_else", "", 2]
+    valid_values = ["false", False, True, "true", 0, 1]
+    check_invalid_values("enforce_sasl_client", erroneus_values)
+    check_valid_values("enforce_sasl_client", valid_values)
