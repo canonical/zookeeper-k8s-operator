@@ -2,6 +2,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 import dataclasses
+import json
 import logging
 from pathlib import Path
 from typing import cast
@@ -9,11 +10,11 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 import yaml
-from ops import RelationBrokenEvent
+from ops import MaintenanceStatus, RelationBrokenEvent
 from ops.testing import Container, Context, PeerRelation, Relation, State
 
 from charm import ZooKeeperCharm
-from literals import CONTAINER, PEER, REL_NAME, SUBSTRATE
+from literals import CONTAINER, PEER, REL_NAME, SUBSTRATE, Status
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,12 @@ def base_state():
         state = State(leader=True)
 
     return state
+
+
+@pytest.fixture()
+def charm_configuration():
+    """Enable direct mutation on configuration dict."""
+    return json.loads(json.dumps(CONFIG))
 
 
 @pytest.fixture()
@@ -212,3 +219,50 @@ def test_client_relation_broken_removes_passwords(ctx: Context, base_state: Stat
 
         # Then
         assert not charm.state.cluster.client_passwords
+
+
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="K8s services not used on VM charms")
+def test_expose_external_service_down_disconnect_clients(
+    charm_configuration: dict, base_state: State
+) -> None:
+    # Given
+    charm_configuration["options"]["expose-external"]["default"] = "nodeport"
+    cluster_peer = PeerRelation(
+        PEER,
+        PEER,
+        peers_data={},
+        local_unit_data={"state": "started"},
+        local_app_data={
+            "sync-password": "mellon",
+            "super-password": "mellon",
+        },
+    )
+    client_relation = Relation(
+        REL_NAME,
+        "application",
+        remote_app_data={"database": "balrog"},
+        local_app_data={"endpoints": "9.9.9.9:2181"},
+    )
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer, client_relation])
+    ctx = Context(
+        ZooKeeperCharm, meta=METADATA, config=charm_configuration, actions=ACTIONS, unit_id=0
+    )
+
+    # When
+    with (
+        patch(
+            "core.cluster.ClusterState.stable",
+            new_callable=PropertyMock,
+            return_value=Status.ACTIVE,
+        ),
+        patch(
+            "core.cluster.ClusterState.endpoints_external",
+            new_callable=PropertyMock,
+            return_value="",
+        ),
+    ):
+        state_out = ctx.run(ctx.on.config_changed(), state_in)
+
+    # Then
+    assert not state_out.get_relation(client_relation.id).local_app_data.get("endpoints", "")
+    assert isinstance(state_out.unit_status, MaintenanceStatus)

@@ -6,14 +6,15 @@
 
 import logging
 import time
+from datetime import datetime
 
+from charms.data_platform_libs.v0.data_models import TypedCharmBase
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.loki_k8s.v0.loki_push_api import LogProxyConsumer
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.rolling_ops.v0.rollingops import RollingOpsManager
 from ops import (
     ActiveStatus,
-    CharmBase,
     EventBase,
     InstallEvent,
     LeaderElectedEvent,
@@ -22,12 +23,14 @@ from ops import (
     SecretChangedEvent,
     StatusBase,
     WaitingStatus,
+    main,
 )
-from ops.main import main
 from ops.pebble import Layer, LayerDict
 from tenacity import RetryError
 
 from core.cluster import ClusterState
+from core.structured_config import CharmConfig
+from core.stubs import ExposeExternal
 from events.backup import BackupEvents
 from events.password_actions import PasswordActionEvents
 from events.provider import ProviderEvents
@@ -49,15 +52,20 @@ from literals import (
     Status,
 )
 from managers.config import ConfigManager
+from managers.k8s import K8sManager
 from managers.quorum import QuorumManager
 from managers.tls import TLSManager
 from workload import ZKWorkload
 
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
-class ZooKeeperCharm(CharmBase):
+class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
     """Charmed Operator for ZooKeeper K8s."""
+
+    config_type = CharmConfig
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -87,6 +95,9 @@ class ZooKeeperCharm(CharmBase):
         )
         self.config_manager = ConfigManager(
             state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
+        )
+        self.k8s_manager = K8sManager(
+            pod_name=self.state.unit_server.pod_name, namespace=self.model.name
         )
 
         # --- LIB EVENT HANDLERS ---
@@ -161,12 +172,33 @@ class ZooKeeperCharm(CharmBase):
                     "override": "replace",
                     "level": "alive",
                     "exec": {
-                        "command": f"echo ruok | nc {self.state.unit_server.host} {CLIENT_PORT}"
+                        "command": f"echo ruok | nc {self.state.unit_server.internal_address} {CLIENT_PORT}"
                     },
                 }
             },
         }
         return Layer(layer_config)
+
+    def update_external_services(self) -> None:
+        """Attempts to update any external Kubernetes services."""
+        if not SUBSTRATE == "k8s" or not self.unit.is_leader():
+            return
+
+        match self.config.expose_external:
+            case ExposeExternal.FALSE:
+                # if is already removed, will silently continue
+                self.k8s_manager.remove_service(service_name=self.k8s_manager.exposer_service_name)
+                return
+
+            case ExposeExternal.NODEPORT:
+                self._set_status(Status.SERVICE_UNAVAILABLE)
+                self.k8s_manager.apply_service(service=self.k8s_manager.build_nodeport_service())
+
+            case ExposeExternal.LOADBALANCER:
+                self._set_status(Status.SERVICE_UNAVAILABLE)
+                self.k8s_manager.apply_service(
+                    service=self.k8s_manager.build_loadbalancer_service()
+                )
 
     # --- CORE EVENT HANDLERS ---
 
@@ -187,6 +219,7 @@ class ZooKeeperCharm(CharmBase):
             self.state.cluster.update({"quorum": "default - non-ssl"})
 
         self.unit.set_workload_version(self.workload.get_version())
+        self.update_external_services()
 
     def _on_cluster_relation_changed(self, event: EventBase) -> None:  # noqa: C901
         """Generic handler for all 'something changed, update' events across all relations."""
@@ -215,6 +248,49 @@ class ZooKeeperCharm(CharmBase):
         # attempt startup of server
         if not self.state.unit_server.started:
             self.init_server()
+
+        # create services if we expose the charm, no op if not
+        self.update_external_services()
+
+        # since the next steps will 1. update the unit status to active and 2. update the clients,
+        # we want to check if the external access is all good before proceeding
+        if not self.state.endpoints:
+            logger.info("Endpoints not yet known, deferring")
+            self.disconnect_clients()
+            event.defer()
+            return
+
+        # if we were already using tls while a network change comes up, we need to expire
+        # existing certificates
+        current_sans = self.tls_manager.get_current_sans()
+
+        current_sans_ip = set(current_sans.sans_ip) if current_sans else set()
+        expected_sans_ip = set(self.tls_manager.build_sans().sans_ip) if current_sans else set()
+        sans_ip_changed = current_sans_ip ^ expected_sans_ip
+
+        current_sans_dns = set(current_sans.sans_dns) if current_sans else set()
+        expected_sans_dns = set(self.tls_manager.build_sans().sans_dns) if current_sans else set()
+        sans_dns_changed = current_sans_dns ^ expected_sans_dns
+
+        if sans_ip_changed or sans_dns_changed:
+            logger.info(
+                (
+                    f'SERVER {self.unit.name.split("/")[1]} updating certificate SANs - '
+                    f"OLD SANs IP = {current_sans_ip - expected_sans_ip}, "
+                    f"NEW SANs IP = {expected_sans_ip - current_sans_ip}, "
+                    f"OLD SANs DNS = {current_sans_dns - expected_sans_dns}, "
+                    f"NEW SANs DNS = {expected_sans_dns - current_sans_dns}"
+                )
+            )
+            self.tls_events.certificates.on.certificate_expiring.emit(
+                certificate=self.state.unit_server.certificate,
+                expiry=datetime.now().isoformat(),
+            )  # new cert will eventually be dynamically loaded by the server
+            self.state.unit_server.update(
+                {"certificate": ""}
+            )  # ensures only single requested new certs, will be replaced on new certificate-available event
+
+            return  # early return here to ensure new node cert arrives before updating the clients
 
         # even if leader has not started, attempt update quorum
         self.update_quorum(event=event)

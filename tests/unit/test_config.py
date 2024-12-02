@@ -189,7 +189,10 @@ def test_tls_enabled(ctx: Context, base_state: State) -> None:
     state_in = dataclasses.replace(base_state, relations=[cluster_peer])
 
     # When
-    with ctx(ctx.on.config_changed(), state_in) as manager:
+    with (
+        patch("managers.tls.TLSManager.get_current_sans", return_value=""),
+        ctx(ctx.on.config_changed(), state_in) as manager,
+    ):
         charm = cast(ZooKeeperCharm, manager.charm)
 
         # Then
@@ -275,7 +278,10 @@ def test_tls_ssl_quorum(ctx: Context, base_state: State) -> None:
     state_in = dataclasses.replace(base_state, relations=[cluster_peer])
 
     # When
-    with ctx(ctx.on.config_changed(), state_in) as manager:
+    with (
+        patch("managers.tls.TLSManager.get_current_sans", return_value=""),
+        ctx(ctx.on.config_changed(), state_in) as manager,
+    ):
         charm = cast(ZooKeeperCharm, manager.charm)
 
         # Then

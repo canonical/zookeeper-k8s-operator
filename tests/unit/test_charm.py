@@ -742,6 +742,7 @@ def test_init_server_calls_necessary_methods(ctx: Context, base_state: State) ->
         patch("managers.tls.TLSManager.set_truststore") as patched_truststore,
         patch("managers.tls.TLSManager.set_p12_keystore") as patched_keystore,
         patch("workload.ZKWorkload.start") as start,
+        patch("managers.tls.TLSManager.get_current_sans", return_value=""),
         patch(
             "charms.rolling_ops.v0.rollingops.RollingOpsManager._on_acquire_lock",
             autospec=True,
@@ -1232,6 +1233,7 @@ def test_port_updates_if_tls(ctx: Context, base_state: State) -> None:
         PEER,
         local_app_data={"quorum": "ssl", "relation-0": "mellon", "tls": "enabled"},
         local_unit_data={"private-address": "treebeard", "state": "started"},
+        peers_data={},
     )
     client_relation = Relation(REL_NAME, "application", remote_app_data={"database": "app"})
     state_in = dataclasses.replace(base_state, relations=[cluster_peer, client_relation])

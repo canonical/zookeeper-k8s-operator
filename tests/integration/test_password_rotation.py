@@ -31,6 +31,8 @@ async def test_deploy_active(ops_test: OpsTest, zk_charm):
         num_units=3,
         resources={"zookeeper-image": ZOOKEEPER_IMAGE},
         series=SERIES,
+        trust=True,
+        config={"expose-external": "nodeport"},
     )
     async with ops_test.fast_forward():
         await ops_test.model.block_until(

@@ -7,6 +7,7 @@ import json
 import logging
 import warnings
 from collections.abc import MutableMapping
+from functools import cached_property
 from typing import Literal
 
 from charms.data_platform_libs.v0.data_interfaces import Data, DataPeerData, DataPeerUnitData
@@ -15,6 +16,7 @@ from typing_extensions import deprecated, override
 
 from core.stubs import RestoreStep, S3ConnectionInfo
 from literals import CHARM_USERS, CLIENT_PORT, ELECTION_PORT, SECRETS_APP, SERVER_PORT
+from managers.k8s import K8sManager
 
 logger = logging.getLogger(__name__)
 
@@ -317,6 +319,10 @@ class ZKServer(RelationState):
     ):
         super().__init__(relation, data_interface, component, substrate)
         self.unit = component
+        self.k8s = K8sManager(
+            pod_name=self.pod_name,
+            namespace=self.unit._backend.model_name,
+        )
 
     @property
     def unit_id(self) -> int:
@@ -367,11 +373,11 @@ class ZKServer(RelationState):
         return self.unit_id + 1
 
     @property
-    def host(self) -> str:
-        """The hostname for the unit."""
+    def internal_address(self) -> str:
+        """The hostname for the unit, for internal communication."""
         host = ""
         if self.substrate == "vm":
-            for key in ["hostname", "ip", "private-address"]:
+            for key in ["ip", "hostname", "private-address"]:
                 if host := self.relation_data.get(key, ""):
                     break
 
@@ -383,7 +389,7 @@ class ZKServer(RelationState):
     @property
     def server_string(self) -> str:
         """The server string for the ZooKeeper server."""
-        return f"server.{self.server_id}={self.host}:{SERVER_PORT}:{ELECTION_PORT}:participant;0.0.0.0:{CLIENT_PORT}"
+        return f"server.{self.server_id}={self.internal_address}:{SERVER_PORT}:{ELECTION_PORT}:participant;0.0.0.0:{CLIENT_PORT}"
 
     # -- TLS --
 
@@ -446,17 +452,30 @@ class ZKServer(RelationState):
         return self.relation_data.get("ca-cert", self.ca)
 
     @property
-    def sans(self) -> dict[str, list[str]]:
-        """The Subject Alternative Name for the unit's TLS certificates."""
-        if not all([self.ip, self.hostname, self.fqdn]):
-            return {}
-
-        return {
-            "sans_ip": [self.ip],
-            "sans_dns": [self.hostname, self.fqdn],
-        }
-
-    @property
     def restore_progress(self) -> RestoreStep:
         """Latest restore flow step the unit went through."""
         return RestoreStep(self.relation_data.get("restore-progress", ""))
+
+    @property
+    def pod_name(self) -> str:
+        """The name of the K8s Pod for the unit.
+
+        K8s-only.
+        """
+        return self.unit.name.replace("/", "-")
+
+    @cached_property
+    def node_ip(self) -> str:
+        """The IPV4/IPV6 IP address of the Node the unit is on.
+
+        K8s-only.
+        """
+        return self.k8s.get_node_ip(self.pod_name)
+
+    @cached_property
+    def loadbalancer_ip(self) -> str:
+        """The IPV4/IPV6 IP address of the LoadBalancer exposing the unit.
+
+        K8s-only.
+        """
+        return self.k8s.get_loadbalancer()

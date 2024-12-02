@@ -74,7 +74,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 7
+LIBPATCH = 8
 
 
 logger = logging.getLogger(__name__)
@@ -101,6 +101,12 @@ class QuorumLeaderNotFoundError(Exception):
     pass
 
 
+class NoUnitFoundError(Exception):
+    """Generic exception for when there are no running zk unit in the app."""
+
+    pass
+
+
 class ZooKeeperManager:
     """Handler for performing ZK commands."""
 
@@ -114,6 +120,7 @@ class ZooKeeperManager:
         keyfile_path: Optional[str] = "",
         keyfile_password: Optional[str] = "",
         certfile_path: Optional[str] = "",
+        read_only: bool = True,
     ):
         self.hosts = hosts
         self.username = username
@@ -123,12 +130,21 @@ class ZooKeeperManager:
         self.keyfile_path = keyfile_path
         self.keyfile_password = keyfile_password
         self.certfile_path = certfile_path
-        self.leader = ""
+        self.zk_host = ""
+        self.read_only = read_only
 
-        try:
-            self.leader = self.get_leader()
-        except RetryError:
-            raise QuorumLeaderNotFoundError("quorum leader not found")
+        if not read_only:
+            try:
+                self.zk_host = self.get_leader()
+            except RetryError:
+                raise QuorumLeaderNotFoundError("quorum leader not found")
+
+        else:
+            try:
+                self.zk_host = self.get_any_unit()
+
+            except RetryError:
+                raise NoUnitFoundError
 
     @retry(
         wait=wait_fixed(3),
@@ -170,6 +186,35 @@ class ZooKeeperManager:
 
         return leader or ""
 
+    @retry(
+        wait=wait_fixed(3),
+        stop=stop_after_attempt(2),
+        retry=retry_if_not_result(lambda result: True if result else False),
+    )
+    def get_any_unit(self) -> str:
+        any_host = None
+        for host in self.hosts:
+            try:
+                with ZooKeeperClient(
+                    host=host,
+                    client_port=self.client_port,
+                    username=self.username,
+                    password=self.password,
+                    use_ssl=self.use_ssl,
+                    keyfile_path=self.keyfile_path,
+                    keyfile_password=self.keyfile_password,
+                    certfile_path=self.certfile_path,
+                ) as zk:
+                    response = zk.srvr
+                    if response:
+                        any_host = host
+                        break
+            except KazooTimeoutError:  # in the case of having a dead unit in relation data
+                logger.debug(f"TIMEOUT - {host}")
+                continue
+
+        return any_host or ""
+
     @property
     def server_members(self) -> Set[str]:
         """The current members within the ZooKeeper quorum.
@@ -179,7 +224,7 @@ class ZooKeeperManager:
                 e.g {"server.1=10.141.78.207:2888:3888:participant;0.0.0.0:2181"}
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,
@@ -200,7 +245,7 @@ class ZooKeeperManager:
             The zookeeper config version decoded from base16
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,
@@ -221,7 +266,7 @@ class ZooKeeperManager:
             True if any members are syncing. Otherwise False.
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,
@@ -305,7 +350,7 @@ class ZooKeeperManager:
 
             # specific connection to leader
             with ZooKeeperClient(
-                host=self.leader,
+                host=self.zk_host,
                 client_port=self.client_port,
                 username=self.username,
                 password=self.password,
@@ -330,7 +375,7 @@ class ZooKeeperManager:
         for member in members:
             member_id = re.findall(r"server.([0-9]+)", member)[0]
             with ZooKeeperClient(
-                host=self.leader,
+                host=self.zk_host,
                 client_port=self.client_port,
                 username=self.username,
                 password=self.password,
@@ -356,7 +401,7 @@ class ZooKeeperManager:
             Set of all nested child zNodes
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,
@@ -377,7 +422,7 @@ class ZooKeeperManager:
             acls: the ACLs to be set on that path
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,
@@ -396,7 +441,7 @@ class ZooKeeperManager:
             acls: the new ACLs to be set on that path
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,
@@ -414,7 +459,7 @@ class ZooKeeperManager:
             path: the zNode path to delete
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,
@@ -432,7 +477,7 @@ class ZooKeeperManager:
             String of ZooKeeper service version
         """
         with ZooKeeperClient(
-            host=self.leader,
+            host=self.zk_host,
             client_port=self.client_port,
             username=self.username,
             password=self.password,

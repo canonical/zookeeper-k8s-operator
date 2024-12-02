@@ -31,6 +31,8 @@ async def test_deploy_charms_relate_active(ops_test: OpsTest, zk_charm):
             num_units=3,
             resources={"zookeeper-image": ZOOKEEPER_IMAGE},
             series=SERIES,
+            trust=True,
+            config={"expose-external": "nodeport"},
         ),
         ops_test.model.deploy(
             app_charm,

@@ -4,7 +4,8 @@
 
 """Collection of global cluster state for the ZooKeeper quorum."""
 import logging
-from typing import Set
+from ipaddress import IPv4Address, IPv6Address
+from typing import TYPE_CHECKING, Set
 
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseProviderData,
@@ -12,11 +13,24 @@ from charms.data_platform_libs.v0.data_interfaces import (
     DataPeerOtherUnitData,
     DataPeerUnitData,
 )
-from ops.framework import Framework, Object
+from lightkube.core.exceptions import ApiError as LightKubeApiError
+from ops.framework import Object
 from ops.model import Relation, Unit
+from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
-from literals import CLIENT_PORT, PEER, REL_NAME, SECRETS_UNIT, SECURE_CLIENT_PORT, Status
+from core.stubs import ExposeExternal
+from literals import (
+    CLIENT_PORT,
+    PEER,
+    REL_NAME,
+    SECRETS_UNIT,
+    SECURE_CLIENT_PORT,
+    Status,
+)
+
+if TYPE_CHECKING:
+    from charm import ZooKeeperCharm
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +38,7 @@ logger = logging.getLogger(__name__)
 class ClusterState(Object):
     """Collection of global cluster state for Framework/Object."""
 
-    def __init__(self, charm: Framework | Object, substrate: SUBSTRATES):
+    def __init__(self, charm: "ZooKeeperCharm", substrate: SUBSTRATES):
         super().__init__(parent=charm, key="charm_state")
         self.substrate: SUBSTRATES = substrate
 
@@ -34,6 +48,7 @@ class ClusterState(Object):
         )
         self.client_provider_interface = DatabaseProviderData(self.model, relation_name=REL_NAME)
         self._servers_data = {}
+        self.config = charm.config
 
     # --- RAW RELATION ---
 
@@ -122,10 +137,8 @@ class ClusterState(Object):
                     substrate=self.substrate,
                     local_app=self.cluster.app,
                     password=self.cluster.client_passwords.get(f"relation-{relation.id}", ""),
-                    uris=",".join(
-                        [f"{endpoint}:{self.client_port}" for endpoint in self.endpoints]
-                    ),
-                    endpoints=",".join(self.endpoints),
+                    uris=self.endpoints,
+                    endpoints=self.endpoints,
                     tls="enabled" if self.cluster.tls else "disabled",
                 )
             )
@@ -133,6 +146,16 @@ class ClusterState(Object):
         return clients
 
     # --- CLUSTER INIT ---
+
+    @property
+    def bind_address(self) -> IPv4Address | IPv6Address | str:
+        """The network binding address from the peer relation."""
+        bind_address = None
+        if self.peer_relation:
+            if binding := self.model.get_binding(self.peer_relation):
+                bind_address = binding.network.bind_address
+
+        return bind_address or ""
 
     @property
     def client_port(self) -> int:
@@ -143,20 +166,62 @@ class ClusterState(Object):
                 2181 if TLS is not enabled
                 2182 if TLS is enabled
         """
-        if self.cluster.tls:
-            return SECURE_CLIENT_PORT
-
-        return CLIENT_PORT
+        return SECURE_CLIENT_PORT if self.cluster.tls else CLIENT_PORT
 
     @property
-    def endpoints(self) -> list[str]:
-        """The connection uris for all started ZooKeeper units.
+    @retry(
+        wait=wait_fixed(5),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_cause_type(LightKubeApiError),
+        reraise=True,
+    )
+    def endpoints_external(self) -> str:
+        """Comma-separated string of connection uris for all started ZooKeeper unit, for external access.
 
-        Returns:
-            List of unit addresses
+        K8s only.
         """
-        return sorted(
-            [server.host if self.substrate == "k8s" else server.ip for server in self.servers]
+        auth = "plain" if not self.cluster.tls else "tls"
+        expose = self.config.expose_external
+        if expose is ExposeExternal.NODEPORT:
+            # We might have several of them if we run on multiple k8s nodes
+            return ",".join(
+                sorted(
+                    {
+                        f"{server.node_ip}:{self.unit_server.k8s.get_nodeport(auth)}"
+                        for server in self.servers
+                    }
+                )
+            )
+
+        elif expose is ExposeExternal.LOADBALANCER:
+            # There should be only one host
+            return f"{next(iter(self.servers)).loadbalancer_ip}:{self.client_port}"
+
+        else:  # pragma: nocover
+            # ExposeExternal.FALSE already covered
+            raise ValueError(f"{expose} not recognized.")
+
+    @property
+    def endpoints(self) -> str:
+        """Comma-separated string of connection uris for all started ZooKeeper units."""
+        if self.substrate == "k8s" and self.config.expose_external is not ExposeExternal.FALSE:
+            try:
+                return self.endpoints_external
+            except Exception as e:
+                logger.debug(e)
+                return ""
+
+        return ",".join(
+            sorted(
+                [
+                    (
+                        f"{server.internal_address}:{self.client_port}"
+                        if self.substrate == "k8s"
+                        else f"{server.internal_address}:{self.client_port}"
+                    )
+                    for server in self.servers
+                ]
+            )
         )
 
     @property

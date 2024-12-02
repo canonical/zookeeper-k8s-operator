@@ -109,6 +109,7 @@ class Status(Enum):
     )
     BUCKET_NOT_CREATED = StatusLevel(BlockedStatus("cannot create s3 bucket"), "ERROR")
     ONGOING_RESTORE = StatusLevel(MaintenanceStatus("restoring backup"), "INFO")
+    SERVICE_UNAVAILABLE = StatusLevel(MaintenanceStatus("waiting for k8s service"), "INFO")
 
 
 SECRETS_APP = ["sync-password", "super-password"]
