@@ -1,10 +1,13 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 name: zookeeper-k8s
-display-name: Charmed Zookeeper K8s
+display-name: Charmed Apache Zookeeper - K8s
 description: |
   ZooKeeper is a centralized service for maintaining configuration information, naming,
   providing distributed synchronization, and providing group services.
+  
+  Apache ZooKeeper is a free, open source software project by the Apache Software Foundation. 
+  Users can find out more at the [ZooKeeper project page](https://zookeeper.apache.org/).
 summary: Charmed ZooKeeper K8s Operator
 source: https://github.com/canonical/zookeeper-k8s-operator
 issues: https://github.com/canonical/zookeeper-k8s-operator/issues
@@ -12,6 +15,7 @@ website:
   - https://charmhub.io/zookeeper-k8s
   - https://github.com/canonical/zookeeper-k8s-operator
   - https://matrix.to/#/%23charmhub-data-platform%3Aubuntu.com
+  - https://zookeeper.apache.org/
 maintainers:
   - Canonical Data Platform <data-platform@lists.launchpad.net>
 assumes:
