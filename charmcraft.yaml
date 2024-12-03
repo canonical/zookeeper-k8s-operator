@@ -6,8 +6,6 @@ parts:
   charm:
     build-snaps:
       - rustup
-    charm-binary-python-packages:
-      - setuptools
     build-packages:
       - pkg-config
       - libffi-dev

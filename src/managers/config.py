@@ -28,11 +28,14 @@ quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
 quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+audit.enable=true
+admin.serverAddress=localhost
+"""
+
+CLIENT_SASL_AUTH = """
 enforce.auth.enabled=true
 enforce.auth.schemes=sasl
 sessionRequireClientSASLAuth=true
-audit.enable=true
-admin.serverAddress=localhost
 """
 
 TLS_PROPERTIES = """
@@ -71,7 +74,7 @@ class ConfigManager:
         Returns:
             String with these possible values: DEBUG, INFO, WARN, ERROR
         """
-        config_log_level = self.config["log-level"]
+        config_log_level = self.config.log_level
 
         # Remapping to WARN that is generally used in Java applications based on log4j and logback.
         if config_log_level == "WARNING":
@@ -173,9 +176,9 @@ class ConfigManager:
         """
         properties = (
             [
-                f"initLimit={self.config['init-limit']}",
-                f"syncLimit={self.config['sync-limit']}",
-                f"tickTime={self.config['tick-time']}",
+                f"initLimit={self.config.init_limit}",
+                f"syncLimit={self.config.sync_limit}",
+                f"tickTime={self.config.tick_time}",
             ]
             + DEFAULT_PROPERTIES.split("\n")
             + [
@@ -184,6 +187,7 @@ class ConfigManager:
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
+            + (CLIENT_SASL_AUTH.splitlines() if self.config.enforce_sasl_client else [])
         )
 
         if self.state.cluster.tls:

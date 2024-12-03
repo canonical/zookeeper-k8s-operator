@@ -27,3 +27,7 @@ options:
     description: "String in json format to describe extra configuration for load balancers. Needed for some cloud providers or services."
     type: string
     default: ""
+  enforce-sasl-client:
+    description: "Enforce SASL authentication for clients."
+    type: boolean
+    default: true

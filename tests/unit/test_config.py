@@ -2,6 +2,7 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 import dataclasses
+import json
 import logging
 from pathlib import Path
 from typing import cast
@@ -31,6 +32,12 @@ def base_state():
         state = State(leader=True)
 
     return state
+
+
+@pytest.fixture()
+def charm_configuration():
+    """Enable direct mutation on configuration dict."""
+    return json.loads(json.dumps(CONFIG))
 
 
 @pytest.fixture()
@@ -372,3 +379,21 @@ def test_update_environment(ctx: Context, base_state: State) -> None:
         )
         assert "KAFKA_OPTS" in patched_write.call_args.kwargs["content"]
         assert patched_write.call_args.kwargs["path"] == "/etc/environment"
+
+
+def test_do_not_enforce_sasl_client(charm_configuration: dict, base_state: State) -> None:
+    # Given
+    charm_configuration["options"]["enforce-sasl-client"]["default"] = False
+    ctx = Context(
+        ZooKeeperCharm, meta=METADATA, config=charm_configuration, actions=ACTIONS, unit_id=0
+    )
+    cluster_peer = PeerRelation(PEER, PEER, local_app_data={})
+    state_in = dataclasses.replace(base_state, relations=[cluster_peer])
+
+    # When
+    with (ctx(ctx.on.start(), state_in) as manager,):
+        charm = cast(ZooKeeperCharm, manager.charm)
+        properties = charm.config_manager.zookeeper_properties
+
+    # Then
+    assert "enforce.auth.enabled=true" not in properties
