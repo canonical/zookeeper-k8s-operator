@@ -211,7 +211,7 @@ class QuorumManager:
                 credential=make_digest_acl_credential(client.username, client.password),
                 **acls,
             )
-            logger.info(f"{sasl_acl=}")
+            logger.debug(f"{sasl_acl=}")
 
             # FIXME: data-platform-libs should handle this when it's implemented
             if client.database:

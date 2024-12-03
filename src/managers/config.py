@@ -187,10 +187,8 @@ class ConfigManager:
                 f"{self.current_dynamic_config_file}",
             ]
             + self.metrics_exporter_config
+            + (CLIENT_SASL_AUTH.splitlines() if self.config.enforce_sasl_client else [])
         )
-
-        if self.config.enforce_sasl_client:
-            properties.extend(CLIENT_SASL_AUTH.splitlines())
 
         if self.state.cluster.tls:
             properties = (
