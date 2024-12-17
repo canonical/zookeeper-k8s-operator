@@ -18,7 +18,7 @@ from charms.zookeeper.v0.client import (
 )
 from kazoo.exceptions import BadArgumentsError, ConnectionClosedError
 from kazoo.handlers.threading import KazooTimeoutError
-from kazoo.security import make_acl
+from kazoo.security import make_acl, make_digest_acl_credential
 from ops.charm import RelationEvent
 
 from core.cluster import ClusterState
@@ -197,17 +197,21 @@ class QuorumManager:
         for client in self.state.clients:
             if not client.database:
                 continue
+            acls = {
+                "read": "r" in client.extra_user_roles,
+                "write": "w" in client.extra_user_roles,
+                "create": "c" in client.extra_user_roles,
+                "delete": "d" in client.extra_user_roles,
+                "admin": "a" in client.extra_user_roles,
+            }
 
-            generated_acl = make_acl(
-                scheme="sasl",
-                credential=client.username,
-                read="r" in client.extra_user_roles,
-                write="w" in client.extra_user_roles,
-                create="c" in client.extra_user_roles,
-                delete="d" in client.extra_user_roles,
-                admin="a" in client.extra_user_roles,
+            sasl_acl = make_acl(scheme="sasl", credential=client.username, **acls)
+            digest_acl = make_acl(
+                scheme="digest",
+                credential=make_digest_acl_credential(client.username, client.password),
+                **acls,
             )
-            logger.info(f"{generated_acl=}")
+            logger.debug(f"{sasl_acl=}")
 
             # FIXME: data-platform-libs should handle this when it's implemented
             if client.database:
@@ -219,23 +223,12 @@ class QuorumManager:
             # Looks for newly related applications not in config yet
             if client.database not in leader_chroots:
                 logger.info(f"CREATE CHROOT - {client.database}")
-                self.client.create_znode_leader(path=client.database, acls=[generated_acl])
+                self.client.create_znode_leader(path=client.database, acls=[sasl_acl, digest_acl])
 
             # Looks for existing related applications
             logger.debug(f"UPDATE CHROOT - {client.database}")
-            self.client.set_acls_znode_leader(path=client.database, acls=[generated_acl])
+            self.client.set_acls_znode_leader(path=client.database, acls=[sasl_acl, digest_acl])
 
             subnodes = self.client.leader_znodes(path=client.database)
             for node in subnodes:
-                self.client.set_acls_znode_leader(path=node, acls=[generated_acl])
-
-        # Looks for applications no longer in the relation but still in config
-        restricted_acl = make_acl(
-            scheme="sasl",
-            credential="super",
-            all=True,
-        )
-        for chroot in sorted(leader_chroots - requested_chroots, reverse=True):
-            if not self._is_child_of(chroot, requested_chroots):
-                logger.info(f"RESET ACLS CHROOT - {chroot}")
-                self.client.set_acls_znode_leader(path=chroot, acls=[restricted_acl])
+                self.client.set_acls_znode_leader(path=node, acls=[sasl_acl, digest_acl])
