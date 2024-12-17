@@ -21,4 +21,3 @@ class CharmConfig(BaseConfigModel):
     tick_time: int = Field(gt=0)
     log_level: LogLevel
     expose_external: ExposeExternal
-    enforce_sasl_client: bool

@@ -28,14 +28,11 @@ quorum.auth.enableSasl=true
 quorum.auth.learnerRequireSasl=true
 quorum.auth.serverRequireSasl=true
 authProvider.sasl=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
-audit.enable=true
-admin.serverAddress=localhost
-"""
-
-CLIENT_SASL_AUTH = """
 enforce.auth.enabled=true
 enforce.auth.schemes=sasl
 sessionRequireClientSASLAuth=true
+audit.enable=true
+admin.serverAddress=localhost
 """
 
 TLS_PROPERTIES = """
