@@ -54,7 +54,7 @@ class K8sManager:
             self.client.delete(Service, name=service_name)
         except ApiError as e:
             if e.status.code == 403:
-                logger.error("Could not apply service, application needs `juju trust`")
+                logger.debug("Could not apply service, application needs `juju trust`")
                 return
             if e.status.code == 404:
                 return
