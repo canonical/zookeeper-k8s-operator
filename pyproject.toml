@@ -24,11 +24,8 @@ extend-exclude = "tests/integration/app-charm/lib"
 profile = "black"
 
 [tool.poetry]
-name = "zookeeper-k8s-operator"
-version = "1.0"
-description = "zookeeper-k8s-operator"
-authors = []
 package-mode = false
+requires-poetry = ">=2.0.0"
 
 [tool.poetry.dependencies]
 python = "^3.10"
