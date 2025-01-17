@@ -2160,8 +2160,8 @@ pytest = "*"
 [package.source]
 type = "git"
 url = "https://github.com/canonical/data-platform-workflows"
-reference = "v26.0.0"
-resolved_reference = "92d0a9f28a22c57b5965866c22f65b5021d3b115"
+reference = "v29.0.0"
+resolved_reference = "90077c956fd22995aec4c1e5b86cf6248717d8c7"
 subdirectory = "python/pytest_plugins/microceph"
 
 [[package]]
@@ -2218,8 +2218,8 @@ pyyaml = "*"
 [package.source]
 type = "git"
 url = "https://github.com/canonical/data-platform-workflows"
-reference = "v26.0.0"
-resolved_reference = "92d0a9f28a22c57b5965866c22f65b5021d3b115"
+reference = "v29.0.0"
+resolved_reference = "90077c956fd22995aec4c1e5b86cf6248717d8c7"
 subdirectory = "python/pytest_plugins/pytest_operator_cache"
 
 [[package]]
@@ -2892,4 +2892,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "09e3d7a292f863345b85f6ca2ee94e0610d3c99c37944b20777e9084827fdf44"
+content-hash = "ed9e1fbf22d0016d824155d60442dddf7df40210d72e63d418892ef594a6e971"
