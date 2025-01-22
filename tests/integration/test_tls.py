@@ -71,9 +71,10 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip(reason="Remove application bad on K8s")
+# @pytest.mark.skip(reason="Remove application bad on K8s")
 async def test_remove_tls_provider(ops_test: OpsTest):
     await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
+
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
         await asyncio.sleep(90)
