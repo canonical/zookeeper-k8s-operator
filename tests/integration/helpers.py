@@ -261,7 +261,7 @@ async def list_truststore_aliases(ops_test: OpsTest, unit: str = f"{APP_NAME}/0"
     truststore_password = secret_data.get("truststore-password")
 
     result = check_output(
-        f"JUJU_MODEL={ops_test.model_full_name} juju ssh {unit} sudo -i 'charmed-zookeeper.keytool -list -keystore /var/snap/charmed-zookeeper/current/etc/zookeeper/truststore.jks -storepass {truststore_password}'",
+        f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container zookeeper {unit} 'keytool -list -keystore /etc/zookeeper/truststore.jks -storepass {truststore_password}'",
         stderr=PIPE,
         shell=True,
         universal_newlines=True,
