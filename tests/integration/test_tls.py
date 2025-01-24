@@ -71,13 +71,14 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
 
 
 @pytest.mark.abort_on_fail
-# @pytest.mark.skip(reason="Remove application bad on K8s")
 async def test_remove_tls_provider(ops_test: OpsTest):
-    await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
+    await ops_test.model.applications[APP_NAME].remove_relation(
+        f"{APP_NAME}:certificates", f"{TLS_NAME}:certificates"
+    )
 
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
-        await asyncio.sleep(90)
+        await asyncio.sleep(180)
 
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="active", timeout=1000, idle_period=30
@@ -101,18 +102,21 @@ async def test_manual_tls_chain(ops_test: OpsTest):
 
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
-        await asyncio.sleep(90)
+        await asyncio.sleep(180)
 
-    async with ops_test.fast_forward(fast_interval="60s"):
-        await ops_test.model.wait_for_idle(
-            apps=[APP_NAME, MANUAL_TLS_NAME], idle_period=30, timeout=1000
-        )
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME, MANUAL_TLS_NAME], idle_period=60, timeout=1000
+    )
 
     sign_manual_certs(ops_test)
 
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(180)
+
     # verifying servers can communicate with one-another
     await ops_test.model.wait_for_idle(
-        apps=[APP_NAME, MANUAL_TLS_NAME], idle_period=30, timeout=1000
+        apps=[APP_NAME, MANUAL_TLS_NAME], idle_period=60, timeout=1000
     )
 
     # verifying the chain is in there
@@ -122,34 +126,25 @@ async def test_manual_tls_chain(ops_test: OpsTest):
 
     # cleanup
 
-    await ops_test.model.remove_application(MANUAL_TLS_NAME, block_until_done=True)
+    await ops_test.model.applications[APP_NAME].remove_relation(
+        f"{APP_NAME}:certificates", f"{MANUAL_TLS_NAME}:certificates"
+    )
 
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
-        await asyncio.sleep(90)
+        await asyncio.sleep(180)
 
     async with ops_test.fast_forward(fast_interval="60s"):
         await ops_test.model.wait_for_idle(apps=[APP_NAME], idle_period=30, timeout=1000)
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip(reason="Remove application bad on K8s")
 async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
-    await asyncio.gather(
-        ops_test.model.deploy(
-            TLS_NAME,
-            application_name=TLS_NAME,
-            channel="stable",
-            num_units=1,
-            config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
-        ),
-    )
-    await ops_test.model.wait_for_idle(apps=[APP_NAME, TLS_NAME], status="active", timeout=1000)
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
 
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
-        await asyncio.sleep(90)
+        await asyncio.sleep(180)
 
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
@@ -198,6 +193,8 @@ async def test_pod_reschedule_tls(ops_test: OpsTest):
         await ops_test.model.wait_for_idle(
             [APP_NAME], status="active", timeout=1000, idle_period=30
         )
+
+    await asyncio.sleep(180)  # ensure Juju picks up new port
 
 
 @pytest.mark.abort_on_fail

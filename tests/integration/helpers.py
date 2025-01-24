@@ -260,12 +260,16 @@ async def list_truststore_aliases(ops_test: OpsTest, unit: str = f"{APP_NAME}/0"
     )
     truststore_password = secret_data.get("truststore-password")
 
-    result = check_output(
-        f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container zookeeper {unit} 'keytool -list -keystore /etc/zookeeper/truststore.jks -storepass {truststore_password}'",
-        stderr=PIPE,
-        shell=True,
-        universal_newlines=True,
-    )
+    try:
+        result = check_output(
+            f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container zookeeper {unit} 'keytool -list -keystore /etc/zookeeper/truststore.jks -storepass {truststore_password}'",
+            stderr=PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+    except CalledProcessError as e:
+        logger.error(f"{e.output=}, {e.stdout=}, {e.stderr=}")
+        raise e
 
     trusted_aliases = []
     for line in result.splitlines():
