@@ -389,6 +389,7 @@ def test_certificates_available_halfway_through_upgrade_succeeds(
             "managers.tls.TLSManager",
             set_private_key=DEFAULT,
             set_ca=DEFAULT,
+            set_chain=DEFAULT,
             set_certificate=DEFAULT,
             set_truststore=DEFAULT,
             set_p12_keystore=DEFAULT,

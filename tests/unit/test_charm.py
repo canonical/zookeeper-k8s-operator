@@ -738,6 +738,7 @@ def test_init_server_calls_necessary_methods(ctx: Context, base_state: State) ->
         ) as zookeeper_client_jaas_config,
         patch("managers.tls.TLSManager.set_private_key") as patched_private_key,
         patch("managers.tls.TLSManager.set_ca") as patched_ca,
+        patch("managers.tls.TLSManager.set_chain") as patched_chain,
         patch("managers.tls.TLSManager.set_certificate") as patched_certificate,
         patch("managers.tls.TLSManager.set_truststore") as patched_truststore,
         patch("managers.tls.TLSManager.set_p12_keystore") as patched_keystore,
@@ -761,6 +762,7 @@ def test_init_server_calls_necessary_methods(ctx: Context, base_state: State) ->
         zookeeper_client_jaas_config.assert_called_once()
         patched_private_key.assert_called_once()
         patched_ca.assert_called_once()
+        patched_chain.assert_called_once()
         patched_certificate.assert_called_once()
         patched_truststore.assert_called_once()
         patched_keystore.assert_called_once()

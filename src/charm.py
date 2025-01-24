@@ -446,6 +446,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
         ):  # TLS is probably completed
             self.tls_manager.set_private_key()
             self.tls_manager.set_ca()
+            self.tls_manager.set_chain()
             self.tls_manager.set_certificate()
             self.tls_manager.set_truststore()
             self.tls_manager.set_p12_keystore()

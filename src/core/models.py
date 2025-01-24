@@ -452,6 +452,15 @@ class ZKServer(RelationState):
         return self.relation_data.get("ca-cert", self.ca)
 
     @property
+    def chain(self) -> list[str]:
+        """The chain used to sign unit cert."""
+        full_chain = json.loads(self.relation_data.get("chain", "null")) or []
+        # to avoid adding certificate to truststore if self-signed
+        clean_chain: set[str] = set(full_chain) - {self.certificate, self.ca}
+
+        return list(clean_chain)
+
+    @property
     def restore_progress(self) -> RestoreStep:
         """Latest restore flow step the unit went through."""
         return RestoreStep(self.relation_data.get("restore-progress", ""))
