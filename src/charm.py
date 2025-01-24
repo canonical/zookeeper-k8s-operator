@@ -443,7 +443,6 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
             self.state.cluster.tls
             and self.state.unit_server.certificate
             and self.state.unit_server.ca_cert
-            and self.state.unit_server.chain
         ):  # TLS is probably completed
             self.tls_manager.set_private_key()
             self.tls_manager.set_ca()
