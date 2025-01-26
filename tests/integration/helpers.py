@@ -32,10 +32,7 @@ async def get_secret_by_label(ops_test, label: str, owner: str = APP_NAME) -> di
     secrets_meta = json.loads(secrets_meta_raw[1])
 
     for secret_id in secrets_meta:
-        if (
-            secrets_meta[secret_id]["label"] == label
-            and secrets_meta[secret_id]["owner"] == "owner"
-        ):
+        if secrets_meta[secret_id]["label"] == label and secrets_meta[secret_id]["owner"] == owner:
             break
 
     secret_data_raw = await ops_test.juju("show-secret", "--format", "json", "--reveal", secret_id)
