@@ -94,7 +94,9 @@ async def test_remove_tls_provider(ops_test: OpsTest):
 
 @pytest.mark.abort_on_fail
 async def test_manual_tls_chain(ops_test: OpsTest):
-    await ops_test.model.deploy(MANUAL_TLS_NAME)
+    await ops_test.model.deploy(
+        MANUAL_TLS_NAME, application_name=MANUAL_TLS_NAME, channel="stable"
+    )
 
     await asyncio.gather(
         ops_test.model.add_relation(APP_NAME, MANUAL_TLS_NAME),
