@@ -4,6 +4,7 @@
 
 """Event handler for related applications on the `certificates` relation interface."""
 import base64
+import json
 import logging
 import os
 import re
@@ -118,12 +119,17 @@ class TLSEvents(Object):
             return
 
         self.charm.state.unit_server.update(
-            {"certificate": event.certificate, "ca-cert": event.ca, "ca": ""}
+            {
+                "certificate": event.certificate,
+                "ca-cert": event.ca,
+                "ca": "",
+                "chain": json.dumps(event.chain),
+            }
         )
-        self._cleanup_old_ca_field()
 
         self.charm.tls_manager.set_private_key()
         self.charm.tls_manager.set_ca()
+        self.charm.tls_manager.set_chain()
         self.charm.tls_manager.set_certificate()
         self.charm.tls_manager.set_truststore()
         self.charm.tls_manager.set_p12_keystore()
@@ -157,9 +163,8 @@ class TLSEvents(Object):
     def _on_certificates_broken(self, _) -> None:
         """Handler for `certificates_relation_broken` event."""
         self.charm.state.unit_server.update(
-            {"csr": "", "certificate": "", "ca-cert": "", "ca": ""}
+            {"csr": "", "certificate": "", "ca-cert": "", "ca": "", "chain": ""}
         )
-        self._cleanup_old_ca_field()
 
         # remove all existing keystores from the unit so we don't preserve certs
         self.charm.tls_manager.remove_stores()
@@ -182,11 +187,3 @@ class TLSEvents(Object):
 
         self.charm.state.unit_server.update({"private-key": private_key})
         self._on_certificate_expiring(event)
-
-    def _cleanup_old_ca_field(self) -> None:
-        """In order to ensure backwards compatibility, we keep old secrets until the first time they are updated.
-
-        This will allow to safely roll back soon after an upgrade.
-        """
-        if self.charm.state.unit_server.relation_data.get("ca"):
-            self.charm.state.unit_server.update({"ca": ""})

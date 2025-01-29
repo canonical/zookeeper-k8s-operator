@@ -10,11 +10,19 @@ import pytest
 from pytest_operator.plugin import OpsTest
 
 from . import APP_NAME, SERIES, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
-from .helpers import check_properties, delete_pod, get_address, ping_servers
+from .helpers import (
+    check_properties,
+    delete_pod,
+    get_address,
+    list_truststore_aliases,
+    ping_servers,
+    sign_manual_certs,
+)
 
 logger = logging.getLogger(__name__)
 
 TLS_NAME = "self-signed-certificates"
+MANUAL_TLS_NAME = "manual-tls-certificates"
 
 
 @pytest.mark.abort_on_fail
@@ -63,12 +71,14 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip(reason="Remove application bad on K8s")
 async def test_remove_tls_provider(ops_test: OpsTest):
-    await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
+    await ops_test.model.applications[APP_NAME].remove_relation(
+        f"{APP_NAME}:certificates", f"{TLS_NAME}:certificates"
+    )
+
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
-        await asyncio.sleep(90)
+        await asyncio.sleep(180)
 
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="active", timeout=1000, idle_period=30
@@ -83,23 +93,60 @@ async def test_remove_tls_provider(ops_test: OpsTest):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.skip(reason="Remove application bad on K8s")
-async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
-    await asyncio.gather(
-        ops_test.model.deploy(
-            TLS_NAME,
-            application_name=TLS_NAME,
-            channel="stable",
-            num_units=1,
-            config={"generate-self-signed-certificates": "true", "ca-common-name": "zookeeper"},
-        ),
+async def test_manual_tls_chain(ops_test: OpsTest):
+    await ops_test.model.deploy(
+        MANUAL_TLS_NAME, application_name=MANUAL_TLS_NAME, channel="stable"
     )
-    await ops_test.model.wait_for_idle(apps=[APP_NAME, TLS_NAME], status="active", timeout=1000)
+
+    await asyncio.gather(
+        ops_test.model.add_relation(APP_NAME, MANUAL_TLS_NAME),
+    )
+
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(180)
+
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME, MANUAL_TLS_NAME], idle_period=60, timeout=1000
+    )
+
+    sign_manual_certs(ops_test)
+
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(180)
+
+    # verifying servers can communicate with one-another
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME, MANUAL_TLS_NAME], idle_period=60, timeout=1000
+    )
+
+    # verifying the chain is in there
+    trusted_aliases = await list_truststore_aliases(ops_test)
+
+    assert len(trusted_aliases) == 3  # CA, intermediate, rootca
+
+    # cleanup
+
+    await ops_test.model.applications[APP_NAME].remove_relation(
+        f"{APP_NAME}:certificates", f"{MANUAL_TLS_NAME}:certificates"
+    )
+
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(180)
+
+    async with ops_test.fast_forward(fast_interval="60s"):
+        await ops_test.model.wait_for_idle(apps=[APP_NAME], idle_period=30, timeout=1000)
+
+
+@pytest.mark.abort_on_fail
+async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
     await ops_test.model.add_relation(APP_NAME, TLS_NAME)
 
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
-        await asyncio.sleep(90)
+        await asyncio.sleep(180)
 
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME, TLS_NAME], status="active", timeout=1000, idle_period=30
@@ -148,6 +195,8 @@ async def test_pod_reschedule_tls(ops_test: OpsTest):
         await ops_test.model.wait_for_idle(
             [APP_NAME], status="active", timeout=1000, idle_period=30
         )
+
+    await asyncio.sleep(180)  # ensure Juju picks up new port
 
 
 @pytest.mark.abort_on_fail

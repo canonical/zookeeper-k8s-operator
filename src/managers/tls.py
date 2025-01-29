@@ -121,44 +121,73 @@ class TLSManager:
             content=self.state.unit_server.certificate, path=self.workload.paths.certificate
         )
 
+    def set_chain(self) -> None:
+        """Sets the unit chain."""
+        if not self.state.unit_server.chain:
+            logger.error("Can't set chain to unit, missing chain in relation data")
+            return
+
+        for i, chain_cert in enumerate(self.state.unit_server.chain):
+            self.workload.write(
+                content=chain_cert, path=f"{self.workload.paths.conf_path}/chain{i}.pem"
+            )
+
     def set_truststore(self) -> None:
         """Creates the unit Java Truststore and adds the unit CA."""
-        try:
-            self._import_ca_in_truststore()
+        trust_aliases = [f"chain{i}" for i in range(len(self.state.unit_server.chain))] + ["ca"]
+        for alias in trust_aliases:
 
-            if self.substrate == "vm":
-                self.workload.exec(
-                    command=["chown", f"{USER}:{GROUP}", self.workload.paths.truststore],
-                )
-        except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
-            if "already exists" in str(e.stdout):
-                # Replacement strategy:
-                # - We need to own the file, otherwise keytool throws a permission error upon removing an entry
-                # - We need to make sure that the keystore is not empty at any point, hence the three steps.
-                #  Otherwise, ZK would pick up the file change when it's empty, and crash its internal watcher thread
-                try:
-                    if self.substrate == "vm":
-                        self.workload.exec(
-                            command=["chown", f"{GROUP}:{GROUP}", self.workload.paths.truststore],
-                        )
-                    self._rename_ca_in_truststore()
-                    self._delete_ca_in_truststore()
-                    self._import_ca_in_truststore()
-                    if self.substrate == "vm":
-                        self.workload.exec(
-                            command=["chown", f"{USER}:{GROUP}", self.workload.paths.truststore],
-                        )
-                except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
+            try:
+                self._import_to_truststore(alias=alias)
 
-                    logger.error(str(e.stdout))
-                    raise e
+                if self.substrate == "vm":
+                    self.workload.exec(
+                        command=["chown", f"{USER}:{GROUP}", self.workload.paths.truststore],
+                    )
+                    self.workload.exec(command=["chmod", "770", self.workload.paths.truststore])
+            except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
+                if "already exists" in str(e.stdout):
+                    if (
+                        alias != "ca"
+                    ):  # we only care about the subsequent handling for the rootCA support
+                        logger.warning(str(e.stdout))
+                        continue
 
-                return
+                    # Replacement strategy:
+                    # - We need to own the file, otherwise keytool throws a permission error upon removing an entry
+                    # - We need to make sure that the keystore is not empty at any point, hence the three steps.
+                    #  Otherwise, ZK would pick up the file change when it's empty, and crash its internal watcher thread
+                    try:
+                        if self.substrate == "vm":
+                            self.workload.exec(
+                                command=[
+                                    "chown",
+                                    f"{GROUP}:{GROUP}",
+                                    self.workload.paths.truststore,
+                                ],
+                            )
+                        self._rename_ca_in_truststore()
+                        self._delete_ca_in_truststore()
+                        self._import_to_truststore()
+                        if self.substrate == "vm":
+                            self.workload.exec(
+                                command=[
+                                    "chown",
+                                    f"{USER}:{GROUP}",
+                                    self.workload.paths.truststore,
+                                ],
+                            )
+                    except (subprocess.CalledProcessError, ops.pebble.ExecError) as e:
 
-            logger.error(str(e.stdout))
-            raise e
+                        logger.error(str(e.stdout))
+                        raise e
 
-    def _import_ca_in_truststore(self, alias: str = "ca") -> None:
+                    return
+
+                logger.error(str(e.stdout))
+                raise e
+
+    def _import_to_truststore(self, alias: str = "ca") -> None:
         keytool_cmd = "charmed-zookeeper.keytool" if self.substrate == "vm" else "keytool"
         self.workload.exec(
             command=[
@@ -168,7 +197,7 @@ class TLSManager:
                 "-alias",
                 alias,
                 "-file",
-                self.workload.paths.ca,
+                f"{self.workload.paths.conf_path}/{alias}.pem",
                 "-keystore",
                 self.workload.paths.truststore,
                 "-storepass",
@@ -252,6 +281,8 @@ class TLSManager:
                     self.workload.paths.certificate,
                     self.workload.paths.keystore,
                     self.workload.paths.truststore,
+                    "*.pem",
+                    "*.key",
                 ],
                 working_dir=self.workload.paths.conf_path,
             )
