@@ -94,6 +94,16 @@ class ZKPaths:
         return f"{self.conf_path}/server.pem"
 
     @property
+    def ca_chain(self) -> str:
+        """The CA chain for the CA that signed the server certificate."""
+        return f"{self.conf_path}/chain.pem"
+
+    @property
+    def bundle(self) -> str:
+        """The cert bundle for the service to identify itself with for TLS auth."""
+        return f"{self.conf_path}/bundle.pem"
+
+    @property
     def truststore(self) -> str:
         """The Java Truststore containing trusted CAs + certificates."""
         return f"{self.conf_path}/truststore.jks"

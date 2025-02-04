@@ -121,20 +121,33 @@ class TLSManager:
             content=self.state.unit_server.certificate, path=self.workload.paths.certificate
         )
 
+    def set_bundle(self) -> None:
+        """Sets the unit cert bundle."""
+        if not self.state.unit_server.certificate or not self.state.unit_server.ca_cert:
+            logger.error(
+                "Can't set cert bundle to unit, missing certificate or CA in relation data"
+            )
+            return
+
+        self.workload.write(
+            content="\n".join(self.state.unit_server.bundle), path=self.workload.paths.bundle
+        )
+
     def set_chain(self) -> None:
         """Sets the unit chain."""
         if not self.state.unit_server.chain:
             logger.error("Can't set chain to unit, missing chain in relation data")
             return
 
-        for i, chain_cert in enumerate(self.state.unit_server.chain):
+        # setting each individual cert in the chain for trusting
+        for i, chain_cert in enumerate(self.state.unit_server.bundle):
             self.workload.write(
-                content=chain_cert, path=f"{self.workload.paths.conf_path}/chain{i}.pem"
+                content=chain_cert, path=f"{self.workload.paths.conf_path}/bundle{i}.pem"
             )
 
     def set_truststore(self) -> None:
         """Creates the unit Java Truststore and adds the unit CA."""
-        trust_aliases = [f"chain{i}" for i in range(len(self.state.unit_server.chain))] + ["ca"]
+        trust_aliases = [f"bundle{i}" for i in range(len(self.state.unit_server.bundle))]
         for alias in trust_aliases:
 
             try:
@@ -248,7 +261,7 @@ class TLSManager:
                     "pkcs12",
                     "-export",
                     "-in",
-                    self.workload.paths.certificate,
+                    self.workload.paths.bundle,
                     "-inkey",
                     self.workload.paths.server_key,
                     "-passin",
@@ -277,10 +290,8 @@ class TLSManager:
                 command=[
                     "rm",
                     "-rf",
-                    self.workload.paths.ca,
-                    self.workload.paths.certificate,
-                    self.workload.paths.keystore,
-                    self.workload.paths.truststore,
+                    "*.p12",
+                    "*.jks",
                     "*.pem",
                     "*.key",
                 ],
