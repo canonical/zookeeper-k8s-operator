@@ -57,7 +57,11 @@ class ZKWorkload(WorkloadBase):
         self.container.push(path, content, make_dirs=True)
 
     @override
-    def exec(self, command: list[str], working_dir: str | None = None) -> str:
+    def exec(self, command: list[str] | str, working_dir: str | None = None) -> str:
+        # needed to support wildcard chars on VM
+        if isinstance(command, str):
+            command = command.split()
+
         return self.container.exec(command, working_dir=working_dir).wait_output()[0]
 
     @property

@@ -262,33 +262,8 @@ def test_certificates_available_fails_wrong_csr(ctx: Context, base_state: State)
 
 def test_certificates_available_succeeds(ctx: Context, base_state: State) -> None:
     # Given
-    provider_data = {
-        "certificates": json.dumps(
-            [
-                {
-                    "certificate_signing_request": "not-missing",
-                    "ca": "ca",
-                    "certificate": "cert",
-                    "chain": ["ca", "cert"],
-                }
-            ]
-        )
-    }
-    requirer_data = {
-        "certificate_signing_requests": json.dumps(
-            [{"certificate_signing_request": "not-missing"}]
-        )
-    }
-    cluster_peer = PeerRelation(
-        PEER,
-        PEER,
-        local_app_data={"tls": "enabled", "switching-encryption": "started"},
-        local_unit_data={},
-        peers_data={},
-    )
-    tls_relation = Relation(
-        CERTS_REL_NAME, TLS_NAME, remote_app_data=provider_data, local_unit_data=requirer_data
-    )
+    cluster_peer = PeerRelation(PEER, PEER)
+    tls_relation = Relation(CERTS_REL_NAME, TLS_NAME)
     tls_secret = Secret(
         {"csr": "not-missing"}, label=f"{PEER}.zookeeper{secret_suffix}.unit", owner="unit"
     )
@@ -302,14 +277,23 @@ def test_certificates_available_succeeds(ctx: Context, base_state: State) -> Non
             "managers.tls.TLSManager",
             set_private_key=DEFAULT,
             set_ca=DEFAULT,
+            set_bundle=DEFAULT,
             set_certificate=DEFAULT,
             set_truststore=DEFAULT,
             set_p12_keystore=DEFAULT,
             get_current_sans=lambda _: None,
         ),
         patch("workload.ZKWorkload.write"),
+        ctx(ctx.on.start(), state_in) as manager,
     ):
-        state_out = ctx.run(ctx.on.relation_changed(tls_relation), state_in)
+        charm = cast(ZooKeeperCharm, manager.charm)
+        charm.tls_events.certificates.on.certificate_available.emit(
+            certificate_signing_request="not-missing",
+            certificate="cert",
+            ca="ca",
+            chain=["root"],
+        )
+        state_out = manager.run()
 
     # Then
     secret_out = state_out.get_secret(label=f"{PEER}.zookeeper{secret_suffix}.unit")
@@ -327,7 +311,7 @@ def test_renew_certificates_auto_reload(ctx: Context, base_state: State) -> None
                     "certificate_signing_request": "not-missing",
                     "ca": "ca",
                     "certificate": "new-cert",
-                    "chain": ["ca", "cert"],
+                    "chain": ["root"],
                 }
             ]
         )
@@ -355,14 +339,23 @@ def test_renew_certificates_auto_reload(ctx: Context, base_state: State) -> None
             "managers.tls.TLSManager",
             set_private_key=DEFAULT,
             set_ca=DEFAULT,
+            set_bundle=DEFAULT,
             set_certificate=DEFAULT,
             set_truststore=DEFAULT,
             set_p12_keystore=DEFAULT,
             get_current_sans=lambda _: None,
         ),
         patch("workload.ZKWorkload.write"),
+        ctx(ctx.on.start(), state_in) as manager,
     ):
-        state_out = ctx.run(ctx.on.relation_changed(tls_relation), state_in)
+        charm = cast(ZooKeeperCharm, manager.charm)
+        charm.tls_events.certificates.on.certificate_available.emit(
+            certificate_signing_request="not-missing",
+            certificate="new-cert",
+            ca="ca",
+            chain=["root"],
+        )
+        state_out = manager.run()
 
     # Then
     unit_data = state_out.get_relation(cluster_peer.id).local_unit_data
@@ -522,7 +515,7 @@ def test_certificates_expiring(ctx: Context, base_state: State) -> None:
     # Given
     with (
         patch(
-            "charms.tls_certificates_interface.v1.tls_certificates.TLSCertificatesRequiresV1.request_certificate_renewal",
+            "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.request_certificate_renewal",
             return_value=None,
         ),
         ctx(ctx.on.start(), state_in) as manager,
@@ -554,7 +547,7 @@ def test_set_tls_private_key(ctx: Context, base_state: State) -> None:
     # When
     with (
         patch(
-            "charms.tls_certificates_interface.v1.tls_certificates.TLSCertificatesRequiresV1.request_certificate_renewal",
+            "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.request_certificate_renewal",
             return_value=None,
         ),
         ctx(ctx.on.action("set-tls-private-key", {"internal-key": key}), state_in) as manager,

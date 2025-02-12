@@ -454,11 +454,20 @@ class ZKServer(RelationState):
     @property
     def chain(self) -> list[str]:
         """The chain used to sign unit cert."""
-        full_chain = json.loads(self.relation_data.get("chain", "null")) or []
-        # to avoid adding certificate to truststore if self-signed
-        clean_chain: set[str] = set(full_chain) - {self.certificate, self.ca}
+        return json.loads(self.relation_data.get("chain", "null")) or []
 
-        return list(clean_chain)
+    @property
+    def bundle(self) -> list[str]:
+        """The cert bundle used for TLS identity."""
+        if not all([self.certificate, self.ca_cert, self.chain]):
+            return []
+
+        # manual-tls-certificates is loaded with the signed cert, the intermediate CA that signed it
+        # and then the missing chain for that CA
+        # ZK needs to present the full bundle - aka Keystore
+        # ZK needs to trust each item in the bundle - aka Truststore
+        bundle = [self.certificate, self.ca_cert] + self.chain
+        return sorted(set(bundle), key=bundle.index)  # ordering might matter
 
     @property
     def restore_progress(self) -> RestoreStep:
