@@ -20,7 +20,9 @@ CHANNEL = "stable"
 @pytest.mark.abort_on_fail
 async def test_in_place_upgrade(ops_test: OpsTest, zk_charm):
 
-    await ops_test.model.deploy(APP_NAME, application_name=APP_NAME, num_units=3, channel=CHANNEL)
+    await ops_test.model.deploy(
+        APP_NAME, application_name=APP_NAME, num_units=3, channel=CHANNEL, trust=True
+    )
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="active", timeout=1000, idle_period=60
     )
