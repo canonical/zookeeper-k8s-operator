@@ -9,7 +9,7 @@ from pytest_operator.plugin import OpsTest
 
 from literals import DEPENDENCIES
 
-from . import APP_NAME, ZOOKEEPER_IMAGE
+from . import APP_NAME, SERIES, ZOOKEEPER_IMAGE
 from .helpers import correct_version_running, get_relation_data, ping_servers
 
 logger = logging.getLogger(__name__)
@@ -19,9 +19,14 @@ CHANNEL = "stable"
 
 @pytest.mark.abort_on_fail
 async def test_in_place_upgrade(ops_test: OpsTest, zk_charm):
-
     await ops_test.model.deploy(
-        APP_NAME, application_name=APP_NAME, num_units=3, channel=CHANNEL, trust=True
+        APP_NAME,
+        application_name=APP_NAME,
+        num_units=3,
+        resources={"zookeeper-image": ZOOKEEPER_IMAGE},
+        series=SERIES,
+        trust=True,
+        config={"expose-external": "nodeport"},
     )
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME], status="active", timeout=1000, idle_period=60
