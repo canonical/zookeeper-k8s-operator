@@ -49,7 +49,7 @@ class ZKUpgradeEvents(DataUpgrade):
     def _on_zookeeper_pebble_ready_upgrade(self, _: EventBase) -> None:
         """Handler for the `upgrade-charm` events handled during in-place upgrades."""
         # ensure pebble-ready only fires after normal peer-relation-driven server init
-        if not self.charm.workload.alive or not self.charm.state.unit_server.started or self.idle:
+        if not self.charm.state.unit_server.started or self.idle:
             return
 
         self.apply_backwards_compatibility_fixes()
