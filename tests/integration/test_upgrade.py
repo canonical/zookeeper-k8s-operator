@@ -14,7 +14,7 @@ from .helpers import correct_version_running, get_relation_data, ping_servers
 
 logger = logging.getLogger(__name__)
 
-CHANNEL = "stable"
+CHANNEL = "3/stable"
 
 
 @pytest.mark.abort_on_fail
