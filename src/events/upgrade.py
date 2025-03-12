@@ -3,6 +3,7 @@
 # See LICENSE file for licensing details.
 
 """Upgrades implementation."""
+import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -21,7 +22,7 @@ from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_random
 from typing_extensions import override
 
-from literals import CONTAINER
+from literals import CERTS_REL_NAME, CONTAINER
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
@@ -138,4 +139,19 @@ class ZKUpgradeEvents(DataUpgrade):
 
     def apply_backwards_compatibility_fixes(self) -> None:
         """A range of functions needed for backwards compatibility."""
-        return
+        # Rev 77 - TLS chain not yet set to peer relation data
+        if (
+            tls_relation := self.charm.model.get_relation(CERTS_REL_NAME)
+        ) and not self.charm.state.unit_server.chain:
+            all_certificates = json.loads(
+                tls_relation.data[tls_relation.app].get("certificates", "[]")
+            )
+            for certificate in all_certificates:
+                if certificate["certificate"] == self.charm.state.unit_server.certificate:
+                    logger.info("Saving new bundle...")
+                    self.charm.state.unit_server.update(
+                        {"chain": json.dumps(certificate["chain"])}
+                    )
+
+            if not self.charm.state.unit_server.chain:
+                logger.error("Unable to find valid chain")
