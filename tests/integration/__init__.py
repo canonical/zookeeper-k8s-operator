@@ -10,3 +10,5 @@ APP_NAME = METADATA["name"]
 ZOOKEEPER_IMAGE = METADATA["resources"]["zookeeper-image"]["upstream-source"]
 SERIES = "jammy"
 TLS_OPERATOR_SERIES = "jammy"
+TLS_NAME = "self-signed-certificates"
+MANUAL_TLS_NAME = "manual-tls-certificates"

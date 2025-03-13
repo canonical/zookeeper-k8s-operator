@@ -9,7 +9,7 @@ from subprocess import PIPE, check_output
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from . import APP_NAME, SERIES, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
+from . import APP_NAME, MANUAL_TLS_NAME, SERIES, TLS_NAME, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
 from .helpers import (
     check_properties,
     delete_pod,
@@ -20,9 +20,6 @@ from .helpers import (
 )
 
 logger = logging.getLogger(__name__)
-
-TLS_NAME = "self-signed-certificates"
-MANUAL_TLS_NAME = "manual-tls-certificates"
 
 
 @pytest.mark.abort_on_fail
