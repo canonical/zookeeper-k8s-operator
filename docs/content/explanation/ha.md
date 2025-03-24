@@ -14,7 +14,7 @@ For Apache ZooKeeper implementation details, see the [official documentation](ht
 
 ## Number of servers
 
-For Apache ZooKeeper charmed operator the number of servers in a cluster can be easily adjusted by [adding](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#add-a-unit) or [removing](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#remove-a-unit) Juju [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/) from the application.
+For Apache ZooKeeper K8s charmed operator the number of servers in a cluster can be easily adjusted by [adding](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#add-a-unit) or [removing](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#remove-a-unit) Juju [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/) from the application.
 
 ```{important}
 Always use an odd number of servers in an Apache ZooKeeper cluster for optimal performance and high availability (HA).
@@ -25,7 +25,7 @@ Adding a unit to create an even number does not improve fault tolerance due to q
 A minimum of three servers/units are required in a cluster for HA. A cluster with just two servers is inherently less stable than a single server, because there are two single points of failure. If one of them fails, there are not enough machines to form a majority quorum.
 
 ```{note}
-We recommend deploying Apache ZooKeeper charmed operator with either three or five units for high availability (HA) in production environments.
+We recommend deploying Apache ZooKeeper K8s charmed operator with either three or five units for high availability (HA) in production environments.
 ```
 
 A three-unit ensemble offers optimal performance and resource efficiency while maintaining high availability (HA), tolerating one failed machine.
@@ -34,7 +34,7 @@ A five-unit ensemble enhances durability, tolerating two failures and enabling d
 
 A seven-unit ensemble tolerates up to three failures. However, the larger quorum increases communication overhead, impacting performance.
 
-The Apache ZooKeeper charmed operator includes every active unit in the quorum. Other operational modes are not supported.
+The Apache ZooKeeper K8s charmed operator includes every active unit in the quorum. Other operational modes are not supported.
 
 ## Availability zones
 

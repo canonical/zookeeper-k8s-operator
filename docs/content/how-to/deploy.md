@@ -1,7 +1,7 @@
-# How to deploy Apache ZooKeeper charmed operator
+# How to deploy Apache ZooKeeper K8s charmed operator
 
 ```{note}
-For Kubernetes cloud environment (e.g., AKS, EKS), see the Apache ZooKeeper K8s charmed operator documentation instead.
+For machine cloud environment (e.g., EC2), see the [Apache ZooKeeper charmed operator](https://canonical-zookeeper.readthedocs-hosted.com/) documentation instead.
 ```
 <!-- TODO add a link to the K8s charm. -->
 
@@ -42,10 +42,10 @@ juju switch <model-name>
 
 ## Deploy the charm
 
-Deploy the Apache ZooKeeper charmed operator:
+Deploy the Apache ZooKeeper K8s charmed operator:
 
 ```
-juju deploy zookeeper -n <units>
+juju deploy zookeeper-k8s -n <units>
 ```
 
 Where <units> is the number of units to deploy (recommended values are `3` or `5`).
@@ -82,10 +82,10 @@ See also: `juju config` command [reference](https://canonical-juju.readthedocs-h
 
 ## Integrate with other charms
 
-To utilise Apache ZooKeeper charmed operator, use the `juju integrate` command (see [reference](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/integrate/)) to relate/integrate it with other charms. For example, to deploy Apache Kafka charmed operator and integrate with it:
+To utilise Apache ZooKeeper K8s charmed operator, use the `juju integrate` command (see [reference](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/integrate/)) to relate/integrate it with other charms. For example, to deploy Apache Kafka K8s charmed operator and integrate with it:
 
 ```
-juju deploy kafka --channel 3/stable -n <kafka-units> --trust
+juju deploy kafka-k8s --channel 3/stable -n <kafka-units> --trust
 juju integrate kafka zookeeper
 ```
 

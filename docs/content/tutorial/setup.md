@@ -5,56 +5,50 @@ For this tutorial, we will need to set up the environment with two main componen
 * LXD that is a simple and lightweight virtual machine provisioner
 * Juju that will help us to deploy and manage Apache ZooKeeper and related applications
 
-## LXD
+## MicroK8s
 
-The fastest, simplest way to get started with Charmed Apache ZooKeeper is to set up a local [LXD](https://canonical.com/lxd) cloud. LXD is a system container and virtual machine manager; Apache ZooKeeper will be run in one of these containers and managed by Juju. While this tutorial covers the basics of LXD, you can [explore more about LXD here](https://linuxcontainers.org/lxd/getting-started-cli/). LXD comes pre-installed on Ubuntu 20.04 LTS. Verify that LXD is installed by entering the command `which lxd` into the command line. This should output:
+The fastest, simplest way to get started with Charmed Apache ZooKeeper K8s is to set up a local [microk8s](https://microk8s.io/) cloud. MicroK8s is the easiest and fastest way to get Kubernetes up and running. Apache ZooKeeper will be run on MicroK8s and managed by Juju. While this tutorial covers the basics of MicroK8s, you can [explore more about LXD here](https://linuxcontainers.org/lxd/getting-started-cli/). 
 
-```
-/snap/bin/lxd
-```
+[Multipass](https://multipass.run/) is a quick and easy way to launch virtual machines running Ubuntu. It uses “[cloud-init](https://cloud-init.io/)” standard to install and configure all the necessary parts automatically.
 
-Although LXD is already installed, we need to run `lxd init` to perform post-installation tasks. For this tutorial, the default parameters are preferred and the network bridge should be set to have no IPv6 addresses since Juju does not support IPv6 addresses with LXD:
+Let’s install Multipass from [Snap](https://snapcraft.io/multipass) and launch a new VM using “[charm-dev](https://github.com/canonical/multipass-blueprints/blob/main/v1/charm-dev.yaml)” cloud-init config:
 
 ```bash
-lxd init --auto
-lxc network set lxdbr0 ipv6.address none
+sudo snap install multipass && \
+multipass launch --cpus 4 --memory 8G --disk 50G --name my-vm charm-dev
 ```
 
-You can list all LXD containers by entering the command `lxc list` into the command line. However, at this point of the tutorial, none should exist and you'll only see this as output:
-
+```{note}
+See also: [launch command reference](https://multipass.run/docs/launch-command).
 ```
-+------+-------+------+------+------+-----------+
-| NAME | STATE | IPV4 | IPV6 | TYPE | SNAPSHOTS |
-+------+-------+------+------+------+-----------+
+
+As soon as the new VM starts, enter:
+
+```bash
+multipass shell my-vm
+```
+
+Verify that MicroK8s is installed:
+
+```bash
+microk8s status --wait-ready
 ```
 
 ## Juju
 
-[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper. We need to install it locally yo be able to use CLI commands. As with LXD, Juju is installed from a snap package:
+[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper K8s charmed operator. We need to install it locally to be able to use CLI commands. As with MicroK8s, Juju is installed from a snap package:
 
 ```bash
 sudo snap install juju
 ```
 
-Juju already has built-in knowledge of LXD and how it works, so there is no additional setup or configuration needed. A controller will be used to deploy and control Charmed Apache ZooKeeper. All we need to do is run the following command to bootstrap a Juju controller named ‘overlord’ to LXD. This bootstrapping process can take several minutes depending on how provisioned (RAM, CPU, etc.) your machine is:
+Juju already has built-in knowledge of MicroK8s and how it works, so there is no additional setup or configuration needed. A controller will be used to deploy and control Charmed Apache ZooKeeper K8s. Make sure that you use the controller bound to the MicroK8s cluster:
 
 ```bash
-juju bootstrap localhost overlord
+juju switch microk8s
 ```
 
-The Juju controller should exist within an LXD container. You can verify this by entering the command `lxc list` and you should see the following:
-
-```
-+---------------+---------+-----------------------+------+-----------+-----------+
-|     NAME      |  STATE  |         IPV4          | IPV6 |   TYPE    | SNAPSHOTS |
-+---------------+---------+-----------------------+------+-----------+-----------+
-| juju-<id>     | RUNNING | 10.105.164.235 (eth0) |      | CONTAINER | 0         |
-+---------------+---------+-----------------------+------+-----------+-----------+
-```
-
-where `<id>` is a unique combination of numbers and letters such as `9d7e4e-0`
-
-The controller can work with different models; models group applications such as Charmed Apache ZooKeeper. Set up a specific model for this tutorial named `tutorial`:
+The controller can work with different models; models group applications such as Charmed Apache ZooKeeper K8s. Set up a specific model for this tutorial named `tutorial`:
 
 ```shell
 juju add-model tutorial
@@ -64,7 +58,7 @@ You can now view the model you created above by entering the command `juju statu
 
 ```
 Model    Controller  Cloud/Region         Version  SLA          Timestamp
-tutorial overlord    localhost/localhost  3.1.6    unsupported  23:20:53Z
+tutorial overlord    microK8s/localhost  3.1.6    unsupported  23:20:53Z
 
 Model "admin/tutorial" is empty.
 ```

@@ -1,15 +1,15 @@
 # Integrate
 
-This is the part of the Apache ZooKeeper charmed operator tutorial about using Apache ZooKeeper with other charms. Make sure to complete instruction from the [Deploy](deploy) page before reading further.
+This is the part of the Apache ZooKeeper K8s charmed operator tutorial about using Apache ZooKeeper with other charms. Make sure to complete instruction from the [Deploy](deploy) page before reading further.
 
-The main way to use the Apache ZooKeeper charmed operator is to integrate it with another charm via [Juju relations](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/relation/). For that reason we will deploy Apache Kafka charmed operator and integrate them via the [zookeeper interface](https://charmhub.io/integrations/zookeeper/).
+The main way to use the Apache ZooKeeper K8s charmed operator is to integrate it with another charm via [Juju relations](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/relation/). For that reason we will deploy Apache Kafka K8s charmed operator and integrate them via the [zookeeper interface](https://charmhub.io/integrations/zookeeper/).
 
 ## Deploy Apache Kafka
 
 Deploy Apache Kafka charm to the same model:
 
 ```
-juju deploy kafka --channel 3/stable -n 3 --trust
+juju deploy kafka-k8s --channel 3/stable -n 3 --trust
 ```
 
 Make sure Apache Kafka cluster is deployed by checking its status:
