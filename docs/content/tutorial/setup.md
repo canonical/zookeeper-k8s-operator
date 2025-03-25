@@ -7,11 +7,11 @@ For this tutorial, we will need to set up the environment with two main componen
 
 ## MicroK8s
 
-The fastest, simplest way to get started with Charmed Apache ZooKeeper K8s is to set up a local [microk8s](https://microk8s.io/) cloud. MicroK8s is the easiest and fastest way to get Kubernetes up and running. Apache ZooKeeper will be run on MicroK8s and managed by Juju. While this tutorial covers the basics of MicroK8s, you can [explore more about LXD here](https://linuxcontainers.org/lxd/getting-started-cli/). 
+The fastest, simplest way to get started with Charmed Apache ZooKeeper K8s is to set up a local [MicroK8s](https://microk8s.io/) cloud. MicroK8s is the easiest and fastest way to get Kubernetes up and running. Apache ZooKeeper will be run on MicroK8s and managed by Juju. While this tutorial covers the basics of MicroK8s, you can [explore more about LXD here](https://linuxcontainers.org/lxd/getting-started-cli/). 
 
 [Multipass](https://multipass.run/) is a quick and easy way to launch virtual machines running Ubuntu. It uses “[cloud-init](https://cloud-init.io/)” standard to install and configure all the necessary parts automatically.
 
-Let’s install Multipass from [Snap](https://snapcraft.io/multipass) and launch a new VM using “[charm-dev](https://github.com/canonical/multipass-blueprints/blob/main/v1/charm-dev.yaml)” cloud-init config:
+Let’s install Multipass from [Snap](https://snapcraft.io/multipass) and launch a new VM using “[charm-dev](https://github.com/canonical/multipass-blueprints/blob/main/v1/charm-dev.yaml)” cloud-init configuration:
 
 ```bash
 sudo snap install multipass && \

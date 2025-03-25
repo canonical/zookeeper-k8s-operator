@@ -9,7 +9,8 @@
 The Apache ZooKeeper K8s charmed operator delivers automated operations management from day 0 to day 2 on the [Apache ZooKeeper](https://zookeeper.apache.org/) server which enables highly reliable distributed coordination, deployed on top of a [Kubernetes cluster](https://kubernetes.io/). It is an open source, end-to-end, production ready data platform on top of cloud native technologies.
 
 The Apache ZooKeeper K8s charmed operator can be found on [Charmhub](https://charmhub.io/zookeeper-k8s) and it comes with features such as:
-- Horizontal scaling for high-availability out-of-the-box
+
+- Horizontal scaling for high-availability out of the box
 - Server-Server and Client-Server authentication both enabled by default
 - Access control management supported with user-provided ACL lists.
 
@@ -39,7 +40,7 @@ juju config zookeeper-k8s <config_option_1>=<value> [<config_option_2>=<value>]
 The Apache ZooKeeper charmed operator may be deployed using the Juju command line as follows:
 
 ```bash
-$ juju deploy zookeeper-k8s -n 5
+juju deploy zookeeper-k8s -n 5
 ```
 
 To watch the process, `juju status` can be used. Once all the units show as `active|idle` the credentials to access the admin user can be queried with:
@@ -70,6 +71,7 @@ The Charmed Apache ZooKeeper K8s Operator has two internal users:
 - `sync`: specific to the internal quorum handling. 
 
 The `set-password` action can be used to rotate the password of one of them. If no username is passed, it will default to the `super` user.
+
 ```shell
 # to set a specific password for the sync user
 juju run-action zookeeper-k8s/leader set-password username=sync password=<password> --wait

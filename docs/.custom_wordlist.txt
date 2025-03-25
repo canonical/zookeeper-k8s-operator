@@ -34,3 +34,8 @@ VMware
 VMs
 readme
 OpenStack
+Multipass
+MicroK
+config
+dev
+init
