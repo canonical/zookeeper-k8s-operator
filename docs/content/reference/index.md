@@ -5,9 +5,9 @@ The Reference section of our documentation contains pages for technical specific
 ```{toctree}
 :hidden:
 
-Resources<https://charmhub.io/zookeeper/resources>
-Integrations<https://charmhub.io/zookeeper/integrations>
-Libraries<https://charmhub.io/zookeeper/libraries>
-Configurations<https://charmhub.io/zookeeper/configurations>
-Actions<https://charmhub.io/zookeeper/actions>
+Resources<https://charmhub.io/zookeeper-k8s/resources>
+Integrations<https://charmhub.io/zookeeper-k8s/integrations>
+Libraries<https://charmhub.io/zookeeper-k8s/libraries>
+Configurations<https://charmhub.io/zookeeper-k8s/configurations>
+Actions<https://charmhub.io/zookeeper-k8s/actions>
 ```

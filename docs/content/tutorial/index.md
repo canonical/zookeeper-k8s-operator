@@ -4,7 +4,7 @@ The Apache ZooKeeper K8s charmed operator simplifies the deployment, management,
 
 In this tutorial, we will:
 
-* Set up your environment using LXD and Juju.
+* Set up your environment using Multipass and Juju.
 * Deploy Apache ZooKeeper K8s using charmed operator.
 * Integrate Apache ZooKeeper and Apache Kafka charms.
 

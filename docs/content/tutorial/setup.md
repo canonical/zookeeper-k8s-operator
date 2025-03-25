@@ -2,7 +2,7 @@
 
 For this tutorial, we will need to set up the environment with two main components:
 
-* LXD that is a simple and lightweight virtual machine provisioner
+* Multipass that is a simple and lightweight virtual machine provisioner
 * Juju that will help us to deploy and manage Apache ZooKeeper and related applications
 
 ## MicroK8s

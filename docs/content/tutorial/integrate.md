@@ -4,9 +4,9 @@ This is the part of the Apache ZooKeeper K8s charmed operator tutorial about usi
 
 The main way to use the Apache ZooKeeper K8s charmed operator is to integrate it with another charm via [Juju relations](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/relation/). For that reason we will deploy Apache Kafka K8s charmed operator and integrate them via the [zookeeper interface](https://charmhub.io/integrations/zookeeper/).
 
-## Deploy Apache Kafka
+## Deploy Apache Kafka K8s
 
-Deploy Apache Kafka charm to the same model:
+Deploy Apache Kafka K8s charm to the same model:
 
 ```
 juju deploy kafka-k8s --channel 3/stable -n 3 --trust
@@ -25,7 +25,7 @@ Wait until all units have `active` and `idle` status.
 Integrate Apache ZooKeeper and Apache Kafka applications for them to be able to work together:
 
 ```
-juju integrate kafka zookeeper
+juju integrate kafka-k8s zookeeper-k8s
 ```
 
 Juju finds a common interface to integrate the charms together. In this case, it's the `zookeeper` interface. See the interface's [documentation](https://charmhub.io/integrations/zookeeper/) for more information.

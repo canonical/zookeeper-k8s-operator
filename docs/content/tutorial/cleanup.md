@@ -7,7 +7,7 @@ This is the last part of the Apache ZooKeeper K8s charmed operator tutorial abou
 Destroy the entire Apache ZooKeeper K8s application:
 
 ```
-juju remove-application zookeeper
+juju remove-application zookeeper-k8s
 ```
 
 This will remove Apache ZooKeeper K8s from your Juju model.
@@ -24,7 +24,7 @@ juju status
 Now, the applications mentioned in the output:
 
 ```
-juju remove-application kafka
+juju remove-application kafka-k8s
 ```
 
 Finally, make sure that deletion is complete with `juju status` and remove the Juju model.

@@ -1,7 +1,7 @@
 # How to deploy Apache ZooKeeper K8s charmed operator
 
 ```{note}
-For machine cloud environment (e.g., EC2), see the [Apache ZooKeeper charmed operator](https://canonical-zookeeper.readthedocs-hosted.com/) documentation instead.
+For machine cloud environment (e.g., EC2), see the [Apache ZooKeeper K8s charmed operator](https://canonical-zookeeper.readthedocs-hosted.com/) documentation instead.
 ```
 <!-- TODO add a link to the K8s charm. -->
 
@@ -67,13 +67,13 @@ The deployment should be complete once all the units show `active` or `idle` sta
 View existing configuration options:  
 
 ````  
-juju config zookeeper  
+juju config zookeeper-k8s
 ```` 
 
 Change or add configuration options:
 
 ````  
-juju config zookeeper <key>=<value>  
+juju config zookeeper-k8s <key>=<value>  
 ````  
 
 ```{note}
@@ -86,7 +86,7 @@ To utilise Apache ZooKeeper K8s charmed operator, use the `juju integrate` comma
 
 ```
 juju deploy kafka-k8s --channel 3/stable -n <kafka-units> --trust
-juju integrate kafka zookeeper
+juju integrate kafka-k8s zookeeper-k8s
 ```
 
 Make sure to wait until the status of all units becomes `active` and `idle`.

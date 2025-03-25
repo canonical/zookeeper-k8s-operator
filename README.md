@@ -66,7 +66,7 @@ juju scale-application zookeeper-k8s 5
 
 The Charmed Apache ZooKeeper K8s Operator has two internal users:
 
-- `super`: admin user for the cluster. Used mainly with the Kafka operator.
+- `super`: admin user for the cluster. Used mainly with the Apache Kafka charmed operator.
 - `sync`: specific to the internal quorum handling. 
 
 The `set-password` action can be used to rotate the password of one of them. If no username is passed, it will default to the `super` user.

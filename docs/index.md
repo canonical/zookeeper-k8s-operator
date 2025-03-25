@@ -8,7 +8,7 @@ The charmed operator automates the deployment, scaling, and maintenance of Apach
 
 ```{note}
 This is a [Kubernetes](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/charm/#kubernetes) charm. 
-For deploying a machine charm, see [Apache ZooKeeper charmed operator](https://canonical-zookeeper.readthedocs-hosted.com/).
+For deploying a machine charm, see [Apache ZooKeeper K8s charmed operator](https://canonical-zookeeper.readthedocs-hosted.com/).
 ```
 <!-- TODO add a link to the K8s charm above -->
 

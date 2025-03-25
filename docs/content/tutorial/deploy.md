@@ -51,7 +51,7 @@ Change the Apache ZooKeeper cluster configuration options by using the `juju con
 To configure these settings, use the following command:
 
 ```
-juju config zookeeper tick-time=2000
+juju config zookeeper-k8s tick-time=2000
 ```
 
 The `tick-time` option sets the basic time unit in milliseconds used by Apache ZooKeeper for heartbeats.
