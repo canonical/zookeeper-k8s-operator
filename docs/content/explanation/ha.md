@@ -8,9 +8,9 @@ Ensemble
 Quorum
 : the minimum number of available servers required for a cluster to serve requests. By default, it is a simple majority (greater than half) of all servers in the ensemble.
 
-If Apache ZooKeeper cluster looses quorum (has less than or equal to half of available servers), then it can't elect a new leader and effectively stops serving requests as it can't guarantee a consistent view of the system.
+If an Apache ZooKeeper cluster looses quorum (has less than or equal to half of available servers), then it can't elect a new leader and effectively stops serving requests as it can't guarantee a consistent view of the system.
 
-For Apache ZooKeeper implementation details, see the [official documentation](https://zookeeper.apache.org/doc/r3.8.2/zookeeperOver.html).
+For Apache ZooKeeper implementation details, see the [official documentation](https://zookeeper.apache.org/doc/r3.9.2/zookeeperOver.html).
 
 ## Number of servers
 

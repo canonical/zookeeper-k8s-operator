@@ -3,7 +3,6 @@
 ```{note}
 For machine cloud environment (e.g., EC2), see the [Apache ZooKeeper K8s charmed operator](https://canonical-zookeeper.readthedocs-hosted.com/) documentation instead.
 ```
-<!-- TODO add a link to the K8s charm. -->
 
 Ensure you have a Juju environment set up and running, including:
 

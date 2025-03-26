@@ -36,7 +36,7 @@ Check the Juju applications status, including the information on existing relati
 juju status --relations --watch 1s
 ```
 
-<!-- Add something here to show the ZooKeeper's role and/or process. -->
+<!-- TODO Add more content here to show ZooKeeper's role and/or process. -->
 
 ## Next step
 
