@@ -44,7 +44,7 @@ juju switch <model-name>
 Deploy the Apache ZooKeeper K8s charmed operator:
 
 ```
-juju deploy zookeeper-k8s -n <units>
+juju deploy zookeeper-k8s -n <units> --trust
 ```
 
 Where <units> is the number of units to deploy (recommended values are `3` or `5`).

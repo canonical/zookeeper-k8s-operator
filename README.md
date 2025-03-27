@@ -40,7 +40,7 @@ juju config zookeeper-k8s <config_option_1>=<value> [<config_option_2>=<value>]
 The Apache ZooKeeper charmed operator may be deployed using the Juju command line as follows:
 
 ```bash
-juju deploy zookeeper-k8s -n 5
+juju deploy zookeeper-k8s -n 5 --trust
 ```
 
 To watch the process, `juju status` can be used. Once all the units show as `active|idle` the credentials to access the admin user can be queried with:

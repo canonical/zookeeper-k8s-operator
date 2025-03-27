@@ -7,7 +7,7 @@ This is the part of the Apache ZooKeeper K8s charmed operator tutorial about dep
 Apache ZooKeeper K8s charmed operator can be deployed as any other charm via `juju deploy` command:
 
 ```
-juju deploy zookeeper-k8s -n 5
+juju deploy zookeeper-k8s -n 5 --trust
 ```
 
 ```{note}
