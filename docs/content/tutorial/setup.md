@@ -7,7 +7,7 @@ For this tutorial, we will need to set up the environment with two main componen
 
 ## MicroK8s
 
-The fastest, simplest way to get started with Charmed Apache ZooKeeper K8s is to set up a local [MicroK8s](https://microk8s.io/) cloud. MicroK8s is the easiest and fastest way to get Kubernetes up and running. Apache ZooKeeper will be run on MicroK8s and managed by Juju. While this tutorial covers the basics of MicroK8s, you can [explore more about LXD here](https://linuxcontainers.org/lxd/getting-started-cli/). 
+The fastest, simplest way to get started with Apache ZooKeeper K8s charm is to set up a local [MicroK8s](https://microk8s.io/) cloud. MicroK8s is the easiest and fastest way to get Kubernetes up and running. Apache ZooKeeper will be run on MicroK8s and managed by Juju. While this tutorial covers the basics of MicroK8s, you can [explore more about LXD here](https://linuxcontainers.org/lxd/getting-started-cli/). 
 
 [Multipass](https://multipass.run/) is a quick and easy way to launch virtual machines running Ubuntu. It uses “[cloud-init](https://cloud-init.io/)” standard to install and configure all the necessary parts automatically.
 
@@ -42,13 +42,13 @@ microk8s status --wait-ready
 sudo snap install juju
 ```
 
-Juju already has built-in knowledge of MicroK8s and how it works, so there is no additional setup or configuration needed. A controller will be used to deploy and control Charmed Apache ZooKeeper K8s. Make sure that you use the controller bound to the MicroK8s cluster:
+Juju already has built-in knowledge of MicroK8s and how it works, so there is no additional setup or configuration needed. A controller will be used to deploy and control Apache ZooKeeper K8s charm. Make sure that you use the controller bound to the MicroK8s cluster:
 
 ```bash
 juju switch microk8s
 ```
 
-The controller can work with different models; models group applications such as Charmed Apache ZooKeeper K8s. Set up a specific model for this tutorial named `tutorial`:
+The controller can work with different models; models group applications such as Apache ZooKeeper K8s charm. Set up a specific model for this tutorial named `tutorial`:
 
 ```shell
 juju add-model tutorial
