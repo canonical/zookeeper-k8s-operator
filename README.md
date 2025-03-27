@@ -35,7 +35,7 @@ juju config zookeeper-k8s <config_option_1>=<value> [<config_option_2>=<value>]
 
 ## Usage
 
-The Apache ZooKeeper charm may be deployed using the Juju command line as follows:
+The Apache ZooKeeper K8s charm may be deployed using the Juju command line as follows:
 
 ```bash
 juju deploy zookeeper-k8s -n 5 --trust
@@ -65,7 +65,7 @@ juju scale-application zookeeper-k8s 5
 
 The Apache ZooKeeper K8s charm has two internal users:
 
-- `super`: admin user for the cluster. Used mainly with the Apache Kafka charm.
+- `super`: admin user for the cluster. Used mainly with the Apache Kafka K8s charm.
 - `sync`: specific to the internal quorum handling. 
 
 The `set-password` action can be used to rotate the password of one of them. If no username is passed, it will default to the `super` user.
