@@ -4,7 +4,7 @@ Apache ZooKeeper K8s charm is a [Juju charm](https://canonical-juju.readthedocs-
 
 Apache ZooKeeper is a free, open-source software project by the Apache Software Foundation. It is a distributed coordination service widely used for managing configuration information, naming, synchronisation, and group services in distributed systems. Find out more at the [Apache ZooKeeper project page](https://zookeeper.apache.org/).
 
-The charm automates the deployment, scaling, and maintenance of Apache ZooKeeper clusters, while managing leader election, configuration, synchronization, and security features like authentication and access control. It enables horizontal scaling, service discovery, and automated recovery while leveraging [Juju](https://juju.is/) for simplified life cycle management across cloud, VM, and bare-metal environments.
+The charm automates the deployment, scaling, and maintenance of Apache ZooKeeper clusters, while managing leader election, configuration, synchronisation, and security features like authentication and access control. It enables horizontal scaling, service discovery, and automated recovery while leveraging [Juju](https://juju.is/) for simplified life cycle management across cloud, VM, and bare-metal environments.
 
 ```{note}
 This is a [Kubernetes](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/charm/#kubernetes) charm. 
