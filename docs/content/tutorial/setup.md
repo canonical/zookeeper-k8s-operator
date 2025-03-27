@@ -36,7 +36,7 @@ microk8s status --wait-ready
 
 ## Juju
 
-[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper K8s charmed operator. We need to install it locally to be able to use CLI commands. As with MicroK8s, Juju is installed from a snap package:
+[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper K8s charm. We need to install it locally to be able to use CLI commands. As with MicroK8s, Juju is installed from a snap package:
 
 ```bash
 sudo snap install juju

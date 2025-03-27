@@ -1,14 +1,12 @@
-# Apache ZooKeeper K8s charmed operator
+# Apache ZooKeeper K8s charm
 
 [![CharmHub Badge](https://charmhub.io/zookeeper-k8s/badge.svg)](https://charmhub.io/zookeeper-k8s)
 [![Release](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/release.yaml/badge.svg)](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/release.yaml)
 [![Tests](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/canonical/zookeeper-k8s-operator/actions/workflows/ci.yaml?query=branch%3Amain)
 
-## Overview
+The Apache ZooKeeper K8s charm delivers automated operations management from day 0 to day 2 on the [Apache ZooKeeper](https://zookeeper.apache.org/) server which enables highly reliable distributed coordination, deployed on top of a [Kubernetes cluster](https://kubernetes.io/). It is an open source, end-to-end, production ready data platform on top of cloud native technologies.
 
-The Apache ZooKeeper K8s charmed operator delivers automated operations management from day 0 to day 2 on the [Apache ZooKeeper](https://zookeeper.apache.org/) server which enables highly reliable distributed coordination, deployed on top of a [Kubernetes cluster](https://kubernetes.io/). It is an open source, end-to-end, production ready data platform on top of cloud native technologies.
-
-The Apache ZooKeeper K8s charmed operator can be found on [Charmhub](https://charmhub.io/zookeeper-k8s) and it comes with features such as:
+The Apache ZooKeeper K8s charm can be found on [Charmhub](https://charmhub.io/zookeeper-k8s) and it comes with features such as:
 
 - Horizontal scaling for high-availability out of the box
 - Server-Server and Client-Server authentication both enabled by default
@@ -37,7 +35,7 @@ juju config zookeeper-k8s <config_option_1>=<value> [<config_option_2>=<value>]
 
 ## Usage
 
-The Apache ZooKeeper charmed operator may be deployed using the Juju command line as follows:
+The Apache ZooKeeper charm may be deployed using the Juju command line as follows:
 
 ```bash
 juju deploy zookeeper-k8s -n 5 --trust
@@ -65,9 +63,9 @@ juju scale-application zookeeper-k8s 5
 
 ### Password rotation
 
-The Charmed Apache ZooKeeper K8s Operator has two internal users:
+The Apache ZooKeeper K8s charm has two internal users:
 
-- `super`: admin user for the cluster. Used mainly with the Apache Kafka charmed operator.
+- `super`: admin user for the cluster. Used mainly with the Apache Kafka charm.
 - `sync`: specific to the internal quorum handling. 
 
 The `set-password` action can be used to rotate the password of one of them. If no username is passed, it will default to the `super` user.
@@ -129,7 +127,7 @@ Note: The TLS settings here are for self-signed-certificates which are not recom
 
 ## Monitoring
 
-The Charmed Apache ZooKeeper K8s Operator comes with several exporters by default. The metrics can be queried by accessing the following endpoints:
+The Apache ZooKeeper K8s charm comes with several exporters by default. The metrics can be queried by accessing the following endpoints:
 
 - JMX exporter: `http://<pod-ip>:9998/metrics`
 - Apache ZooKeeper metrics: `http://<pod-ip>:7000/metrics`
@@ -167,7 +165,7 @@ After this is complete, Grafana will show a new dashboard: `ZooKeeper Metrics`
 
 ## Security
 
-Security issues in the Charmed Apache ZooKeeper K8s Operator can be reported through [LaunchPad](https://wiki.ubuntu.com/DebuggingSecurity#How%20to%20File). Please do not file GitHub issues about security issues.
+Security issues in the Apache ZooKeeper K8s charm can be reported through [LaunchPad](https://wiki.ubuntu.com/DebuggingSecurity#How%20to%20File). Please do not file GitHub issues about security issues.
 
 
 ## Contributing
@@ -177,4 +175,4 @@ Please see the [Juju SDK docs](https://juju.is/docs/sdk) for guidelines on enhan
 
 ## License
 
-The Charmed Apache ZooKeeper K8s Operator is free software, distributed under the Apache Software License, version 2.0. See [LICENSE](https://github.com/canonical/zookeeper-k8s-operator/blob/main/LICENSE) for more information.
+The Apache ZooKeeper K8s charm is free software, distributed under the Apache Software License, version 2.0. See [LICENSE](https://github.com/canonical/zookeeper-k8s-operator/blob/main/LICENSE) for more information.

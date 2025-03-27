@@ -33,7 +33,7 @@ author = "Canonical Ltd."
 #
 # TODO: To disable the title, set to an empty string.
 
-html_title = "Apache ZooKeeper K8s charmed operator documentation"
+html_title = "Apache ZooKeeper K8s charm documentation"
 
 
 # Copyright string; shown at the bottom of the page

@@ -1,10 +1,10 @@
 # Deploy
 
-This is the part of the Apache ZooKeeper K8s charmed operator tutorial about deployment and configuration. Make sure to complete instruction from the [Setup](setup) page before reading further.
+This is the part of the Apache ZooKeeper K8s charm tutorial about deployment and configuration. Make sure to complete instruction from the [Setup](setup) page before reading further.
 
 ## Deploy the charm
 
-Apache ZooKeeper K8s charmed operator can be deployed as any other charm via `juju deploy` command:
+Apache ZooKeeper K8s charm can be deployed as any other charm via `juju deploy` command:
 
 ```
 juju deploy zookeeper-k8s -n 5 --trust

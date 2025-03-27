@@ -1,14 +1,14 @@
-# Apache ZooKeeper K8s charmed operator tutorial
+# Apache ZooKeeper K8s charm tutorial
 
-The Apache ZooKeeper K8s charmed operator simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment. 
+The Apache ZooKeeper K8s charm simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment. 
 
 In this tutorial, we will:
 
 * Set up your environment using Multipass and Juju.
-* Deploy Apache ZooKeeper K8s using charmed operator.
+* Deploy Apache ZooKeeper K8s using the charm.
 * Integrate Apache ZooKeeper and Apache Kafka charms.
 
-While this tutorial intends to teach you to use Apache ZooKeeper K8s charmed operator, it will be most beneficial if you already have a familiarity with:
+While this tutorial intends to teach you to use Apache ZooKeeper K8s charm, it will be most beneficial if you already have a familiarity with:
 
 * Basic terminal commands
 * [Apache Zookeeper](https://zookeeper.apache.org/) concepts
