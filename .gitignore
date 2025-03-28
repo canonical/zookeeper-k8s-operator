@@ -9,3 +9,5 @@ __pycache__/
 .vscode
 .idea
 *.srl
+/docs/.sphinx/.doctrees
+/docs/_build

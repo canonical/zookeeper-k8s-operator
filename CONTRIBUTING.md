@@ -40,10 +40,7 @@ tox                      # runs 'lint' and 'unit' environments
 
 ## Build and Deploy
 
-To build the charm in this repository, from the root of the dir you can run:
-Once you have Juju set up locally, to download, build and deploy the charm you can run:
-
-### Deploy
+To download, build and deploy the charm you can run:
 
 ```bash
 # Clone and enter the repository
@@ -60,7 +57,7 @@ juju model-config logging-config="<root>=INFO;unit=DEBUG"
 charmcraft pack
 
 # Deploy the charm
-juju deploy ./*.charm -n 3
+juju deploy ./*.charm -n 3 --trust
 ```
 
 If you already have a `zookeeper-k8s` Juju model in place and would like to deploy a fresh build of the charm, as well as a toy client for testing, you can run:
