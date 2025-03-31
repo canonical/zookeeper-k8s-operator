@@ -26,7 +26,7 @@ Apache ZooKeeper K8s charm is a distribution of Apache ZooKeeper. It’s an open
 
 - [Read our Code of Conduct](https://ubuntu.com/community/code-of-conduct)
 - [Join the Discourse forum](https://discourse.charmhub.io/tag/kafka)
-- [Contribute](https://github.com/canonical/zookeeper-operator/blob/main/CONTRIBUTING.md) and report [issues](https://github.com/canonical/zookeeper-operator/issues/new)
+- [Contribute](https://github.com/canonical/zookeeper-k8s-operator/blob/main/CONTRIBUTING.md) and report [issues](https://https://github.com/canonical/zookeeper-k8s-operator/issues/new)
 - Explore [Canonical Data Fabric solutions](https://canonical.com/data)
 - [Contact us](https://discourse.charmhub.io/t/13107) for all further questions
 
