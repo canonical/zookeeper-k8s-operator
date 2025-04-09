@@ -1,6 +1,6 @@
 # Apache ZooKeeper K8s charm tutorial
 
-The Apache ZooKeeper K8s charm simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment. 
+The Apache ZooKeeper K8s charm simplifies the deployment, management, and scaling of Apache ZooKeeper clusters on your Juju environment.
 
 In this tutorial, we will:
 
@@ -20,7 +20,7 @@ Before we start, make sure your machine meets the following requirements:
 * Ubuntu 22.04 (Focal) or later.
 * 8 GB of RAM.
 * 2 CPU threads.
-* At least 20 GB of available storage.
+* At least 50 GB of available storage.
 * Access to the internet for downloading the required snaps and charms.
 
 

@@ -6,7 +6,7 @@ This is the part of the Apache ZooKeeper K8s charm tutorial about deployment and
 
 Apache ZooKeeper K8s charm can be deployed as any other charm via `juju deploy` command:
 
-```
+```bash
 juju deploy zookeeper-k8s -n 5 --trust
 ```
 
@@ -18,7 +18,7 @@ This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/l
 
 Check the status of the deployment:
 
-```
+```bash
 juju status --watch 1s
 ```
 
@@ -36,7 +36,7 @@ Apache ZooKeeper requires an odd number of nodes for quorum. Make sure to deploy
 
 You can add or remove units of the Apache ZooKeeper K8s application by using `juju scale-application` command. For example, to reduce the number of units for the Apache ZooKeeper K8s application deployed earlier, let's remove two units:
 
-```
+```bash
 juju scale-application zookeeper-k8s 3
 ```
 
@@ -50,7 +50,7 @@ Change the Apache ZooKeeper cluster configuration options by using the `juju con
 
 To configure these settings, use the following command:
 
-```
+```bash
 juju config zookeeper-k8s tick-time=2000
 ```
 
