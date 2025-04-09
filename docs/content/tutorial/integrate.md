@@ -8,23 +8,23 @@ The main way to use the Apache ZooKeeper K8s charm is to integrate it with anoth
 
 Deploy Apache Kafka K8s charm to the same model:
 
-```
+```bash
 juju deploy kafka-k8s --channel 3/stable -n 3 --trust
 ```
 
 Make sure Apache Kafka cluster is deployed by checking its status:
 
-```
+```bash
 juju status --watch 1s
 ```
 
 Wait until all units have `active` and `idle` status.
 
-## Integrate
+## Integrate Apache Kafka and Apache ZooKeeper
 
 Integrate Apache ZooKeeper and Apache Kafka applications for them to be able to work together:
 
-```
+```bash
 juju integrate kafka-k8s zookeeper-k8s
 ```
 
@@ -32,7 +32,7 @@ Juju finds a common interface to integrate the charms together. In this case, it
 
 Check the Juju applications status, including the information on existing relations:
 
-```
+```bash
 juju status --relations --watch 1s
 ```
 

@@ -1,45 +1,64 @@
 # Setup the environment
 
-For this tutorial, we will need to set up the environment with two main components:
+For this tutorial, we’ll set up a Multipass VM with two key components:
 
-* Multipass that is a simple and lightweight virtual machine provisioner
+* MicroK8s that is a lightweight Kubernetes
 * Juju that will help us to deploy and manage Apache ZooKeeper and related applications
 
-## MicroK8s
+## Multipass
 
-The fastest, simplest way to get started with Apache ZooKeeper K8s charm is to set up a local [MicroK8s](https://microk8s.io/) cloud. MicroK8s is the easiest and fastest way to get Kubernetes up and running. Apache ZooKeeper will be run on MicroK8s and managed by Juju. While this tutorial covers the basics of MicroK8s, you can [explore more about LXD here](https://linuxcontainers.org/lxd/getting-started-cli/). 
+Multipass is a quick and easy way to launch virtual machines running Ubuntu.
+It uses the cloud-init standard to install and configure all the necessary parts automatically.
 
-[Multipass](https://multipass.run/) is a quick and easy way to launch virtual machines running Ubuntu. It uses “[cloud-init](https://cloud-init.io/)” standard to install and configure all the necessary parts automatically.
-
-Let’s install Multipass from [Snap](https://snapcraft.io/multipass) and launch a new VM using “[charm-dev](https://github.com/canonical/multipass-blueprints/blob/main/v1/charm-dev.yaml)” cloud-init configuration:
+Let’s install Multipass from a snap and launch a new VM using the `charm-dev` cloud-init configuration:
 
 ```bash
 sudo snap install multipass && \
-multipass launch --cpus 4 --memory 8G --disk 50G --name my-vm charm-dev
+multipass launch --cpus 4 --memory 8G --disk 50G --name zk-vm charm-dev
 ```
 
 ```{note}
-See also: [launch command reference](https://multipass.run/docs/launch-command).
+See also: `multipass launch` command [reference](https://multipass.run/docs/launch-command).
 ```
 
-As soon as the new VM starts, enter:
+Wait for the VM to start and open its shell:
 
 ```bash
-multipass shell my-vm
+multipass shell zk-vm
 ```
 
-Verify that MicroK8s is installed:
+## MicroK8s
+
+MicroK8s is a low-ops, minimal production Kubernetes.
+It provides the functionality of core Kubernetes components, in a small footprint, scalable from a single node to a high-availability production cluster.
+
+Verify that MicroK8s is installed already:
 
 ```bash
 microk8s status --wait-ready
 ```
 
+This should produce an output similar to the following:
+
+```text
+microk8s is running
+high-availability: no
+  datastore master nodes: 127.0.0.1:19001
+  datastore standby nodes: none
+addons:
+  enabled:
+    dns                  # (core) CoreDNS
+...
+```
+
 ## Juju
 
-[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper K8s charm. We need to install it locally to be able to use CLI commands. As with MicroK8s, Juju is installed from a snap package:
+[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper K8s charm. We need to install it locally to be able to use CLI commands.
+
+As with MicroK8s, Juju should be installed already, check:
 
 ```bash
-sudo snap install juju
+juju clouds
 ```
 
 Juju already has built-in knowledge of MicroK8s and how it works, so there is no additional setup or configuration needed. A controller will be used to deploy and control Apache ZooKeeper K8s charm. Make sure that you use the controller bound to the MicroK8s cluster:
@@ -56,9 +75,9 @@ juju add-model tutorial
 
 You can now view the model you created above by entering the command `juju status` into the command line. You should see the following:
 
-```
+```text
 Model    Controller  Cloud/Region         Version  SLA          Timestamp
-tutorial microk8s    microK8s/localhost  3.1.6    unsupported  23:20:53Z
+tutorial microk8s    microK8s/localhost   3.6.4    unsupported  23:20:53Z
 
 Model "admin/tutorial" is empty.
 ```
