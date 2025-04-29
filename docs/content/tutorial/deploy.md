@@ -11,10 +11,10 @@ juju deploy zookeeper-k8s -n 5 --trust
 ```
 
 ```{note}
-See command reference: [juju deploy](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/deploy/).
+See also: `juju deploy` command [reference](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/juju-cli/list-of-juju-cli-commands/deploy/).
 ```
 
-This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/#unit) of Apache ZooKeeper K8s charm.
+This will deploy five [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit) of Apache ZooKeeper K8s charm.
 
 Check the status of the deployment:
 

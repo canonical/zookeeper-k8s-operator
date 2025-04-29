@@ -14,7 +14,7 @@ For Apache ZooKeeper implementation details, see the [official documentation](ht
 
 ## Number of servers
 
-For Apache ZooKeeper K8s charm the number of servers in a cluster can be easily adjusted by [adding](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#add-a-unit) or [removing](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-units/#remove-a-unit) Juju [units](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/unit/) from the application.
+For Apache ZooKeeper K8s charm the number of servers in a cluster can be easily adjusted by [controlling](https://documentation.ubuntu.com/juju/latest/howto/manage-units/index.html#control-the-number-of-units) the number of Juju [units](https://documentation.ubuntu.com/juju/latest/reference/unit/) in the application.
 
 ```{important}
 Always use an odd number of servers in an Apache ZooKeeper cluster for optimal performance and high availability (HA).

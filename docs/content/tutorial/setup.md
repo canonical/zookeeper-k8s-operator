@@ -27,6 +27,8 @@ Wait for the VM to start and open its shell:
 multipass shell zk-vm
 ```
 
+For the rest of the tutorial we will work inside this virtual environment.
+
 ## MicroK8s
 
 MicroK8s is a low-ops, minimal production Kubernetes.
@@ -53,7 +55,9 @@ addons:
 
 ## Juju
 
-[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes. We will be using it to deploy and manage Apache ZooKeeper K8s charm. We need to install it locally to be able to use CLI commands.
+[Juju](https://juju.is/) is an orchestration engine for clouds, bare metal, LXD or Kubernetes.
+We will be using it to deploy and manage Apache ZooKeeper K8s charm.
+We need to install it locally to be able to use CLI commands.
 
 As with MicroK8s, Juju should be installed already, check:
 
@@ -61,13 +65,16 @@ As with MicroK8s, Juju should be installed already, check:
 juju clouds
 ```
 
-Juju already has built-in knowledge of MicroK8s and how it works, so there is no additional setup or configuration needed. A controller will be used to deploy and control Apache ZooKeeper K8s charm. Make sure that you use the controller bound to the MicroK8s cluster:
+Juju already has built-in knowledge of MicroK8s and how it works, so there is no additional setup or configuration needed.
+A controller will be used to deploy and control Apache ZooKeeper K8s charm.
+Make sure that you use the controller bound to the MicroK8s cluster:
 
 ```bash
 juju switch microk8s
 ```
 
-The controller can work with different models; models group applications such as Apache ZooKeeper K8s charm. Set up a specific model for this tutorial named `tutorial`:
+The controller can work with different models; models group applications such as Apache ZooKeeper K8s charm.
+Set up a specific model for this tutorial named `tutorial`:
 
 ```shell
 juju add-model tutorial

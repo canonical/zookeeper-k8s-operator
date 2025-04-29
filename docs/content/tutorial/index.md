@@ -19,10 +19,9 @@ Before we start, make sure your machine meets the following requirements:
 
 * Ubuntu 22.04 (Focal) or later.
 * 8 GB of RAM.
-* 2 CPU threads.
+* 4 CPU cores.
 * At least 50 GB of available storage.
 * Access to the internet for downloading the required snaps and charms.
-
 
 ```{toctree}
 :hidden:
