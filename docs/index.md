@@ -7,11 +7,11 @@ Apache ZooKeeper is a free, open-source software project by the Apache Software 
 The charm automates the deployment, scaling, and maintenance of Apache ZooKeeper clusters, while managing leader election, configuration, synchronisation, and security features like authentication and access control. It enables horizontal scaling, service discovery, and automated recovery while leveraging [Juju](https://juju.is/) for simplified life cycle management across cloud, VM, and bare-metal environments.
 
 ```{note}
-This is a [Kubernetes](https://canonical-juju.readthedocs-hosted.com/en/latest/user/reference/charm/#kubernetes) charm. 
+This is a [Kubernetes](https://documentation.ubuntu.com/juju/latest/reference/charm/index.html#kubernetes) charm.
 For deploying a machine charm, see [Apache ZooKeeper charm](https://canonical-zookeeper.readthedocs-hosted.com/).
 ```
 
-The charm is useful for DevOps teams, platform engineers, and organisations running distributed systems that require reliable coordination. Teams looking to reduce operational overhead, enhance security, and simplify cluster scaling will find it especially useful. 
+The charm is useful for DevOps teams, platform engineers, and organisations running distributed systems that require reliable coordination. Teams looking to reduce operational overhead, enhance security, and simplify cluster scaling will find it especially useful.
 
 ## In this documentation
 
