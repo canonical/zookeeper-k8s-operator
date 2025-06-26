@@ -45,10 +45,13 @@ peers:
 provides:
   zookeeper:
     interface: zookeeper
+    optional: true
   metrics-endpoint:
     interface: prometheus_scrape
+    optional: true
   grafana-dashboard:
     interface: grafana_dashboard
+    optional: true
 
 requires:
   certificates:
