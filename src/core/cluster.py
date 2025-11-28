@@ -4,8 +4,9 @@
 
 """Collection of global cluster state for the ZooKeeper quorum."""
 import logging
+import socket
 from ipaddress import IPv4Address, IPv6Address
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 from charms.data_platform_libs.v0.data_interfaces import (
     DatabaseProviderData,
@@ -14,8 +15,7 @@ from charms.data_platform_libs.v0.data_interfaces import (
     DataPeerUnitData,
 )
 from lightkube.core.exceptions import ApiError as LightKubeApiError
-from ops.framework import Object
-from ops.model import Relation, Unit
+from ops import ModelError, Object, Relation, Unit
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.models import SUBSTRATES, ZKClient, ZKCluster, ZKServer
@@ -58,7 +58,7 @@ class ClusterState(Object):
         return self.model.get_relation(PEER)
 
     @property
-    def client_relations(self) -> Set[Relation]:
+    def client_relations(self) -> set[Relation]:
         """The relations of all client applications."""
         return set(self.model.relations[REL_NAME])
 
@@ -72,6 +72,7 @@ class ClusterState(Object):
             data_interface=self.peer_unit_interface,
             component=self.model.unit,
             substrate=self.substrate,
+            dns=not self.config.certificate_include_ip_sans,
         )
 
     @property
@@ -98,7 +99,7 @@ class ClusterState(Object):
         )
 
     @property
-    def servers(self) -> Set[ZKServer]:
+    def servers(self) -> set[ZKServer]:
         """Grabs all servers in the current peer relation, including the running unit server.
 
         Returns:
@@ -115,6 +116,7 @@ class ClusterState(Object):
                     data_interface=data_interface,
                     component=unit,
                     substrate=self.substrate,
+                    dns=not self.config.certificate_include_ip_sans,
                 )
             )
         servers.add(self.unit_server)
@@ -122,7 +124,7 @@ class ClusterState(Object):
         return servers
 
     @property
-    def clients(self) -> Set[ZKClient]:
+    def clients(self) -> set[ZKClient]:
         """The state for all related client Applications."""
         clients = set()
         for relation in self.client_relations:
@@ -137,8 +139,8 @@ class ClusterState(Object):
                     substrate=self.substrate,
                     local_app=self.cluster.app,
                     password=self.cluster.client_passwords.get(f"relation-{relation.id}", ""),
-                    uris=self.endpoints,
-                    endpoints=self.endpoints,
+                    uris=self.get_endpoints(relation),
+                    endpoints=self.get_endpoints(relation),
                     tls="enabled" if self.cluster.tls else "disabled",
                 )
             )
@@ -202,30 +204,7 @@ class ClusterState(Object):
             raise ValueError(f"{expose} not recognized.")
 
     @property
-    def endpoints(self) -> str:
-        """Comma-separated string of connection uris for all started ZooKeeper units."""
-        if self.substrate == "k8s" and self.config.expose_external is not ExposeExternal.FALSE:
-            try:
-                return self.endpoints_external
-            except Exception as e:
-                logger.debug(e)
-                return ""
-
-        return ",".join(
-            sorted(
-                [
-                    (
-                        f"{server.internal_address}:{self.client_port}"
-                        if self.substrate == "k8s"
-                        else f"{server.internal_address}:{self.client_port}"
-                    )
-                    for server in self.servers
-                ]
-            )
-        )
-
-    @property
-    def started_servers(self) -> Set[ZKServer]:
+    def started_servers(self) -> set[ZKServer]:
         """The server states of all started peer-related Units."""
         return {server for server in self.servers if server.started}
 
@@ -446,3 +425,58 @@ class ClusterState(Object):
         """Are all units done with the current restore instruction?"""
         current_instruction = self.cluster.restore_instruction
         return all((unit.restore_progress is current_instruction for unit in self.servers))
+
+    def get_network_interface(self, relation: Relation | None) -> str:
+        """Returns the network interface name of the relation based on network bindings."""
+        if not relation:
+            return ""
+
+        try:
+            if binding := self.model.get_binding(relation):
+                if interfaces := binding.network.interfaces:
+                    return interfaces[0].name
+        except ModelError as e:
+            logger.error(f"Can't retrieve network binding data: {e}")
+            pass
+
+        return ""
+
+    def get_relation_ip(self, relation: Relation | None) -> str:
+        """Returns the IP of the unit for the specified relation based on network bindings."""
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+
+        # use the network interface we're bound to.
+        if network_interface := self.get_network_interface(relation):
+            s.setsockopt(
+                socket.SOL_SOCKET, socket.SO_BINDTODEVICE, network_interface.encode("utf-8")
+            )
+
+        s.connect(("10.10.10.10", 1))
+        ip = s.getsockname()[0]
+        s.close()
+
+        return ip
+
+    def get_endpoints(self, relation: Relation) -> str:
+        """Returns a comma-separated string of connection uris for all started ZooKeeper units."""
+        if self.substrate == "k8s" and self.config.expose_external is not ExposeExternal.FALSE:
+            try:
+                return self.endpoints_external
+            except LightKubeApiError as e:
+                logger.debug(e)
+                return ""
+
+        endpoints = []
+        for server in self.servers:
+            if self.substrate == "k8s":
+                endpoints.append(f"{server.internal_address}:{self.client_port}")
+            else:
+                if not self.config.certificate_include_ip_sans:
+                    endpoints.append(f"{server.internal_address}:{self.client_port}")
+                else:
+                    endpoints.append(
+                        f"{server.get_relation_ip(relation=relation)}:{self.client_port}"
+                    )
+
+        return ",".join(sorted(endpoints))
