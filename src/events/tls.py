@@ -6,7 +6,6 @@
 import base64
 import json
 import logging
-import os
 import re
 from typing import TYPE_CHECKING
 
@@ -19,7 +18,7 @@ from charms.tls_certificates_interface.v3.tls_certificates import (
 from ops.charm import ActionEvent, RelationCreatedEvent, RelationJoinedEvent
 from ops.framework import EventBase, Object
 
-from literals import SUBSTRATE, Status
+from literals import Status
 
 if TYPE_CHECKING:
     from charm import ZooKeeperCharm
@@ -95,16 +94,14 @@ class TLSEvents(Object):
             }
         )
 
-        subject = (
-            os.uname()[1] if SUBSTRATE == "k8s" else self.charm.state.unit_server.internal_address
-        )
+        subject = self.charm.state.unit_server.internal_address
         sans = self.charm.tls_manager.build_sans()
 
         csr = generate_csr(
             private_key=self.charm.state.unit_server.private_key.encode("utf-8"),
             subject=subject,
-            sans_ip=sans.sans_ip,
-            sans_dns=sans.sans_dns,
+            sans_ip=sans.sans_ip or None,
+            sans_dns=sans.sans_dns or None,
         )
 
         self.charm.state.unit_server.update({"csr": csr.decode("utf-8").strip()})
@@ -142,16 +139,14 @@ class TLSEvents(Object):
             logger.error("Missing unit private key and/or old csr")
             return
 
-        subject = (
-            os.uname()[1] if SUBSTRATE == "k8s" else self.charm.state.unit_server.internal_address
-        )
+        subject = self.charm.state.unit_server.internal_address
         sans = self.charm.tls_manager.build_sans()
 
         new_csr = generate_csr(
             private_key=self.charm.state.unit_server.private_key.encode("utf-8"),
             subject=subject,
-            sans_ip=sans.sans_ip,
-            sans_dns=sans.sans_dns,
+            sans_ip=sans.sans_ip or None,
+            sans_dns=sans.sans_dns or None,
         )
 
         self.certificates.request_certificate_renewal(

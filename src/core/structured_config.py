@@ -21,3 +21,4 @@ class CharmConfig(BaseConfigModel):
     tick_time: int = Field(gt=0)
     log_level: LogLevel
     expose_external: ExposeExternal
+    certificate_include_ip_sans: bool

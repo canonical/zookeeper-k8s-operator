@@ -12,6 +12,7 @@ from lightkube.core.exceptions import ApiError as LightKubeApiError
 from tenacity import retry, retry_if_exception_cause_type, stop_after_attempt, wait_fixed
 
 from core.cluster import SUBSTRATES, ClusterState
+from core.structured_config import CharmConfig
 from core.stubs import SANs
 from core.workload import WorkloadBase
 from literals import GROUP, USER
@@ -22,10 +23,17 @@ logger = logging.getLogger(__name__)
 class TLSManager:
     """Manager for building necessary files for Java TLS auth."""
 
-    def __init__(self, state: ClusterState, workload: WorkloadBase, substrate: SUBSTRATES):
+    def __init__(
+        self,
+        state: ClusterState,
+        workload: WorkloadBase,
+        substrate: SUBSTRATES,
+        config: CharmConfig,
+    ):
         self.state = state
         self.workload = workload
         self.substrate = substrate
+        self.config = config
 
     @retry(
         wait=wait_fixed(5),
@@ -37,8 +45,10 @@ class TLSManager:
         """Builds a SAN structure of DNS names and IPs for the unit."""
         if self.substrate == "vm":
             return SANs(
-                sans_ip=[self.state.unit_server.internal_address],
-                sans_dns=[self.state.unit_server.unit.name, socket.getfqdn()],
+                sans_ip=[self.state.unit_server.internal_address]
+                if self.config.certificate_include_ip_sans
+                else [],
+                sans_dns=[socket.getfqdn()],
             )
         else:
             sans_ip = [str(self.state.bind_address)]
@@ -52,7 +62,7 @@ class TLSManager:
                 pass
 
             return SANs(
-                sans_ip=sorted(sans_ip),
+                sans_ip=sorted(sans_ip) if self.config.certificate_include_ip_sans else [],
                 sans_dns=sorted(
                     [
                         self.state.unit_server.internal_address.split(".")[0],
