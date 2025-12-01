@@ -40,6 +40,30 @@ def ctx() -> Context:
     return ctx
 
 
+@pytest.mark.skipif(SUBSTRATE == "vm", reason="Explicit removal not possible on vm")
+def test_get_updated_servers_explicit_removal(ctx: Context, base_state: State) -> None:
+    # Given
+    added_servers = [
+        "server.2=gandalf.the.grey",
+    ]
+    removed_servers = [
+        "server.2=gandalf.the.grey",
+        "server.3=in.a.hole.in.the.ground.there.lived.a:hobbit",
+    ]
+    state_in = base_state
+
+    # When
+    with ctx(ctx.on.start(), state_in) as manager:
+        charm = cast(ZooKeeperCharm, manager.charm)
+        updated_servers = charm.quorum_manager._get_updated_servers(
+            add=added_servers, remove=removed_servers
+        )
+
+    # Then
+    assert updated_servers == {"2": "removed", "1": "added"}
+
+
+@pytest.mark.skipif(SUBSTRATE == "k8s", reason="Implicit removal only on vm")
 def test_get_updated_servers_implicit_removal(ctx: Context, base_state: State) -> None:
     # Given
     cluster_peer = PeerRelation(
