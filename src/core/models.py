@@ -400,7 +400,7 @@ class ZKServer(RelationState):
     @property
     def server_string(self) -> str:
         """The server string for the ZooKeeper server."""
-        return f"server.{self.server_id}={self.fqdn}:{SERVER_PORT}:{ELECTION_PORT}:participant;0.0.0.0:{CLIENT_PORT}"
+        return f"server.{self.server_id}={self.internal_address}:{SERVER_PORT}:{ELECTION_PORT}:participant;0.0.0.0:{CLIENT_PORT}"
 
     # -- TLS --
 
