@@ -307,9 +307,31 @@ class ConfigManager:
 
         self.workload.write(content=content, path="/etc/environment")
 
+    def _parse_etc_hosts(self) -> dict[str, str]:
+        """Returns a mapping of `FQDN hostname` to IP addresses based on /etc/hosts entries."""
+        records = {
+            line for line in self.workload.read(path="/etc/hosts") if not line.startswith("#")
+        }
+        mapping = {}
+        for record in records:
+            parts = record.strip().split()
+            if parts and len(parts) > 1:
+                mapping[" ".join(parts[1:])] = parts[0]
+        return mapping
+
+    def _update_etc_hosts(self, entries: list[str]) -> list[str]:
+        """Updates previous /etc/hosts entries based on new list of entries in the format `IP FQDN HOSTNAME`."""
+        mapping = self._parse_etc_hosts()
+        for entry in entries:
+            parts = entry.strip().split()
+            if parts and len(parts) > 1:
+                mapping[" ".join(parts[1:])] = parts[0]
+        return [f"{v} {k}" for k, v in mapping.items()]
+
     def set_etc_hosts(self) -> None:
         """Writes to /etc/hosts with peer-related units."""
-        self.workload.write(content="\n".join(self.etc_hosts_entries), path="/etc/hosts")
+        updated_etc_hosts = self._update_etc_hosts(self.etc_hosts_entries)
+        self.workload.write(content=("\n".join(updated_etc_hosts) + "\n"), path="/etc/hosts")
 
     def set_jaas_config(self) -> None:
         """Sets the ZooKeeper JAAS config."""
