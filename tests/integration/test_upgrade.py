@@ -20,6 +20,8 @@ CHANNEL = "3/stable"
 
 @pytest.mark.abort_on_fail
 async def test_in_place_upgrade(ops_test: OpsTest, zk_charm):
+    await ops_test.model.create_storage_pool("test_pool", "lxd")
+
     await asyncio.gather(
         ops_test.model.deploy(
             APP_NAME,
@@ -27,6 +29,7 @@ async def test_in_place_upgrade(ops_test: OpsTest, zk_charm):
             num_units=3,
             channel=CHANNEL,
             trust=True,
+            storage={"zookeeper": {"pool": "test_pool", "size": 10240}},
         ),
         ops_test.model.deploy(
             TLS_NAME,
