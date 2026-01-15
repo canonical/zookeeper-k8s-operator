@@ -8,11 +8,11 @@ options:
     type: int
     default: 5
   sync-limit:
-    description: "Amount of time, in ticks, to allow followers to sync with ZooKeeper."
+    description: "Amount of time, in ticks, to allow followers to sync with Apache ZooKeeper."
     type: int
     default: 2
   tick-time:
-    description: "the length of a single tick, which is the basic time unit used by ZooKeeper, as measured in milliseconds."
+    description: "the length of a single tick, which is the basic time unit used by Apache ZooKeeper, as measured in milliseconds."
     type: int
     default: 2000
   log-level:
@@ -20,7 +20,7 @@ options:
     type: string
     default: "INFO"
   expose-external:
-    description: "String to determine how to expose the ZooKeeper cluster externally from the Kubernetes cluster. Possible values: 'nodeport', 'loadbalancer', 'false'"
+    description: "String to determine how to expose the Apache ZooKeeper cluster externally from the Kubernetes cluster. Possible values: 'nodeport', 'loadbalancer', 'false'"
     type: string
     default: "false"
   loadbalancer-extra-annotations:
