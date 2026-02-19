@@ -74,5 +74,5 @@ storage:
   zookeeper:
     type: filesystem
     description: Directories where snapshot and transaction data is stored
-    minimum-size: 10G
+    minimum-size: 1G
     location: /var/lib/zookeeper
