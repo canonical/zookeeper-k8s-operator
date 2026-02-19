@@ -3,8 +3,10 @@
 # See LICENSE file for licensing details.
 
 """Collection of state objects for the ZooKeeper relations, apps and units."""
+
 import json
 import logging
+import socket
 import warnings
 from collections.abc import MutableMapping
 from functools import cached_property
@@ -316,6 +318,7 @@ class ZKServer(RelationState):
         data_interface: DataPeerUnitData,
         component: Unit,
         substrate: SUBSTRATES,
+        dns: bool = False,
     ):
         super().__init__(relation, data_interface, component, substrate)
         self.unit = component
@@ -323,6 +326,7 @@ class ZKServer(RelationState):
             pod_name=self.pod_name,
             namespace=self.unit._backend.model_name,
         )
+        self.dns = dns
 
     @property
     def unit_id(self) -> int:
@@ -373,16 +377,23 @@ class ZKServer(RelationState):
         return self.unit_id + 1
 
     @property
+    def internal_dns_address(self) -> str:
+        """The DNS address for the unit, for internal communication."""
+        return socket.getfqdn()
+
+    @property
     def internal_address(self) -> str:
         """The hostname for the unit, for internal communication."""
         host = ""
         if self.substrate == "vm":
+            if self.dns:
+                return self.relation_data.get("hostname", "")
             for key in ["ip", "hostname", "private-address"]:
                 if host := self.relation_data.get(key, ""):
                     break
 
         if self.substrate == "k8s":
-            host = f"{self.unit.name.split('/')[0]}-{self.unit_id}.{self.unit.name.split('/')[0]}-endpoints"
+            host = f"{self.unit.name.replace('/', '-')}.{self.unit.app.name}-endpoints"
 
         return host
 
@@ -497,3 +508,7 @@ class ZKServer(RelationState):
         K8s-only.
         """
         return self.k8s.get_loadbalancer()
+
+    def get_relation_ip(self, relation: Relation) -> str:
+        """Returns the IP address for a specific relation taking network binds into account."""
+        return self.relation_data.get(f"ip-{relation.id}") or self.internal_address

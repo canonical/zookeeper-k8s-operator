@@ -94,19 +94,13 @@ class QuorumManager:
         """
         hostname = socket.gethostname()
         fqdn = socket.getfqdn()
-
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0)
-        s.connect(("10.10.10.10", 1))
-        ip = s.getsockname()[0]
-        s.close()
+        ip = self.state.get_relation_ip(self.state.peer_relation)
 
         return {"hostname": hostname, "fqdn": fqdn, "ip": ip}
 
     def _get_updated_servers(self, add: list[str], remove: list[str]) -> dict[str, str]:
         """Simple wrapper for building `updated_servers` for passing to app data updates."""
         servers_to_update = add + remove
-
         updated_servers = {}
         for server_string in servers_to_update:
             unit_id = str(int(re.findall(r"server.([0-9]+)", server_string)[0]) - 1)

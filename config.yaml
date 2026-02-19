@@ -19,6 +19,11 @@ options:
     description: "Level of logging for the different components operated by the charm. Possible values: ERROR, WARNING, INFO, DEBUG"
     type: string
     default: "INFO"
+  certificate-include-ip-sans:
+    type: boolean
+    default: true
+    description:
+      Config option to enable or disable IP addresses in the subject alternative names (SAN) used for certificate signing requests for certificates. This should be set to false if the related TLS provider does not support IP addresses in certificates. When removing IPs, it is expected that DNS is setup correctly to resolve unit addresses.
   expose-external:
     description: "String to determine how to expose the Apache ZooKeeper cluster externally from the Kubernetes cluster. Possible values: 'nodeport', 'loadbalancer', 'false'"
     type: string

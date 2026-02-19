@@ -91,7 +91,7 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
 
         self.quorum_manager = QuorumManager(state=self.state)
         self.tls_manager = TLSManager(
-            state=self.state, workload=self.workload, substrate=SUBSTRATE
+            state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
         )
         self.config_manager = ConfigManager(
             state=self.state, workload=self.workload, substrate=SUBSTRATE, config=self.config
@@ -254,7 +254,8 @@ class ZooKeeperCharm(TypedCharmBase[CharmConfig]):
 
         # since the next steps will 1. update the unit status to active and 2. update the clients,
         # we want to check if the external access is all good before proceeding
-        if not self.state.endpoints:
+        # NOTE: this relation is not used, only used on vm
+        if not self.state.get_endpoints(relation=self.state.peer_relation):
             logger.info("Endpoints not yet known, deferring")
             self.disconnect_clients()
             event.defer()
