@@ -14,7 +14,8 @@ from literals import SECURE_CLIENT_PORT
 from . import (
     APP_NAME,
     MANUAL_TLS_NAME,
-    SERIES, TLS_CONFIG,
+    SERIES,
+    TLS_CONFIG,
     TLS_NAME,
     TLS_OPERATOR_SERIES,
     ZOOKEEPER_IMAGE,
@@ -31,7 +32,6 @@ from .helpers import (
     ping_servers,
     sign_manual_certs,
 )
-
 
 logger = logging.getLogger(__name__)
 

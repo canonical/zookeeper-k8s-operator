@@ -3,9 +3,9 @@
 # See LICENSE file for licensing details.
 
 import json
-import subprocess
 import logging
 import re
+import subprocess
 import tempfile
 from pathlib import Path
 from subprocess import PIPE, CalledProcessError, check_output
