@@ -9,15 +9,29 @@ from subprocess import PIPE, check_output
 import pytest
 from pytest_operator.plugin import OpsTest
 
-from . import APP_NAME, MANUAL_TLS_NAME, SERIES, TLS_NAME, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
+from literals import SECURE_CLIENT_PORT
+
+from . import (
+    APP_NAME,
+    MANUAL_TLS_NAME,
+    SERIES, TLS_CONFIG,
+    TLS_NAME,
+    TLS_OPERATOR_SERIES,
+    ZOOKEEPER_IMAGE,
+)
 from .helpers import (
+    check_hostname_verification,
     check_properties,
+    copy_file_to_unit,
     delete_pod,
     get_address,
+    get_secret_by_label,
+    get_unit_hostname,
     list_truststore_aliases,
     ping_servers,
     sign_manual_certs,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +53,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
             application_name=TLS_NAME,
             channel="edge",
             num_units=1,
-            config={"ca-common-name": "zookeeper"},
+            config=TLS_CONFIG,
             series=TLS_OPERATOR_SERIES,
             # FIXME (certs): Unpin the revision once the charm is fixed
             revision=163,
@@ -87,6 +101,63 @@ async def test_remove_tls_provider(ops_test: OpsTest):
         assert "sslQuorum=true" not in check_properties(
             model_full_name=ops_test.model_full_name, unit=unit.name
         )
+
+
+@pytest.mark.abort_on_fail
+async def test_dns_certificate(ops_test: OpsTest):
+    # re-set up TLS with DNS-only certs
+    await ops_test.model.applications[APP_NAME].set_config(
+        {"certificate-include-ip-sans": "false"}
+    )
+
+    await ops_test.model.deploy(
+        TLS_NAME, channel="edge", config=TLS_CONFIG, series="jammy", revision=163
+    )
+
+    async with ops_test.fast_forward(fast_interval="60s"):
+        await ops_test.model.add_relation(APP_NAME, TLS_NAME)
+
+    # ensuring at least a few update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(60)
+
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME, TLS_NAME], idle_period=30, timeout=1200, status="active"
+    )
+
+    tls_secret = await get_secret_by_label(ops_test, label="ca-certificates", owner=TLS_NAME)
+    root_ca = tls_secret["ca-certificate"]
+
+    test_unit_name = ops_test.model.applications[APP_NAME].units[0].name
+    test_unit_hostname = get_unit_hostname(ops_test=ops_test, unit_name=test_unit_name).strip()
+
+    # copying file to LXD container with DNS
+    copy_file_to_unit(
+        ops_test=ops_test,
+        unit_name=test_unit_name,
+        filename="rootca.pem",
+        content=root_ca,
+    )
+
+    output = check_hostname_verification(
+        ops_test=ops_test,
+        hostname=test_unit_hostname,
+        port=str(SECURE_CLIENT_PORT),
+        cafile_name="rootca.pem",
+        unit_name=test_unit_name,
+    )
+
+    assert f"Verified peername: {test_unit_hostname}" in output
+
+    # cleanup
+    await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
+
+    # ensuring enough time for multiple rolling-restart with update-status
+    async with ops_test.fast_forward(fast_interval="20s"):
+        await asyncio.sleep(90)
+
+    async with ops_test.fast_forward(fast_interval="60s"):
+        await ops_test.model.wait_for_idle(apps=[APP_NAME], idle_period=30, timeout=1000)
 
 
 @pytest.mark.abort_on_fail
