@@ -83,9 +83,7 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
 
 @pytest.mark.abort_on_fail
 async def test_remove_tls_provider(ops_test: OpsTest):
-    await ops_test.model.applications[APP_NAME].remove_relation(
-        f"{APP_NAME}:certificates", f"{TLS_NAME}:certificates"
-    )
+    await ops_test.model.remove_application(TLS_NAME, block_until_done=True)
 
     # ensuring enough time for multiple rolling-restart with update-status
     async with ops_test.fast_forward(fast_interval="20s"):
