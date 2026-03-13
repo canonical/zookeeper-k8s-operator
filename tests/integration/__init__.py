@@ -12,3 +12,4 @@ SERIES = "jammy"
 TLS_OPERATOR_SERIES = "jammy"
 TLS_NAME = "self-signed-certificates"
 MANUAL_TLS_NAME = "manual-tls-certificates"
+TLS_CONFIG = {"ca-common-name": "zookeeper"}

@@ -49,6 +49,11 @@ class ProviderEvents(Object):
         Future `client_relation_changed` events called on non-leader units checks passwords before
             restarting.
         """
+        # Update unit IP for this relation in peer data.
+        self.charm.state.unit_server.update(
+            {f"ip-{event.relation.id}": self.charm.state.get_relation_ip(event.relation)}
+        )
+
         if not self.charm.unit.is_leader() or self.charm.state.cluster.is_restore_in_progress:
             return
 
@@ -101,6 +106,7 @@ class ProviderEvents(Object):
 
         # clearing up broken application passwords
         self.charm.state.cluster.update({f"relation-{event.relation.id}": ""})
+        self.charm.state.unit_server.update({f"ip-{event.relation.id}": ""})
 
         # call normal updated handler
         self._on_client_relation_updated(event=event)
