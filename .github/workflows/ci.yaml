@@ -74,7 +74,7 @@ jobs:
       - lint
       - unit-test
       - build
-    runs-on: self-hosted-linux-amd64-noble-medium
+    runs-on: self-hosted-linux-amd64-noble-large
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -120,7 +120,7 @@ jobs:
       - unit-test
       - build
       - integration-test
-    runs-on: self-hosted-linux-amd64-noble-medium
+    runs-on: self-hosted-linux-amd64-noble-large
     timeout-minutes: 120
     steps:
       - name: Checkout
