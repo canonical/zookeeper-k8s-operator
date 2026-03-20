@@ -42,7 +42,7 @@ class K8sManager:
             if e.status.code == 403:
                 logger.error("Could not apply service, application needs `juju trust`")
                 return
-            if e.status.code == 422 and "port is already allocated" in e.status.message:
+            if e.status.code == 422 and "port is already allocated" in str(e.status.message):
                 logger.error(e.status.message)
                 return
             else:
@@ -190,7 +190,7 @@ class K8sManager:
             raise Exception("Could not find Service spec or ports")
 
         for port in service.spec.ports:
-            if str(port.name).endswith(auth):
+            if str(port.name).endswith(auth) and isinstance(port.nodePort, int):
                 return port.nodePort
 
         raise Exception(f"Unable to find NodePort using {auth} for the {service} service")
