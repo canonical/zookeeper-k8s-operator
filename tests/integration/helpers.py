@@ -5,6 +5,7 @@
 import json
 import logging
 import re
+import subprocess
 import tempfile
 from pathlib import Path
 from subprocess import PIPE, CalledProcessError, check_output
@@ -279,3 +280,47 @@ async def list_truststore_aliases(ops_test: OpsTest, unit: str = f"{APP_NAME}/0"
         trusted_aliases.append(line.split(",")[0])
 
     return trusted_aliases
+
+
+def check_hostname_verification(
+    ops_test: OpsTest, hostname: str, port: str, cafile_name: str, unit_name: str
+) -> str:
+    try:
+        result = check_output(
+            f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container zookeeper {unit_name} 'echo | openssl s_client -connect {hostname}:{port} -CAfile {cafile_name} -verify_hostname {hostname}'",
+            stderr=PIPE,
+            shell=True,
+            universal_newlines=True,
+        )
+        return result
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}, {e.stderr}, {e.stdout}"
+        )
+        raise e
+
+
+def get_unit_hostname(ops_test: OpsTest, unit_name: str) -> str:
+    result = check_output(
+        f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container zookeeper {unit_name} 'hostname -A'",
+        stderr=PIPE,
+        shell=True,
+        universal_newlines=True,
+    )
+    return result
+
+
+def copy_file_to_unit(ops_test: OpsTest, unit_name: str, filename: str, content: str) -> None:
+    try:
+        check_output(
+            f"JUJU_MODEL={ops_test.model_full_name} juju ssh --container zookeeper {unit_name} 'tee -a {filename}'",
+            stderr=PIPE,
+            shell=True,
+            input=content,
+            universal_newlines=True,
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}, {e.stderr}, {e.stdout}"
+        )
+        raise e
