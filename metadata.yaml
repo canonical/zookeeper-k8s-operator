@@ -39,7 +39,8 @@ resources:
   zookeeper-image:
     type: oci-image
     description: OCI Image for Apache ZooKeeper
-    upstream-source: ghcr.io/canonical/charmed-zookeeper@sha256:e37016b76aef497d1b4de2332af479592e9a2e8dcabc296e6c7876e0334906ad
+    # 3.9.2 - 2026-09-03
+    upstream-source: ghcr.io/canonical/charmed-zookeeper@sha256:6f1687f59a2f6d296fe2f7c6be92303d3b3e74d3e4b41b7a516aae2d755d4e0f
 
 peers:
   cluster:
