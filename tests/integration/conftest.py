@@ -4,6 +4,7 @@
 
 import os
 import shutil
+from platform import machine
 
 import pytest
 from pytest_operator.plugin import OpsTest
@@ -23,3 +24,13 @@ async def zk_charm(ops_test: OpsTest):
     """Zookeeper charm used for integration testing."""
     charm = await ops_test.build_charm(".")
     return charm
+
+
+@pytest.fixture(scope="module")
+def platform() -> str:
+    """Fixture to provide the platform architecture for testing."""
+    platforms = {
+        "x86_64": "amd64",
+        "aarch64": "arm64",
+    }
+    return platforms.get(machine(), "amd64")

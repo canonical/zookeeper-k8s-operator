@@ -37,7 +37,8 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm):
+async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm, platform: str):
+    await ops_test.run("juju", "set-model-constraints", f"arch={platform}")
     await asyncio.gather(
         ops_test.model.deploy(
             zk_charm,

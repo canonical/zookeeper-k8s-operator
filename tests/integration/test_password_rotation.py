@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 @pytest.mark.skip_if_deployed
 @pytest.mark.abort_on_fail
 @pytest.mark.password_rotation
-async def test_deploy_active(ops_test: OpsTest, zk_charm):
+async def test_deploy_active(ops_test: OpsTest, zk_charm, platform: str):
+    await ops_test.run("juju", "set-model-constraints", f"arch={platform}")
     await ops_test.model.deploy(
         zk_charm,
         application_name=APP_NAME,
