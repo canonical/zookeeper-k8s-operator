@@ -52,7 +52,7 @@ jobs:
           - .
           - tests/integration/app-charm
     name: Build charm | ${{ matrix.path }}
-    uses: canonical/data-platform-workflows/.github/workflows/build_charm.yaml@6f9c6da60190e1860d33e82da04498a56ea64725 # v51.0.0
+    uses: canonical/data-platform-workflows/.github/workflows/build_charm.yaml@3e06c25ea6d5922a25a96d0c7b6a3c7522e65c9a # v54.0.0
     with:
       path-to-charm-directory: ${{ matrix.path }}
       cache: false
