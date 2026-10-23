@@ -17,7 +17,6 @@ from . import (
     SERIES,
     TLS_CONFIG,
     TLS_NAME,
-    TLS_OPERATOR_SERIES,
     ZOOKEEPER_IMAGE,
 )
 from .helpers import (
@@ -52,12 +51,9 @@ async def test_deploy_ssl_quorum(ops_test: OpsTest, zk_charm, platform: str):
         ops_test.model.deploy(
             TLS_NAME,
             application_name=TLS_NAME,
-            channel="edge",
+            channel="1/stable",
             num_units=1,
             config=TLS_CONFIG,
-            series=TLS_OPERATOR_SERIES,
-            # FIXME (certs): Unpin the revision once the charm is fixed
-            revision=163,
         ),
     )
     await ops_test.model.block_until(lambda: len(ops_test.model.applications[APP_NAME].units) == 3)
@@ -110,7 +106,9 @@ async def test_dns_certificate(ops_test: OpsTest):
     )
 
     await ops_test.model.deploy(
-        TLS_NAME, channel="edge", config=TLS_CONFIG, series="jammy", revision=163
+        TLS_NAME,
+        channel="latest/stable",
+        config=TLS_CONFIG,
     )
 
     async with ops_test.fast_forward(fast_interval="60s"):
@@ -213,10 +211,9 @@ async def test_add_tls_provider_succeeds_after_removal(ops_test: OpsTest):
         ops_test.model.deploy(
             TLS_NAME,
             application_name=TLS_NAME,
-            channel="edge",
+            channel="latest/stable",
             num_units=1,
             config={"ca-common-name": "zookeeper"},
-            revision=163,
         ),
     )
 
