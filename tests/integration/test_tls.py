@@ -160,7 +160,7 @@ async def test_dns_certificate(ops_test: OpsTest):
 @pytest.mark.abort_on_fail
 async def test_manual_tls_chain(ops_test: OpsTest):
     await ops_test.model.deploy(
-        MANUAL_TLS_NAME, application_name=MANUAL_TLS_NAME, channel="stable"
+        MANUAL_TLS_NAME, application_name=MANUAL_TLS_NAME, channel="1/stable"
     )
 
     await asyncio.gather(
