@@ -57,7 +57,10 @@ def s3_bucket(cloud_credentials, cloud_configs):
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_active(ops_test: OpsTest, zk_charm, cloud_configs, cloud_credentials):
+async def test_deploy_active(
+    ops_test: OpsTest, zk_charm, cloud_configs, cloud_credentials, platform: str
+):
+    await ops_test.run("juju", "set-model-constraints", f"arch={platform}")
     await asyncio.gather(
         ops_test.model.deploy(
             zk_charm,

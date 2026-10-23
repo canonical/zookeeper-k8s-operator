@@ -12,7 +12,8 @@ CLIENT_TIMEOUT = 10
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_active(ops_test: OpsTest, zk_charm):
+async def test_deploy_active(ops_test: OpsTest, zk_charm, platform: str):
+    await ops_test.run("juju", "set-model-constraints", f"arch={platform}")
     await ops_test.model.deploy(
         zk_charm,
         application_name=helpers.APP_NAME,

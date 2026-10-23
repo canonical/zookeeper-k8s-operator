@@ -10,7 +10,7 @@ from pytest_operator.plugin import OpsTest
 
 from literals import DEPENDENCIES
 
-from . import APP_NAME, TLS_NAME, TLS_OPERATOR_SERIES, ZOOKEEPER_IMAGE
+from . import APP_NAME, TLS_NAME, ZOOKEEPER_IMAGE
 from .helpers import correct_version_running, get_relation_data, ping_servers
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,8 @@ CHANNEL = "3/stable"
 
 
 @pytest.mark.abort_on_fail
-async def test_in_place_upgrade(ops_test: OpsTest, zk_charm):
+async def test_in_place_upgrade(ops_test: OpsTest, zk_charm, platform: str):
+    await ops_test.run("juju", "set-model-constraints", f"arch={platform}")
     await asyncio.gather(
         ops_test.model.deploy(
             APP_NAME,
@@ -31,12 +32,9 @@ async def test_in_place_upgrade(ops_test: OpsTest, zk_charm):
         ops_test.model.deploy(
             TLS_NAME,
             application_name=TLS_NAME,
-            channel="edge",
+            channel="latest/stable",
             num_units=1,
             config={"ca-common-name": "zookeeper"},
-            series=TLS_OPERATOR_SERIES,
-            # FIXME (certs): Unpin the revision once the charm is fixed
-            revision=163,
         ),
     )
 
