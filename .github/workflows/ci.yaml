@@ -73,6 +73,13 @@ jobs:
         runner:
           - ubuntu-24.04
           - ubuntu-24.04-arm
+
+        exclude:
+
+          # TODO(arm64): Re enable once arm64 released to stable
+          - tox-environments: integration-upgrade
+            runner: ubuntu-24.04-arm
+
     name: ${{ matrix.tox-environments }} - ${{ matrix.runner }}
     needs:
       - lint
