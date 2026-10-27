@@ -21,7 +21,8 @@ DUMMY_NAME_2 = "appii"
 
 
 @pytest.mark.abort_on_fail
-async def test_deploy_charms_relate_active(ops_test: OpsTest, zk_charm):
+async def test_deploy_charms_relate_active(ops_test: OpsTest, zk_charm, platform: str):
+    await ops_test.run("juju", "set-model-constraints", f"arch={platform}")
     app_charm = await ops_test.build_charm("tests/integration/app-charm")
 
     await asyncio.gather(
